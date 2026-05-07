@@ -16,6 +16,7 @@ import {
   bulkDeleteLinkedinJobs,
   bulkUpdateLinkedinJobStatus,
   deleteLinkedinSavedSearch,
+  getLinkedinSettings,
   listLinkedinHistory,
   listSavedLinkedinSearches,
   saveLinkedinSearchDefinition,
@@ -49,6 +50,17 @@ export const getSavedLinkedinSearches = createServerFn({ method: "GET" }).handle
   const user = await resolveSessionUser();
   if (!user) throw new Error("Not authenticated");
   return listSavedLinkedinSearches(user.id);
+});
+
+export const getLinkedinCronInfo = createServerFn({ method: "GET" }).handler(async () => {
+  const user = await resolveSessionUser();
+  if (!user) throw new Error("Not authenticated");
+  const settings = await getLinkedinSettings();
+  return {
+    cronFrequency: settings.linkedinSearchCronFrequency,
+    cronStartHour: settings.linkedinCronStartHour,
+    cronVarianceMinutes: settings.linkedinCronVarianceMinutes,
+  };
 });
 
 export const saveLinkedinSearch = createServerFn({ method: "POST" })

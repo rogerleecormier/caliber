@@ -55,6 +55,7 @@ export interface LinkedinSearchDrawerProps {
   fullName: string | null;
   initialSavedSearches: SavedLinkedinSearchRow[];
   preload?: DrawerPreload;
+  cronStartHour?: number | null;
   onSearchComplete: (
     jobs: LinkedInScrapedJob[],
     meta: { warnings: string[]; searchUrl: string },
@@ -192,6 +193,12 @@ function FieldLabelWithInfo({ htmlFor, label, tooltip }: { htmlFor?: string; lab
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
+function formatCronLocalTime(utcHour: number): string {
+  const d = new Date();
+  d.setUTCHours(utcHour, 0, 0, 0);
+  return d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+}
+
 export function LinkedinSearchDrawer({
   open,
   onOpenChange,
@@ -199,12 +206,15 @@ export function LinkedinSearchDrawer({
   fullName,
   initialSavedSearches,
   preload,
+  cronStartHour,
   onSearchComplete,
 }: LinkedinSearchDrawerProps) {
   const [form, setForm] = useState<FormState>(defaultForm);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [savedSearchName, setSavedSearchName] = useState("");
+  const [saveName, setSaveName] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [runningSearchId, setRunningSearchId] = useState<number | null>(null);
   const [savedSearches, setSavedSearches] = useState(initialSavedSearches);
   const [activeSavedSearchId, setActiveSavedSearchId] = useState<number | null>(null);
   const [showAdvanced, setShowAdvanced] = useState(false);
@@ -212,11 +222,18 @@ export function LinkedinSearchDrawer({
   const [selectedPresets, setSelectedPresets] = useState<SearchPreset[]>(defaultSearchPresets);
 
   useEffect(() => {
-    if (!preload) return;
+    if (!preload) {
+      setActiveSavedSearchId(null);
+      return;
+    }
     setActiveSavedSearchId(preload.id);
-    setSavedSearchName(preload.name);
     setForm(criteriaToForm(preload.criteria));
   }, [preload]);
+
+  // Reset active search tracking when drawer closes so the next open is fresh.
+  useEffect(() => {
+    if (!open) setActiveSavedSearchId(null);
+  }, [open]);
 
   function update<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -264,30 +281,54 @@ export function LinkedinSearchDrawer({
   }
 
   async function handleSaveSearch() {
-    const criteria: LinkedInSearchParams = {
-      keywords: form.keywords,
-      location: form.location,
-      company: form.company || undefined,
-      workplaceTypes: form.workplaceTypes as LinkedInSearchParams["workplaceTypes"],
-      experienceLevels: form.experienceLevels as LinkedInSearchParams["experienceLevels"],
-      jobTypes: form.jobTypes as LinkedInSearchParams["jobTypes"],
-      postedWithin: form.postedWithin,
-      salaryMin: form.salaryMin ? Number(form.salaryMin) : null,
-      easyApply: form.easyApply,
-      sortBy: form.sortBy,
-      page: form.page,
-      pagesToScan: form.pagesToScan,
-      limit: form.limit,
-    };
-    const name = savedSearchName.trim() || form.keywords.trim();
+    const name = saveName.trim() || form.keywords.trim();
     if (!name) {
-      setError("Enter a search name or keywords before saving.");
+      setError("Enter a search name or fill in keywords before saving.");
       return;
     }
-    await saveLinkedinSearch({ data: { id: activeSavedSearchId ?? undefined, name, criteria, isActive: true } });
-    const next = await getSavedLinkedinSearches();
-    setSavedSearches(next);
-    setSavedSearchName("");
+    setSaving(true);
+    setError(null);
+    try {
+      const criteria: LinkedInSearchParams = {
+        keywords: form.keywords,
+        location: form.location,
+        company: form.company || undefined,
+        workplaceTypes: form.workplaceTypes as LinkedInSearchParams["workplaceTypes"],
+        experienceLevels: form.experienceLevels as LinkedInSearchParams["experienceLevels"],
+        jobTypes: form.jobTypes as LinkedInSearchParams["jobTypes"],
+        postedWithin: form.postedWithin,
+        salaryMin: form.salaryMin ? Number(form.salaryMin) : null,
+        easyApply: form.easyApply,
+        sortBy: form.sortBy,
+        page: form.page,
+        pagesToScan: form.pagesToScan,
+        limit: form.limit,
+      };
+      await saveLinkedinSearch({ data: { name, criteria, isActive: false } });
+      const next = await getSavedLinkedinSearches();
+      setSavedSearches(next);
+      setSaveName("");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to save search.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleRunSavedSearch(saved: SavedLinkedinSearchRow) {
+    setRunningSearchId(saved.id);
+    setError(null);
+    try {
+      const result = await runLinkedinSearch(saved.criteria, { activeSavedSearchId: saved.id });
+      const next = await getSavedLinkedinSearches();
+      setSavedSearches(next);
+      onSearchComplete(result.jobs, { warnings: result.warnings, searchUrl: result.searchUrl });
+      onOpenChange(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Search failed.");
+    } finally {
+      setRunningSearchId(null);
+    }
   }
 
   async function handleDeleteSavedSearch(id: number) {
@@ -307,7 +348,6 @@ export function LinkedinSearchDrawer({
     const saved = savedSearches.find((s) => s.id === id);
     if (!saved) return;
     setActiveSavedSearchId(saved.id);
-    setSavedSearchName(saved.name);
     setForm(criteriaToForm(saved.criteria));
   }
 
@@ -622,24 +662,49 @@ export function LinkedinSearchDrawer({
               </div>
             ) : null}
 
-            {/* Submit */}
-            <Button
-              type="submit"
-              disabled={loading || !hasResume}
-              className="w-full bg-red-600 text-white hover:bg-red-700 focus-visible:ring-red-300"
-            >
-              {loading ? (
-                <span className="inline-flex items-center gap-2">
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Searching LinkedIn…
-                </span>
-              ) : (
-                <span className="inline-flex items-center gap-2">
-                  <Search className="h-4 w-4" />
-                  Search and Score
-                </span>
-              )}
-            </Button>
+            {/* Save name + action buttons */}
+            <div className="space-y-2">
+              <Input
+                value={saveName}
+                onChange={(e: ChangeEvent<HTMLInputElement>) => setSaveName(e.target.value)}
+                placeholder={form.keywords.trim() || "Search name (for saving)…"}
+              />
+              <div className="grid grid-cols-2 gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={saving || loading}
+                  onClick={handleSaveSearch}
+                  className="w-full"
+                >
+                  {saving ? (
+                    <span className="inline-flex items-center gap-2">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Saving…
+                    </span>
+                  ) : (
+                    "Save Search"
+                  )}
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={loading || !hasResume}
+                  className="w-full bg-red-600 text-white hover:bg-red-700 focus-visible:ring-red-300"
+                >
+                  {loading ? (
+                    <span className="inline-flex items-center gap-2">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Searching…
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-2">
+                      <Search className="h-4 w-4" />
+                      Run Search
+                    </span>
+                  )}
+                </Button>
+              </div>
+            </div>
           </form>
 
           {error ? (
@@ -650,19 +715,10 @@ export function LinkedinSearchDrawer({
           <div className="border-t border-slate-200 pt-5">
             <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-500">Saved Searches</p>
             <div className="space-y-3">
-              <div className="space-y-2">
-                <Input
-                  value={savedSearchName}
-                  onChange={(e: ChangeEvent<HTMLInputElement>) => setSavedSearchName(e.target.value)}
-                  placeholder="Save this search as…"
-                />
-                <Button type="button" onClick={handleSaveSearch} disabled={!hasResume} className="w-full" variant="outline">
-                  Save Search
-                </Button>
-              </div>
-
               {savedSearches.length === 0 ? (
-                <p className="text-sm text-slate-500">No saved LinkedIn searches yet.</p>
+                <p className="text-sm text-slate-500">
+                  No saved searches yet. Check "Save as new search" above and run a search to create one.
+                </p>
               ) : (
                 savedSearches.map((saved) => (
                   <div key={saved.id} className="rounded-xl border border-slate-200 bg-white/80 p-3">
@@ -679,8 +735,26 @@ export function LinkedinSearchDrawer({
                         onChange={(e) => handleToggleSavedSearchCron(saved.id, e.target.checked)}
                       />
                       Active in cron
+                      {saved.isActive && cronStartHour != null && (
+                        <span className="text-slate-400">· {formatCronLocalTime(cronStartHour)}</span>
+                      )}
                     </label>
                     <div className="mt-2 flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => void handleRunSavedSearch(saved)}
+                        disabled={runningSearchId !== null || loading}
+                        className="flex-1 rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-semibold text-indigo-700 transition hover:bg-indigo-100 disabled:opacity-50"
+                      >
+                        {runningSearchId === saved.id ? (
+                          <span className="flex items-center justify-center gap-1">
+                            <Loader2 className="h-3 w-3 animate-spin" />
+                            Running
+                          </span>
+                        ) : (
+                          "Run"
+                        )}
+                      </button>
                       <button
                         type="button"
                         onClick={() => loadSavedSearch(saved.id)}

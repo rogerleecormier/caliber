@@ -3,10 +3,10 @@ import type { ChangeEvent } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Archive,
+  BookMarked,
   Briefcase,
   History,
   Loader2,
-  Plus,
   Search,
   Trash2,
   Wand2,
@@ -26,20 +26,16 @@ import {
   LinkedinResultCard,
   type LinkedinJobStatus,
 } from "@/components/features/linkedin-result-card";
-import {
-  LinkedinSearchDrawer,
-  type DrawerPreload,
-} from "@/components/features/linkedin-search-drawer";
+import { LinkedinSearchDrawer } from "@/components/features/linkedin-search-drawer";
 import { getResume } from "@/server/functions/manage-resume";
 import {
   archiveLinkedinJobs,
   deleteLinkedinJobs,
+  getLinkedinCronInfo,
   getLinkedinJobHistory,
   getSavedLinkedinSearches,
   setLinkedinJobStatus,
 } from "@/server/functions/linkedin-searches";
-import { runLinkedinSearch } from "@/lib/run-linkedin-search";
-import type { SavedLinkedinSearchRow } from "@/lib/linkedin-persistence";
 import type { LinkedInScrapedJob } from "@/lib/linkedin-search";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -103,10 +99,11 @@ export const Route = createFileRoute("/linkedin-hub")({
     requireLinkedInSearchOwner(context.user as any);
   },
   loader: async ({ deps }: { deps: HubSearchParams }) => {
-    const [resume, savedSearches, history] = await Promise.all([
+    const [resume, savedSearches, history, cronInfo] = await Promise.all([
       getResume(),
       getSavedLinkedinSearches(),
       getLinkedinJobHistory({ data: { ...deps, pageSize: PAGE_SIZE } }),
+      getLinkedinCronInfo(),
     ]);
     return {
       hasResume: !!resume?.rawText,
@@ -116,6 +113,7 @@ export const Route = createFileRoute("/linkedin-hub")({
       total: history.total,
       statusCounts: history.statusCounts,
       canViewAllUsers: history.canViewAllUsers,
+      cronStartHour: cronInfo.cronStartHour,
     };
   },
   component: LinkedinHubPage,
@@ -125,7 +123,7 @@ export const Route = createFileRoute("/linkedin-hub")({
 
 function LinkedinHubPage() {
   const { page, query, remote, green, sortBy, status: activeStatus } = Route.useSearch();
-  const { hasResume, fullName, savedSearches: loaderSavedSearches, rows, total, statusCounts, canViewAllUsers } =
+  const { hasResume, fullName, savedSearches: loaderSavedSearches, rows, total, statusCounts, canViewAllUsers, cronStartHour } =
     Route.useLoaderData();
   const navigate = Route.useNavigate();
   const router = useRouter();
@@ -137,9 +135,7 @@ function LinkedinHubPage() {
   const [pendingStatusId, setPendingStatusId] = useState<number | null>(null);
   const [pendingBulkAction, setPendingBulkAction] = useState<"archive" | "delete" | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [drawerPreload, setDrawerPreload] = useState<DrawerPreload>(null);
   const [searchWarnings, setSearchWarnings] = useState<string[]>([]);
-  const [runningSearchId, setRunningSearchId] = useState<number | null>(null);
   const [cronNewCount, setCronNewCount] = useState(0);
   const didMount = useRef(false);
 
@@ -304,26 +300,7 @@ function LinkedinHubPage() {
     void router.invalidate();
   }
 
-  // Runs a saved search directly (no drawer) via the sidebar "Run" button.
-  async function handleRunSavedSearch(saved: SavedLinkedinSearchRow) {
-    setRunningSearchId(saved.id);
-    try {
-      const result = await runLinkedinSearch(saved.criteria, { activeSavedSearchId: saved.id });
-      handleSearchComplete(result.jobs, { warnings: result.warnings, searchUrl: result.searchUrl });
-    } catch (err) {
-      alert(err instanceof Error ? err.message : "Search failed.");
-    } finally {
-      setRunningSearchId(null);
-    }
-  }
-
   function openFreshDrawer() {
-    setDrawerPreload(null);
-    setDrawerOpen(true);
-  }
-
-  function openDrawerWithSearch(saved: SavedLinkedinSearchRow) {
-    setDrawerPreload({ id: saved.id, name: saved.name, criteria: saved.criteria });
     setDrawerOpen(true);
   }
 
@@ -366,6 +343,19 @@ function LinkedinHubPage() {
               <History className="h-4 w-4" />
               Internal Board
             </Link>
+            <button
+              type="button"
+              onClick={openFreshDrawer}
+              className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white/80 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-white"
+            >
+              <BookMarked className="h-4 w-4" />
+              Saved Searches
+              {loaderSavedSearches.length > 0 && (
+                <span className="rounded-full bg-slate-900 px-1.5 py-0.5 text-[10px] font-bold text-white leading-none">
+                  {loaderSavedSearches.length}
+                </span>
+              )}
+            </button>
             <button
               type="button"
               onClick={openFreshDrawer}
@@ -431,81 +421,7 @@ function LinkedinHubPage() {
         </div>
       )}
 
-      <div className="grid gap-6 xl:grid-cols-[240px_minmax(0,1fr)] xl:items-start">
-        {/* ── Saved Searches sidebar (xl+) ──────────────────────────────── */}
-        <aside className="hidden xl:flex xl:flex-col xl:gap-3 xl:sticky xl:top-6 xl:self-start">
-          <div className="flex items-center justify-between">
-            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-              Saved Searches
-            </p>
-            <button
-              type="button"
-              onClick={openFreshDrawer}
-              className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 transition hover:bg-slate-50"
-              aria-label="New search"
-            >
-              <Plus className="h-3.5 w-3.5" />
-            </button>
-          </div>
-
-          {loaderSavedSearches.length === 0 ? (
-            <div className="rounded-xl border border-dashed border-slate-200 px-4 py-5 text-center">
-              <p className="text-xs text-slate-500">No saved searches yet.</p>
-              <button
-                type="button"
-                onClick={openFreshDrawer}
-                className="mt-2 text-xs font-semibold text-primary-600 hover:underline"
-              >
-                Run your first search →
-              </button>
-            </div>
-          ) : (
-            loaderSavedSearches.map((saved) => (
-              <div
-                key={saved.id}
-                className="group rounded-xl border border-slate-200 bg-white/80 p-3 transition hover:border-slate-300 hover:shadow-sm"
-              >
-                <p className="truncate text-sm font-semibold text-slate-800">{saved.name}</p>
-                <p className="mt-0.5 truncate text-[11px] text-slate-500">
-                  {saved.criteria.keywords}
-                </p>
-                {saved.isActive && (
-                  <span className="mt-1.5 inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-medium text-emerald-700">
-                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                    Cron active
-                  </span>
-                )}
-                <div className="mt-2 flex gap-1.5">
-                  <button
-                    type="button"
-                    onClick={() => void handleRunSavedSearch(saved)}
-                    disabled={runningSearchId !== null}
-                    className="flex-1 rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-semibold text-indigo-700 transition hover:bg-indigo-100 disabled:opacity-50"
-                  >
-                    {runningSearchId === saved.id ? (
-                      <span className="flex items-center justify-center gap-1">
-                        <Loader2 className="h-3 w-3 animate-spin" />
-                        Running
-                      </span>
-                    ) : (
-                      "Run"
-                    )}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => openDrawerWithSearch(saved)}
-                    className="flex-1 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
-                  >
-                    Open
-                  </button>
-                </div>
-              </div>
-            ))
-          )}
-        </aside>
-
-        {/* ── Main content ──────────────────────────────────────────────── */}
-        <div className="space-y-5">
+      <div className="space-y-5">
           <PageSection
             title="Job Pipeline"
             description="Persisted LinkedIn jobs are pruned according to admin retention settings."
@@ -723,16 +639,15 @@ function LinkedinHubPage() {
             />
           </PageSection>
         </div>
-      </div>
 
-      {/* Search drawer — rendered outside the grid so it portals correctly */}
       <LinkedinSearchDrawer
         open={drawerOpen}
         onOpenChange={setDrawerOpen}
         hasResume={hasResume}
         fullName={fullName}
         initialSavedSearches={loaderSavedSearches}
-        preload={drawerPreload}
+        preload={null}
+        cronStartHour={cronStartHour}
         onSearchComplete={handleSearchComplete}
       />
     </div>
