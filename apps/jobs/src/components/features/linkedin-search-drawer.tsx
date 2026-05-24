@@ -383,10 +383,10 @@ export function LinkedinSearchDrawer({
         {/* sticky header */}
         <div className="shrink-0 border-b border-slate-200 px-6 py-4 pr-14">
           <SheetTitle className="text-base font-semibold text-slate-900">
-            ApexAgent Configuration
+            Caliber Agent Settings
           </SheetTitle>
           <p className="mt-0.5 text-xs text-slate-500">
-            Configure your AI job search agent parameters and active sources.
+            Configure your high-precision job search agent parameters and active sources.
           </p>
         </div>
 
@@ -443,9 +443,9 @@ export function LinkedinSearchDrawer({
             </div>
 
             {/* Agent Settings */}
-            <div className="rounded-xl border border-violet-100 bg-violet-50/30 p-4 space-y-4">
-              <p className="text-sm font-semibold text-violet-900 flex items-center gap-1.5">
-                <span className="h-2 w-2 rounded-full bg-violet-600 animate-pulse" />
+            <div className="rounded-xl border border-amber-200 bg-amber-500/5 p-4 space-y-4">
+              <p className="text-sm font-semibold text-amber-900 flex items-center gap-1.5">
+                <span className="h-2 w-2 rounded-full bg-amber-500 animate-pulse" />
                 Agent Configuration
               </p>
               
@@ -460,7 +460,7 @@ export function LinkedinSearchDrawer({
                     id="drawer-run-interval"
                     value={form.runIntervalHours}
                     onChange={(e) => update("runIntervalHours", Number(e.target.value))}
-                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-violet-500"
+                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-amber-500"
                   >
                     <option value={1}>Every 1 hour</option>
                     <option value={2}>Every 2 hours</option>
@@ -490,7 +490,7 @@ export function LinkedinSearchDrawer({
                               : [...form.sources, src.id];
                             update("sources", nextSources);
                           }}
-                          className="h-4 w-4 rounded border-slate-300 text-violet-600 focus:ring-violet-500"
+                          className="h-4 w-4 rounded border-slate-300 text-amber-600 focus:ring-amber-500"
                         />
                         {src.label}
                       </label>
@@ -698,7 +698,7 @@ export function LinkedinSearchDrawer({
                 <div className="p-4">
                   <div className="mb-0.5 flex items-center gap-2">
                     <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Discovery Strategy</p>
-                    <span className="rounded-full border border-violet-200 bg-violet-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-violet-700">
+                    <span className="rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-700">
                       Advanced
                     </span>
                   </div>
@@ -816,7 +816,7 @@ export function LinkedinSearchDrawer({
                         {saved.runIntervalHours}h interval
                       </span>
                       {saved.sources.map(s => (
-                        <span key={s} className="rounded bg-violet-50 px-1.5 py-0.5 font-medium text-violet-600 capitalize">
+                        <span key={s} className="rounded bg-amber-50 border border-amber-100 px-1.5 py-0.5 font-medium text-amber-700 capitalize">
                           {s}
                         </span>
                       ))}

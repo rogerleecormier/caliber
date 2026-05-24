@@ -407,7 +407,7 @@ function HomePage() {
                 <p>Analysis runs only when requested. Your documents stay tied to your account and are used only for your workflow.</p>
               </div>
               <div className="border-t border-slate-100 pt-3 text-xs text-slate-400">
-                Powered by Cloudflare Workers AI and your ApexAgent account data.
+                Powered by Cloudflare Workers AI and your Caliber account data.
               </div>
             </div>
           </div>

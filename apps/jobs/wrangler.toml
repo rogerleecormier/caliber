@@ -1,4 +1,4 @@
-name = "spearyx-jobs"
+name = "caliber-agent"
 compatibility_date = "2025-11-30"
 compatibility_flags = ["nodejs_compat"]
 main = "worker.ts"
@@ -20,22 +20,20 @@ head_sampling_rate = 1
 
 [[d1_databases]]
 binding = "DB"
-database_name = "spearyx-jobs"
-database_id = "991bbe3f-8b3a-4ce4-9de8-c2110052662f"
-preview_database_id = "991bbe3f-8b3a-4ce4-9de8-c2110052662f"
+database_name = "apex-db"
+database_id = "748c0e4f-002f-4601-a831-4fe05bfd3e2f"
+preview_database_id = "748c0e4f-002f-4601-a831-4fe05bfd3e2f"
 migrations_dir = "drizzle"
 
 # R2 bucket for generated PDF documents (resumes, cover letters)
-# Bucket must be created before deploying: wrangler r2 bucket create spearyx-documents
 [[r2_buckets]]
 binding = "R2"
-bucket_name = "spearyx-documents"
+bucket_name = "apex-documents"
 
 # KV namespace for session tokens (7-day TTL) and URL scrape cache
-# Namespace must be created before deploying: wrangler kv namespace create spearyx-sessions
 [[kv_namespaces]]
 binding = "KV"
-id = "07de8044b8154750a0cfc2e5eaa60f2c"
+id = "ab583242d9ba46ab91ae5b7e488dc8c2"
 
 # Browser Rendering API for job URL scraping
 [browser]

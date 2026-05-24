@@ -72,7 +72,7 @@ const LINKEDIN_JOB_STATUSES: LinkedinJobStatus[] = [
 
 const STATUS_PIPELINE_TONES: Record<LinkedinJobStatus, string> = {
   Analyzed: "bg-slate-500",
-  Prepped: "bg-violet-500",
+  Prepped: "bg-slate-600",
   Applied: "bg-emerald-500",
   Interviewed: "bg-sky-500",
   Hired: "bg-amber-500",
@@ -95,7 +95,7 @@ export const Route = createFileRoute("/linkedin-hub")({
   loaderDeps: ({ search }: { search: HubSearchParams }) => search,
   beforeLoad: ({ context, location }) => {
     const ctx = context as { user?: { id: number; role: string } | null };
-    if (!ctx.user) requireLoginRedirect(location, "ApexAgent Dashboard");
+    if (!ctx.user) requireLoginRedirect(location, "Caliber Dashboard");
     requireLinkedInSearchOwner(context.user as any);
   },
   loader: async ({ deps }: { deps: HubSearchParams }) => {
@@ -319,13 +319,13 @@ function LinkedinHubPage() {
   return (
     <div className="spx-page spx-stack">
       <PageHero
-        eyebrow="ApexAgent"
+        eyebrow="Caliber"
         icon={<Briefcase className="h-3.5 w-3.5" />}
-        title="Your AI Agent Job Pipeline"
+        title="Your High-Caliber Job Pipeline"
         description={
           canViewAllUsers
             ? "Browse all users' agent jobs and manage the full pipeline."
-            : "Deploy background agents to search LinkedIn, Greenhouse, Lever, and Workable on your schedule."
+            : "Deploy high-precision background agents to search LinkedIn, Greenhouse, Lever, and Workable on your schedule, surfacing only top-tier matches."
         }
         actions={
           <div className="flex flex-wrap items-center gap-2">
@@ -351,7 +351,7 @@ function LinkedinHubPage() {
               <BookMarked className="h-4 w-4" />
               Active Agents
               {loaderSavedSearches.length > 0 && (
-                <span className="rounded-full bg-violet-600 px-1.5 py-0.5 text-[10px] font-bold text-white leading-none">
+                <span className="rounded-full bg-amber-600 px-1.5 py-0.5 text-[10px] font-bold text-white leading-none">
                   {loaderSavedSearches.length}
                 </span>
               )}
@@ -359,7 +359,7 @@ function LinkedinHubPage() {
             <button
               type="button"
               onClick={openFreshDrawer}
-              className="inline-flex items-center gap-2 rounded-lg bg-violet-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-violet-700"
+              className="inline-flex items-center gap-2 rounded-lg bg-slate-900 border border-slate-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800 hover:text-amber-400"
             >
               <Search className="h-4 w-4" />
               Configure Agents
@@ -622,7 +622,7 @@ function LinkedinHubPage() {
                   <button
                     type="button"
                     onClick={openFreshDrawer}
-                    className="inline-flex items-center gap-2 rounded-lg bg-violet-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-violet-700"
+                    className="inline-flex items-center gap-2 rounded-lg bg-slate-900 border border-slate-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800 hover:text-amber-400"
                   >
                     <Search className="h-4 w-4" />
                     Configure Agents

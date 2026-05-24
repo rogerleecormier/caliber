@@ -119,10 +119,10 @@ function MockJobCard() {
       </div>
       {/* AI strip */}
       <div className="px-5 py-2 flex items-center gap-2 border-t"
-        style={{ background: "rgba(139,92,246,0.04)", borderColor: "rgba(139,92,246,0.1)" }}>
-        <Sparkles size={10} className="text-violet-400" />
-        <span className="text-[10px] text-violet-500 font-semibold flex-1">AI Score: 87 · Resume match analysis available</span>
-        <TrendingUp size={10} className="text-violet-400" />
+        style={{ background: "rgba(217,119,6,0.04)", borderColor: "rgba(217,119,6,0.1)" }}>
+        <Sparkles size={10} className="text-amber-500" />
+        <span className="text-[10px] text-amber-700 font-semibold flex-1">AI Score: 87 · Resume match analysis available</span>
+        <TrendingUp size={10} className="text-amber-500" />
       </div>
       {/* Footer buttons */}
       <div className="px-4 py-2.5 flex items-center justify-end gap-1.5 border-t"
@@ -132,11 +132,11 @@ function MockJobCard() {
           <FileText size={11} /> Tailor
         </span>
         <span className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold rounded-lg"
-          style={{ background: "rgba(139,92,246,0.08)", color: "#7c3aed", border: "1px solid rgba(139,92,246,0.2)" }}>
-          <Sparkles size={11} /> AI Analysis
+          style={{ background: "rgba(217,119,6,0.08)", color: "#d97706", border: "1px solid rgba(217,119,6,0.2)" }}>
+          <Sparkles size={11} className="text-amber-500" /> AI Analysis
         </span>
         <span className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-bold rounded-lg text-white"
-          style={{ background: "linear-gradient(135deg,#ef4444 0%,#dc2626 100%)" }}>
+          style={{ background: "linear-gradient(135deg,#334155 0%,#1e293b 100%)" }}>
           Apply
         </span>
       </div>
@@ -226,8 +226,8 @@ function MockResumeCard() {
     <div className="space-y-3">
       {/* Section header */}
       <div className="flex items-center gap-2">
-        <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-violet-50 border border-violet-100">
-          <Wand2 className="h-3.5 w-3.5 text-violet-600" />
+        <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-amber-50 border border-amber-100">
+          <Wand2 className="h-3.5 w-3.5 text-amber-600" />
         </div>
         <span className="text-sm font-semibold text-slate-800">Generate Documents</span>
       </div>
@@ -384,23 +384,23 @@ function JobsHome() {
             background: "radial-gradient(ellipse 70% 50% at 50% 0%, rgba(99,102,241,0.08) 0%, transparent 70%)",
           }}
         />
-        <div className="inline-flex items-center gap-2 rounded-full border border-indigo-100 bg-indigo-50 px-4 py-1.5 text-xs font-semibold uppercase tracking-widest text-indigo-600 mb-6">
-          <Sparkles className="h-3 w-3" />
-          AI-Powered Job Search Agents
+        <div className="inline-flex items-center gap-2 rounded-full border border-amber-200 bg-amber-50 px-4 py-1.5 text-xs font-semibold uppercase tracking-widest text-amber-700 mb-6">
+          <Sparkles className="h-3 w-3 text-amber-500" />
+          High-Caliber Job Search Curation
         </div>
         <h1 className="text-4xl font-extrabold tracking-tight text-slate-900 sm:text-5xl lg:text-6xl mb-5">
           Stop searching.<br />
-          <span className="text-indigo-600">Let AI find your next role.</span>
+          <span className="text-amber-600">Surface only high-caliber roles.</span>
         </h1>
         <p className="mx-auto max-w-2xl text-lg text-slate-500 mb-8">
-          ApexAgent deploys automated search agents that scan LinkedIn and public job boards at custom intervals, match listings against your resume, and generate tailored ATS applications.
+          Caliber deploys high-precision search agents that filter out generic listings, matching only top-tier remote roles against your experience and standards.
         </p>
         <div className="flex flex-wrap items-center justify-center gap-3">
           <Link
             to="/linkedin-hub"
-            className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-6 py-3 text-sm font-semibold text-white shadow-sm shadow-indigo-900/15 transition hover:bg-indigo-700 hover:shadow-md"
+            className="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-6 py-3 text-sm font-semibold text-white hover:text-amber-400 border border-slate-700 shadow-sm transition hover:bg-slate-800"
           >
-            <Zap className="h-4 w-4" />
+            <Zap className="h-4 w-4 text-amber-400" />
             Launch Search Agents
           </Link>
           <Link
@@ -433,7 +433,7 @@ function JobsHome() {
       <section className="mx-auto max-w-5xl px-4 py-14">
         <FeatureSection
           eyebrow="AI Analysis Report"
-          accent="border-violet-100 bg-violet-50 text-violet-700"
+          accent="border-amber-100 bg-amber-50 text-amber-700"
           title="Know exactly where you stand before you apply."
           description="Every matched job gets a comprehensive AI analysis report — including match score, pursue/consider/pass verdict, key requirement gaps, and strategic application notes."
           bullets={[
@@ -451,7 +451,7 @@ function JobsHome() {
         <FeatureSection
           reverse
           eyebrow="Automated Agents"
-          accent="border-indigo-100 bg-indigo-50 text-indigo-700"
+          accent="border-slate-200 bg-slate-50 text-slate-700"
           title="Find remote jobs from multiple sources on auto-pilot."
           description="Create custom search agents targeting LinkedIn along with public ATS job boards like Greenhouse, Lever, and Workable. Your agents sync matches and alert you on the intervals you configure."
           bullets={[
@@ -542,14 +542,14 @@ function JobsHome() {
               body: "Every analysis includes a trajectory assessment — does this role advance your career, hold it steady, or pull it sideways? Salary projection included.",
             },
             {
-              icon: <Search className="h-5 w-5 text-indigo-600" />,
-              bg: "bg-indigo-50 border-indigo-100",
+              icon: <Search className="h-5 w-5 text-slate-600" />,
+              bg: "bg-slate-50 border-slate-100",
               title: "Gap Analysis",
               body: "Every requirement in the job description is checked against your resume — covered, partial, or missing — so you know exactly what to address in your application.",
             },
             {
-              icon: <BarChart3 className="h-5 w-5 text-indigo-600" />,
-              bg: "bg-indigo-50 border-indigo-100",
+              icon: <BarChart3 className="h-5 w-5 text-slate-600" />,
+              bg: "bg-slate-50 border-slate-100",
               title: "Analysis History",
               body: "Every job you analyze is saved with its full report, documents, and applied status. Review, regenerate, or download at any time.",
             },
@@ -592,7 +592,7 @@ function JobsHome() {
                 step: "01",
                 icon: <FileUser size={16} className="text-indigo-600" />,
                 title: "Upload your master resume",
-                body: "Add your resume once on your profile page — paste the text or upload a PDF. ApexAgent extracts every role, skill, achievement, and certification as your AI source of truth.",
+                body: "Add your resume once on your profile page — paste the text or upload a PDF. Caliber extracts every role, skill, achievement, and certification as your AI source of truth.",
                 to: "/profile",
                 cta: "Set up profile",
               },
@@ -651,16 +651,16 @@ function JobsHome() {
         <div
           className="relative overflow-hidden rounded-3xl p-10 text-center"
           style={{
-            background: "linear-gradient(135deg, rgba(99,102,241,0.08) 0%, rgba(99,102,241,0.04) 40%, rgba(168,85,247,0.06) 100%)",
-            border: "1px solid rgba(99,102,241,0.15)",
+            background: "linear-gradient(135deg, rgba(217,119,6,0.06) 0%, rgba(30,41,59,0.04) 40%, rgba(217,119,6,0.02) 100%)",
+            border: "1px solid rgba(217,119,6,0.15)",
           }}
         >
           <div className="absolute inset-0 -z-10 pointer-events-none"
             style={{
-              background: "radial-gradient(ellipse 60% 80% at 50% 120%, rgba(99,102,241,0.06) 0%, transparent 60%)",
+              background: "radial-gradient(ellipse 60% 80% at 50% 120%, rgba(217,119,6,0.04) 0%, transparent 60%)",
             }}
           />
-          <Sparkles className="mx-auto mb-4 h-8 w-8 text-indigo-400" />
+          <Sparkles className="mx-auto mb-4 h-8 w-8 text-amber-500" />
           <h2 className="text-2xl font-bold text-slate-900 sm:text-3xl mb-3">
             Deploy your job search agents
           </h2>
@@ -670,9 +670,9 @@ function JobsHome() {
           <div className="flex flex-wrap items-center justify-center gap-3">
             <Link
               to="/linkedin-hub"
-              className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-700"
+              className="inline-flex items-center gap-2 rounded-xl bg-slate-900 border border-slate-700 text-white hover:text-amber-400 px-6 py-3 text-sm font-semibold shadow-sm transition hover:bg-slate-800"
             >
-              <Zap className="h-4 w-4" />
+              <Zap className="h-4 w-4 text-amber-400" />
               Configure your agents
             </Link>
             <Link

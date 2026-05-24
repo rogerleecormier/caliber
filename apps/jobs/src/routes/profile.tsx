@@ -23,7 +23,7 @@ function ProfilePage() {
         eyebrow="Candidate Profile"
         icon={<FileUser className="h-3.5 w-3.5" />}
         title="My Profile"
-        description="Upload or refine your master resume. ApexAgent uses this profile across analyses, resume generation, and cover letter generation."
+        description="Upload or refine your master resume. Caliber uses this profile across analyses, resume generation, and cover letter generation."
       />
       <PageSection
         title="Master Resume"

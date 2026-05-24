@@ -552,7 +552,7 @@ export function AppHeader({
     <a href="/" className="inline-flex items-center group">
       <img
         src="/images/spearyx-logo.svg"
-        alt="ApexAgent"
+        alt="Caliber"
         className="h-7 w-auto transition-opacity duration-200 group-hover:opacity-75"
       />
     </a>

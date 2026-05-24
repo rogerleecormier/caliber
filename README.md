@@ -1,6 +1,6 @@
-# ApexAgent Monorepo
+# Caliber Monorepo
 
-Welcome to **ApexAgent**, a consolidated AI-powered job search agent application. ApexAgent deploys automated search agents in the background to scan LinkedIn and public job boards (Greenhouse, Lever, Workable), scores matches against your master resume using LLMs, and generates tailored, zero-hallucination ATS resumes and cover letters.
+Welcome to **Caliber**, a consolidated high-precision, high-curation job search agent application. Caliber deploys automated search agents in the background to scan LinkedIn and public job boards (Greenhouse, Lever, Workable), scores matches against your master resume using LLMs, and generates tailored, zero-hallucination ATS resumes and cover letters.
 
 ---
 
@@ -8,7 +8,7 @@ Welcome to **ApexAgent**, a consolidated AI-powered job search agent application
 
 This monorepo is managed using `pnpm` workspaces:
 
-* **`apps/jobs`**: The main ApexAgent web application. Built with TanStack Start, Drizzle ORM, SQLite/D1, Cloudflare Workers AI, and Puppeteer.
+* **`apps/jobs`**: The main Caliber web application. Built with TanStack Start, Drizzle ORM, SQLite/D1, Cloudflare Workers AI, and Puppeteer.
 * **`apps/corporate`**: The corporate landing page.
 * **`packages/ui-kit`**: Shared UI component library styled with glassmorphism highlights.
 * **`packages/shared-config`**: Shared build and style configurations.
@@ -57,7 +57,7 @@ Start the dev servers for both the corporate page and the main jobs app in paral
 pnpm dev
 ```
 * **Corporate landing page** runs on: `http://localhost:3000`
-* **ApexAgent Dashboard** runs on: `http://localhost:3003`
+* **Caliber Dashboard** runs on: `http://localhost:3003`
 
 ### 5. Build Verification
 Verify everything compiles and builds clean for production:

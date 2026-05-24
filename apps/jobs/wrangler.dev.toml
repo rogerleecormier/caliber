@@ -1,12 +1,12 @@
-name = "spearyx-jobs"
+name = "caliber-agent"
 compatibility_date = "2025-11-30"
 compatibility_flags = ["nodejs_compat"]
 
 [[d1_databases]]
 binding = "DB"
-database_name = "spearyx-jobs"
-database_id = "991bbe3f-8b3a-4ce4-9de8-c2110052662f"
-preview_database_id = "991bbe3f-8b3a-4ce4-9de8-c2110052662f"
+database_name = "apex-db"
+database_id = "748c0e4f-002f-4601-a831-4fe05bfd3e2f"
+preview_database_id = "748c0e4f-002f-4601-a831-4fe05bfd3e2f"
 migrations_dir = "drizzle"
 
 [assets]
