@@ -3,6 +3,9 @@ compatibility_date = "2025-11-30"
 compatibility_flags = ["nodejs_compat"]
 main = "worker.ts"
 
+[vars]
+BETTER_AUTH_URL = "https://caliber.rcormier.dev"
+
 [observability]
 enabled = true
 head_sampling_rate = 1

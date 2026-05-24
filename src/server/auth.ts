@@ -12,6 +12,7 @@ export function getAuthInstance(env: CloudflareEnv) {
   const db = getDb(env.DB);
 
   return betterAuth({
+    baseURL: env.BETTER_AUTH_URL || "http://localhost:3003",
     database: drizzleAdapter(db, {
       provider: "sqlite",
       schema,
