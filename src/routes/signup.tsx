@@ -15,6 +15,7 @@ export const Route = createFileRoute("/signup")({
 function SignupPage() {
   const navigate = useNavigate();
   const router = useRouter();
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -26,7 +27,7 @@ function SignupPage() {
     setLoading(true);
 
     try {
-      const result = await registerUser({ email, password });
+      const result = await registerUser({ name, email, password });
       if (result.user) {
         await router.invalidate();
         navigate({ to: "/" });
@@ -47,6 +48,18 @@ function SignupPage() {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium mb-1">Name</label>
+            <input
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              required
+              className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              placeholder="Jane Smith"
+            />
+          </div>
+
           <div>
             <label className="block text-sm font-medium mb-1">Email</label>
             <input

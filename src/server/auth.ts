@@ -1,4 +1,5 @@
 import { betterAuth } from "better-auth";
+import { admin } from "better-auth/plugins";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import type { CloudflareEnv } from "@/lib/cloudflare";
 import { getDb } from "@/db/db";
@@ -8,19 +9,31 @@ export function getAuthInstance(env: CloudflareEnv) {
   if (!env.DB) {
     throw new Error("Database binding unavailable");
   }
+  if (!env.BETTER_AUTH_SECRET) {
+    throw new Error("BETTER_AUTH_SECRET environment variable is required");
+  }
+  if (!env.BETTER_AUTH_URL) {
+    throw new Error("BETTER_AUTH_URL environment variable is required");
+  }
 
   const db = getDb(env.DB);
 
   return betterAuth({
-    baseURL: env.BETTER_AUTH_URL || "http://localhost:3003",
+    baseURL: env.BETTER_AUTH_URL,
     database: drizzleAdapter(db, {
       provider: "sqlite",
       schema,
     }),
-    secret: env.BETTER_AUTH_SECRET || "your-secret-key-change-in-production",
+    secret: env.BETTER_AUTH_SECRET,
     emailAndPassword: {
       enabled: true,
       passwordMinLength: 8,
     },
+    plugins: [
+      admin({
+        defaultRole: "user",
+        adminRole: "admin",
+      }),
+    ],
   });
 }

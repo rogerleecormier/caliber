@@ -7,18 +7,26 @@ import { getAuthInstance } from "@/server/auth";
 import { eq } from "drizzle-orm";
 import { getDb } from "@/db/db";
 import { users } from "@/db/schema";
+import { z } from "zod";
+
+const credentialsSchema = z.object({
+  name: z.string().min(1, "Name is required"),
+  email: z.string().email("Invalid email address"),
+  password: z.string().min(8, "Password must be at least 8 characters"),
+});
 
 /**
  * Register with email and password using better-auth.
  */
 export const registerUser = createServerFn({ method: "POST" })
-  .inputValidator((data: { email: string; password: string }) => data)
+  .inputValidator((data) => credentialsSchema.parse(data))
   .handler(async ({ data }): Promise<{ user: SessionUser }> => {
     try {
       const env = getCloudflareEnv();
       const auth = getAuthInstance(env);
 
       const result = await auth.api.signUpEmail({
+        name: data.name,
         email: data.email,
         password: data.password,
       });
@@ -56,7 +64,7 @@ export const registerUser = createServerFn({ method: "POST" })
  * Sign in with email and password using better-auth.
  */
 export const loginUser = createServerFn({ method: "POST" })
-  .inputValidator((data: { email: string; password: string }) => data)
+  .inputValidator((data) => credentialsSchema.parse(data))
   .handler(async ({ data }): Promise<{ user: SessionUser }> => {
     const env = getCloudflareEnv();
     const auth = getAuthInstance(env);
