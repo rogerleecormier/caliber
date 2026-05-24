@@ -383,7 +383,7 @@ export function LinkedinSearchDrawer({
         {/* sticky header */}
         <div className="shrink-0 border-b border-slate-200 px-6 py-4 pr-14">
           <SheetTitle className="text-base font-semibold text-slate-900">
-            Caliber Agent Settings
+            Caliber Settings
           </SheetTitle>
           <p className="mt-0.5 text-xs text-slate-500">
             Configure your high-precision job search agent parameters and active sources.

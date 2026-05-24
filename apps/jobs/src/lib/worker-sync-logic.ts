@@ -696,7 +696,7 @@ export async function syncAggregator(
 
     const response = await fetch(apiUrl, {
       headers: {
-        'User-Agent': 'SpearyxJobBot/1.0 (https://caliber.rcormier.dev)'
+        'User-Agent': 'CaliberBot/1.0 (https://caliber.rcormier.dev)'
       }
     })
 
