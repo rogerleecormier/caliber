@@ -1,5 +1,5 @@
 {
-  "name": "@spearyx/ui-kit",
+  "name": "@caliber/ui-kit",
   "version": "0.0.0",
   "private": true,
   "main": "./src/index.ts",

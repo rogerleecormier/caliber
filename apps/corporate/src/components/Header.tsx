@@ -1,5 +1,5 @@
 import { Link, useLocation, useRouter } from "@tanstack/react-router";
-import { AppHeader } from "@spearyx/ui-kit";
+import { AppHeader } from "@caliber/ui-kit";
 import type { SessionUser } from "@/lib/cloudflare";
 import { logoutUser } from "@/server/functions/auth";
 

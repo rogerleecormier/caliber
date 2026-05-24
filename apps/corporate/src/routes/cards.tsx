@@ -39,13 +39,13 @@ import {
   InteractiveCard,
   PageHero,
   PageSection,
-} from "@spearyx/ui-kit";
+} from "@caliber/ui-kit";
 import {
   Headline,
   Title,
   Body,
   Overline,
-} from "@spearyx/ui-kit";
+} from "@caliber/ui-kit";
 
 export const Route = createFileRoute("/cards")({
   component: CardsLibrary,
@@ -1013,7 +1013,7 @@ function CardsLibrary() {
   TimelineCard,
   SkeletonCard,
   EmptyStateCard,
-} from '@spearyx/ui-kit'`}
+} from '@caliber/ui-kit'`}
                 </pre>
               </div>
             </div>

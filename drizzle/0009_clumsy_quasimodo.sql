@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX `jobs_source_url_unique` ON `jobs` (`source_url`);

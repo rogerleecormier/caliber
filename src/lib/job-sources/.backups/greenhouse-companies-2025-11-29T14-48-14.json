@@ -1,0 +1,217 @@
+{
+  "version": "1.0",
+  "lastUpdated": "2025-11-29",
+  "description": "Comprehensive list of companies using Greenhouse ATS that commonly hire remote workers",
+  "categories": {
+    "tech-giants": {
+      "name": "Tech Giants & Fortune 500",
+      "companies": [
+        "airbnb",
+        "honeycomb",
+        "karat",
+        "lastpass",
+        "lyft",
+        "medium",
+        "neo4j",
+        "pinterest",
+        "reddit",
+        "robinhood",
+        "wayfair",
+        "wikimedia",
+        "wrike"
+      ]
+    },
+    "established-tech": {
+      "name": "Established Tech Companies",
+      "companies": [
+        "alchemy",
+        "apollo",
+        "assemblyai",
+        "bungie",
+        "chargepoint",
+        "coinbase",
+        "cortex",
+        "databricks",
+        "datadog",
+        "descript",
+        "discord",
+        "domo",
+        "dropbox",
+        "elastic",
+        "fastly",
+        "figma",
+        "gather",
+        "gitlab",
+        "hashicorp",
+        "hubspot",
+        "intercom",
+        "materialize",
+        "mongodb",
+        "mozilla",
+        "okta",
+        "pagerduty",
+        "roblox",
+        "stripe",
+        "turing",
+        "twilio",
+        "upwork",
+        "verkada"
+      ]
+    },
+    "remote-first": {
+      "name": "Remote-First Companies",
+      "companies": [
+        "ghost",
+        "knock",
+        "remote",
+        "webflow"
+      ]
+    },
+    "startups-scaleups": {
+      "name": "High-Growth Startups & Scale-ups",
+      "companies": [
+        "airtable",
+        "algolia",
+        "amplitude",
+        "benchling",
+        "brex",
+        "checkr",
+        "cockroachlabs",
+        "contentful",
+        "instacart",
+        "lattice",
+        "launchdarkly",
+        "mixpanel",
+        "netlify",
+        "postman",
+        "retool",
+        "vercel"
+      ]
+    },
+    "fintech": {
+      "name": "Fintech & Crypto",
+      "companies": [
+        "adyen",
+        "affirm",
+        "bitgo",
+        "blockchain",
+        "chime",
+        "gemini",
+        "marqeta"
+      ]
+    },
+    "security-devops": {
+      "name": "Security & DevOps",
+      "companies": [
+        "bitwarden",
+        "clickhouse",
+        "hashicorp",
+        "tailscale",
+        "vultr"
+      ]
+    },
+    "developer-tools": {
+      "name": "Developer Tools & Platforms",
+      "companies": [
+        "buildkite",
+        "circleci",
+        "gitlab",
+        "jetbrains",
+        "launchdarkly",
+        "mattermost"
+      ]
+    },
+    "data-analytics": {
+      "name": "Data & Analytics",
+      "companies": [
+        "backblaze",
+        "braze",
+        "customerio",
+        "fivetran",
+        "hightouch",
+        "iterable",
+        "klaviyo",
+        "pendo",
+        "planetscale",
+        "sezzle"
+      ]
+    },
+    "saas-products": {
+      "name": "SaaS & Product Companies",
+      "companies": [
+        "airtable",
+        "asana",
+        "clickup",
+        "smartsheet",
+        "sumologic"
+      ]
+    },
+    "ecommerce-marketplace": {
+      "name": "E-commerce & Marketplaces",
+      "companies": [
+        "grailed",
+        "mercari",
+        "poshmark",
+        "rebag",
+        "stockx"
+      ]
+    },
+    "healthcare-biotech": {
+      "name": "Healthcare & Biotech",
+      "companies": [
+        "23andme",
+        "maven",
+        "oscar"
+      ]
+    },
+    "education-learning": {
+      "name": "Education & Learning",
+      "companies": [
+        "babbel",
+        "coursera",
+        "duolingo",
+        "masterclass",
+        "udacity",
+        "udemy"
+      ]
+    },
+    "design-creative": {
+      "name": "Design & Creative Tools",
+      "companies": [
+        "anthropic",
+        "stackblitz"
+      ]
+    },
+    "communication": {
+      "name": "Communication & Collaboration",
+      "companies": [
+        "pubnub",
+        "sendbird",
+        "twilio",
+        "vonage"
+      ]
+    },
+    "yc-companies": {
+      "name": "Y Combinator Alumni",
+      "companies": [
+        "airbnb",
+        "amplitude",
+        "brex",
+        "checkr",
+        "coinbase",
+        "flexport",
+        "gusto",
+        "instacart",
+        "reddit",
+        "retool",
+        "stripe",
+        "twitch"
+      ]
+    }
+  },
+  "notes": {
+    "usage": "Company slugs should be lowercase and hyphenated. Test each new addition to ensure it's a valid Greenhouse board.",
+    "maintenance": "Regularly update this list by removing inactive companies and adding new ones that are actively hiring remotely.",
+    "discovery": "New companies can be discovered by checking career pages for 'Powered by Greenhouse' or monitoring job board aggregators."
+  }
+}

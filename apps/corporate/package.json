@@ -1,5 +1,5 @@
 {
-  "name": "@spearyx/corporate",
+  "name": "@caliber/corporate",
   "private": true,
   "type": "module",
   "scripts": {
@@ -16,9 +16,9 @@
     "@radix-ui/react-dropdown-menu": "^2.1.16",
     "@radix-ui/react-slot": "^1.2.4",
     "@radix-ui/react-tooltip": "^1.2.8",
-    "@spearyx/shared-config": "workspace:*",
-    "@spearyx/shared-utils": "workspace:*",
-    "@spearyx/ui-kit": "workspace:*",
+    "@caliber/shared-config": "workspace:*",
+    "@caliber/shared-utils": "workspace:*",
+    "@caliber/ui-kit": "workspace:*",
     "@tailwindcss/vite": "^4.0.6",
     "@tanstack/react-devtools": "^0.7.0",
     "@tanstack/react-router": "^1.132.0",

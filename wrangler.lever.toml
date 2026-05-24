@@ -1,0 +1,15 @@
+name = "caliber-sync-lever"
+main = "src/workers/lever-sync.ts"
+compatibility_date = "2025-11-30"
+compatibility_flags = ["nodejs_compat"]
+
+[triggers]
+crons = ["*/2 * * * *"]  # Every 2 minutes
+
+[[d1_databases]]
+binding = "DB"
+database_name = "caliber-db"
+database_id = "55a19e36-ed5b-4a31-83db-56ec83dd9a71"
+
+[observability]
+enabled = true

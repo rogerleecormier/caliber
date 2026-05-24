@@ -1,0 +1,1 @@
+ALTER TABLE `sync_history` ADD `sync_type` text DEFAULT 'job_sync' NOT NULL;

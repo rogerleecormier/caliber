@@ -1,0 +1,15 @@
+name = "caliber-sync-discovery"
+main = "src/workers/discovery-sync.ts"
+compatibility_date = "2025-11-30"
+compatibility_flags = ["nodejs_compat"]
+
+[triggers]
+crons = ["0,6,12,18,24,30,36,42,48,54 * * * *"]  # Every 6 min at :00
+
+[[d1_databases]]
+binding = "DB"
+database_name = "caliber-db"
+database_id = "55a19e36-ed5b-4a31-83db-56ec83dd9a71"
+
+[observability]
+enabled = true

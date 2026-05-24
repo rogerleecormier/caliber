@@ -1,5 +1,5 @@
 import { HeadContent, Scripts, createRootRoute } from "@tanstack/react-router";
-import { TooltipProvider } from "@spearyx/ui-kit";
+import { TooltipProvider } from "@caliber/ui-kit";
 import Header from "../components/Header";
 import { getCurrentUser } from "@/server/functions/auth";
 import type { SessionUser } from "@/lib/cloudflare";

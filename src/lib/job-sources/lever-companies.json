@@ -1,0 +1,195 @@
+{
+  "version": "1.0.0",
+  "lastUpdated": "2025-12-14",
+  "description": "List of companies using Lever for job postings",
+  "categories": {
+    "tech-giants": {
+      "name": "Tech Giants",
+      "companies": [
+        "atlassian",
+        "coupa",
+        "entrata",
+        "netflix",
+        "palantir",
+        "people-ai",
+        "skillshare",
+        "toptal",
+        "whoop",
+        "workwave"
+      ]
+    },
+    "remote-first": {
+      "name": "Remote-First Companies",
+      "companies": [
+        "zapier",
+        "gitlab",
+        "buffer",
+        "automattic",
+        "doist",
+        "loom",
+        "remote",
+        "oyster",
+        "deel"
+      ]
+    },
+    "fintech": {
+      "name": "Fintech & Payments",
+      "companies": [
+        "mercury",
+        "brex",
+        "ramp",
+        "stripe",
+        "plaid",
+        "rippling",
+        "carta",
+        "gusto"
+      ]
+    },
+    "saas-products": {
+      "name": "SaaS Products",
+      "companies": [
+        "15five",
+        "anchorage",
+        "better",
+        "brightedge",
+        "brilliant",
+        "clari",
+        "clubhouse",
+        "docebo",
+        "frontify",
+        "govini",
+        "jumpcloud",
+        "metabase",
+        "outreach",
+        "plaid",
+        "revel",
+        "ro",
+        "scaleway",
+        "shippo",
+        "stackblitz",
+        "wealthfront",
+        "whereby",
+        "notion",
+        "coda",
+        "airtable",
+        "linear",
+        "raycast"
+      ]
+    },
+    "developer-tools": {
+      "name": "Developer Tools",
+      "companies": [
+        "filevine",
+        "loadsmart",
+        "sophos",
+        "spotify",
+        "postman",
+        "algolia",
+        "segment",
+        "datadog"
+      ]
+    },
+    "crypto-web3": {
+      "name": "Crypto & Web3",
+      "companies": [
+        "kraken",
+        "ledger",
+        "coinbase",
+        "alchemy",
+        "polygon"
+      ]
+    },
+    "healthcare": {
+      "name": "Healthcare & Medical",
+      "companies": [
+        "hims",
+        "ro",
+        "talkspace",
+        "spring-health",
+        "lyra-health",
+        "modern-health",
+        "cerebral",
+        "alma",
+        "grow-therapy",
+        "headspace",
+        "calm",
+        "teladoc",
+        "doximity",
+        "phreesia",
+        "signify-health"
+      ]
+    },
+    "education": {
+      "name": "Education & Training",
+      "companies": [
+        "coursera",
+        "udemy",
+        "duolingo",
+        "masterclass",
+        "pluralsight",
+        "codecademy",
+        "datacamp",
+        "outschool",
+        "thinkific",
+        "teachable",
+        "degreed",
+        "instructure",
+        "chegg"
+      ]
+    },
+    "legal-compliance": {
+      "name": "Legal & Compliance",
+      "companies": [
+        "ironclad",
+        "clio",
+        "filevine",
+        "icertis",
+        "linksquares",
+        "docusign",
+        "legalzoom",
+        "unit21",
+        "alloy"
+      ]
+    },
+    "admin-hr-finance": {
+      "name": "Admin, HR & Finance",
+      "companies": [
+        "bamboohr",
+        "lattice",
+        "hibob",
+        "deel",
+        "oyster",
+        "papaya-global",
+        "freshbooks",
+        "xero",
+        "bench",
+        "expensify",
+        "chargebee",
+        "bill-com",
+        "belay",
+        "boldly",
+        "ttec",
+        "concentrix"
+      ]
+    },
+    "writing-localization": {
+      "name": "Writing & Localization",
+      "companies": [
+        "contently",
+        "nerdwallet",
+        "medium",
+        "substack",
+        "verbit",
+        "smartling",
+        "lionbridge",
+        "transperfect",
+        "welocalize"
+      ]
+    }
+  },
+  "notes": {
+    "usage": "Used by lever.ts to fetch jobs",
+    "maintenance": "Run npm run lever:cleanup to remove 404s",
+    "discovery": "Run npm run lever:discover to find new companies"
+  }
+}

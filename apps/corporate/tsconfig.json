@@ -26,9 +26,9 @@
     "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"],
-      "@spearyx/ui-kit": ["../../packages/ui-kit/src/index.ts"],
-      "@spearyx/shared-utils": ["../../packages/shared-utils/src/index.ts"],
-      "@spearyx/shared-config": ["../../packages/shared-config/src/index.ts"]
+      "@caliber/ui-kit": ["../../packages/ui-kit/src/index.ts"],
+      "@caliber/shared-utils": ["../../packages/shared-utils/src/index.ts"],
+      "@caliber/shared-config": ["../../packages/shared-config/src/index.ts"]
     }
   }
 }

@@ -1,0 +1,9 @@
+@import "@spearyx/shared-config/styles";
+@import "@spearyx/ui-kit/src/typography.css";
+@import "./jobs.css";
+
+/* Prevent Radix UI scroll-lock from shifting the page */
+body[data-scroll-locked] {
+  padding-right: 0 !important;
+  margin-right: 0 !important;
+}

@@ -1,0 +1,69 @@
+{
+  "version": "1.0.0",
+  "lastUpdated": "2025-11-29",
+  "description": "List of companies using Lever for job postings",
+  "categories": {
+    "tech-giants": {
+      "name": "Tech Giants",
+      "companies": [
+        "atlassian",
+        "coupa",
+        "entrata",
+        "netflix",
+        "palantir",
+        "people-ai",
+        "skillshare",
+        "toptal",
+        "whoop",
+        "workwave"
+      ]
+    },
+    "saas-products": {
+      "name": "SaaS Products",
+      "companies": [
+        "15five",
+        "anchorage",
+        "better",
+        "brightedge",
+        "brilliant",
+        "clari",
+        "clubhouse",
+        "docebo",
+        "frontify",
+        "govini",
+        "jumpcloud",
+        "metabase",
+        "outreach",
+        "plaid",
+        "revel",
+        "ro",
+        "scaleway",
+        "shippo",
+        "stackblitz",
+        "wealthfront",
+        "whereby"
+      ]
+    },
+    "developer-tools": {
+      "name": "Developer Tools",
+      "companies": [
+        "filevine",
+        "loadsmart",
+        "sophos",
+        "spotify"
+      ]
+    },
+    "crypto-web3": {
+      "name": "Crypto & Web3",
+      "companies": [
+        "kraken",
+        "ledger"
+      ]
+    }
+  },
+  "notes": {
+    "usage": "Used by lever.ts to fetch jobs",
+    "maintenance": "Run npm run lever:cleanup to remove 404s",
+    "discovery": "Run npm run lever:discover to find new companies"
+  }
+}

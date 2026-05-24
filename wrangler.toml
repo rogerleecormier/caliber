@@ -1,0 +1,56 @@
+name = "caliber-agent"
+compatibility_date = "2025-11-30"
+compatibility_flags = ["nodejs_compat"]
+main = "worker.ts"
+
+[observability]
+enabled = true
+head_sampling_rate = 1
+
+[observability.logs]
+enabled = true
+head_sampling_rate = 1
+persist = true
+invocation_logs = true
+
+[observability.traces]
+enabled = false
+persist = true
+head_sampling_rate = 1
+
+[[d1_databases]]
+binding = "DB"
+database_name = "caliber-db"
+database_id = "55a19e36-ed5b-4a31-83db-56ec83dd9a71"
+preview_database_id = "55a19e36-ed5b-4a31-83db-56ec83dd9a71"
+migrations_dir = "drizzle"
+
+# R2 bucket for generated PDF documents (resumes, cover letters)
+[[r2_buckets]]
+binding = "R2"
+bucket_name = "caliber-documents"
+
+# KV namespace for session tokens (7-day TTL) and URL scrape cache
+[[kv_namespaces]]
+binding = "KV"
+id = "0356f2290c784e4789b76a9c1956bdda"
+
+# Browser Rendering API for job URL scraping
+[browser]
+binding = "BROWSER"
+
+[assets]
+directory = "dist/client"
+
+[[routes]]
+pattern = "jobs.spearyx.com"
+custom_domain = true
+
+[ai]
+binding = "AI"
+remote = true
+
+# Hourly scheduler. App settings decide whether LinkedIn saved searches run hourly,
+# every 6 hours, or daily, and analytics remains throttled inside the worker.
+[triggers]
+crons = ["0 * * * *"]

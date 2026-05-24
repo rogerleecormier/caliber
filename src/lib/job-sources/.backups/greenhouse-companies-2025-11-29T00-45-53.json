@@ -1,0 +1,186 @@
+{
+  "version": "1.0",
+  "lastUpdated": "2025-11-29",
+  "description": "Comprehensive list of companies using Greenhouse ATS that commonly hire remote workers",
+  "categories": {
+    "tech-giants": {
+      "name": "Tech Giants & Fortune 500",
+      "companies": [
+        "lyft",
+        "airbnb",
+        "wayfair",
+        "pinterest",
+        "reddit",
+        "robinhood"
+      ]
+    },
+    "established-tech": {
+      "name": "Established Tech Companies",
+      "companies": [
+        "gitlab",
+        "stripe",
+        "figma",
+        "coinbase",
+        "elastic",
+        "hashicorp",
+        "datadog",
+        "twilio",
+        "dropbox",
+        "hubspot",
+        "mozilla",
+        "discord",
+        "verkada",
+        "okta",
+        "intercom",
+        "pagerduty",
+        "mongodb",
+        "databricks"
+      ]
+    },
+    "remote-first": {
+      "name": "Remote-First Companies",
+      "companies": [
+        "webflow",
+        "ghost",
+        "remote"
+      ]
+    },
+    "startups-scaleups": {
+      "name": "High-Growth Startups & Scale-ups",
+      "companies": [
+        "checkr",
+        "benchling",
+        "lattice",
+        "airtable",
+        "cockroachlabs",
+        "postman",
+        "retool",
+        "instacart",
+        "brex",
+        "mixpanel",
+        "algolia",
+        "amplitude",
+        "launchdarkly",
+        "vercel",
+        "netlify",
+        "contentful"
+      ]
+    },
+    "fintech": {
+      "name": "Fintech & Crypto",
+      "companies": [
+        "affirm",
+        "adyen",
+        "gemini",
+        "blockchain",
+        "bitgo",
+        "marqeta",
+        "chime"
+      ]
+    },
+    "security-devops": {
+      "name": "Security & DevOps",
+      "companies": [
+        "bitwarden",
+        "tailscale",
+        "hashicorp"
+      ]
+    },
+    "developer-tools": {
+      "name": "Developer Tools & Platforms",
+      "companies": [
+        "jetbrains",
+        "circleci",
+        "buildkite",
+        "mattermost",
+        "gitlab",
+        "launchdarkly"
+      ]
+    },
+    "data-analytics": {
+      "name": "Data & Analytics",
+      "companies": [
+        "pendo",
+        "customerio",
+        "braze",
+        "iterable",
+        "klaviyo",
+        "hightouch",
+        "fivetran"
+      ]
+    },
+    "saas-products": {
+      "name": "SaaS & Product Companies",
+      "companies": [
+        "asana",
+        "smartsheet",
+        "airtable",
+        "clickup"
+      ]
+    },
+    "ecommerce-marketplace": {
+      "name": "E-commerce & Marketplaces",
+      "companies": [
+        "mercari",
+        "poshmark",
+        "rebag",
+        "grailed",
+        "stockx"
+      ]
+    },
+    "healthcare-biotech": {
+      "name": "Healthcare & Biotech",
+      "companies": [
+        "23andme",
+        "oscar",
+        "maven"
+      ]
+    },
+    "education-learning": {
+      "name": "Education & Learning",
+      "companies": [
+        "coursera",
+        "udacity",
+        "udemy",
+        "masterclass",
+        "duolingo",
+        "babbel"
+      ]
+    },
+    "design-creative": {
+      "name": "Design & Creative Tools",
+      "companies": []
+    },
+    "communication": {
+      "name": "Communication & Collaboration",
+      "companies": [
+        "vonage",
+        "twilio",
+        "sendbird",
+        "pubnub"
+      ]
+    },
+    "yc-companies": {
+      "name": "Y Combinator Alumni",
+      "companies": [
+        "stripe",
+        "coinbase",
+        "instacart",
+        "airbnb",
+        "reddit",
+        "twitch",
+        "gusto",
+        "amplitude",
+        "retool",
+        "brex",
+        "checkr",
+        "flexport"
+      ]
+    }
+  },
+  "notes": {
+    "usage": "Company slugs should be lowercase and hyphenated. Test each new addition to ensure it's a valid Greenhouse board.",
+    "maintenance": "Regularly update this list by removing inactive companies and adding new ones that are actively hiring remotely.",
+    "discovery": "New companies can be discovered by checking career pages for 'Powered by Greenhouse' or monitoring job board aggregators."
+  }
+}

@@ -15,7 +15,7 @@ import {
   extractSessionToken,
   getSessionCookieDomain,
   shouldUseSecureSessionCookie,
-} from "@spearyx/shared-utils";
+} from "@caliber/shared-utils";
 
 const users = sqliteTable("users", {
   id: integer("id").primaryKey(),

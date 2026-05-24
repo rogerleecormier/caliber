@@ -1,5 +1,5 @@
 {
-  "name": "@spearyx/jobs",
+  "name": "@caliber/jobs",
   "private": true,
   "type": "module",
   "scripts": {
@@ -7,7 +7,7 @@
     "build": "vite build",
     "serve": "wrangler dev",
     "test": "vitest run",
-    "preview": "pnpm run build && wrangler dev",
+    "preview": "npm run build && wrangler dev",
     "cf-typegen": "wrangler types",
     "db:generate": "drizzle-kit generate",
     "db:migrate:local": "wrangler d1 migrations apply DB --local",
@@ -17,8 +17,8 @@
     "deploy:sync": "wrangler deploy --config wrangler.sync.toml",
     "deploy:ats": "wrangler deploy --config wrangler.ats.toml",
     "deploy:discovery": "wrangler deploy --config wrangler.discovery.toml",
-    "deploy:workers": "pnpm run deploy:ats && pnpm run deploy:discovery",
-    "deploy": "pnpm run build && wrangler deploy --config wrangler.toml"
+    "deploy:workers": "npm run deploy:ats && npm run deploy:discovery",
+    "deploy": "npm run build && wrangler deploy --config wrangler.toml"
   },
   "dependencies": {
     "@cloudflare/puppeteer": "^0.0.15",
@@ -33,9 +33,9 @@
     "@radix-ui/react-slot": "^1.2.4",
     "@radix-ui/react-switch": "^1.2.5",
     "@radix-ui/react-tooltip": "^1.2.8",
-    "@spearyx/shared-config": "workspace:*",
-    "@spearyx/shared-utils": "workspace:*",
-    "@spearyx/ui-kit": "workspace:*",
+    "@caliber/shared-config": "file:../../packages/shared-config",
+    "@caliber/shared-utils": "file:../../packages/shared-utils",
+    "@caliber/ui-kit": "file:../../packages/ui-kit",
     "@tailwindcss/typography": "^0.5.16",
     "@tailwindcss/vite": "^4.2.2",
     "@tanstack/pacer": "^0.16.3",

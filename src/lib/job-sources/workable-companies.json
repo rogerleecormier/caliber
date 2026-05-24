@@ -1,0 +1,206 @@
+{
+  "version": "1.0.0",
+  "lastUpdated": "2025-12-14",
+  "description": "List of companies using Workable ATS that commonly hire remote workers",
+  "categories": {
+    "tech-ai": {
+      "name": "AI & Machine Learning",
+      "companies": [
+        "huggingface",
+        "deepmind",
+        "anthropic",
+        "stability-ai",
+        "midjourney",
+        "cohere",
+        "jasper-ai",
+        "adept",
+        "inflection"
+      ]
+    },
+    "crypto-blockchain": {
+      "name": "Crypto & Blockchain",
+      "companies": [
+        "binance",
+        "kraken",
+        "gemini",
+        "chainlink",
+        "avalanche",
+        "polygon",
+        "uniswap"
+      ]
+    },
+    "energy-sustainability": {
+      "name": "Energy & Sustainability",
+      "companies": [
+        "resource-innovations",
+        "chargepoint",
+        "enphase-energy",
+        "sunrun",
+        "arcadia"
+      ]
+    },
+    "remote-first": {
+      "name": "Remote-First Companies",
+      "companies": [
+        "toggl",
+        "hotjar",
+        "miro",
+        "buffer",
+        "doist",
+        "zapier",
+        "close",
+        "remote",
+        "gitlab",
+        "automattic"
+      ]
+    },
+    "construction-infrastructure": {
+      "name": "Construction & Infrastructure",
+      "companies": [
+        "valard",
+        "hoffmann-brothers",
+        "elite-construction"
+      ]
+    },
+    "fintech": {
+      "name": "Fintech & Payments",
+      "companies": [
+        "deel",
+        "payoneer",
+        "wise",
+        "remitly",
+        "circle",
+        "rippling",
+        "gusto",
+        "brex"
+      ]
+    },
+    "developer-tools": {
+      "name": "Developer Tools & Platforms",
+      "companies": [
+        "postman",
+        "notion",
+        "airtable",
+        "figma",
+        "mux",
+        "vercel",
+        "netlify",
+        "railway"
+      ]
+    },
+    "analytics-data": {
+      "name": "Analytics & Data",
+      "companies": [
+        "amplitude",
+        "mixpanel",
+        "segment",
+        "heap",
+        "pendo",
+        "looker",
+        "metabase"
+      ]
+    },
+    "healthcare": {
+      "name": "Healthcare & Medical",
+      "companies": [
+        "talkspace",
+        "betterhelp",
+        "cerebral",
+        "headspace",
+        "calm",
+        "teladoc",
+        "oscar",
+        "devoted-health",
+        "doximity",
+        "zocdoc",
+        "spring-health",
+        "modern-health",
+        "alma",
+        "rula",
+        "icon-plc",
+        "karo-healthcare",
+        "docplanner"
+      ]
+    },
+    "medical-staffing": {
+      "name": "Medical Staffing",
+      "companies": [
+        "nomad-health",
+        "incredible-health",
+        "clipboard-health",
+        "trusted-health",
+        "vivian-health",
+        "medely",
+        "carerev",
+        "shiftmed"
+      ]
+    },
+    "education": {
+      "name": "Education & Training",
+      "companies": [
+        "coursera",
+        "udemy",
+        "skillshare",
+        "codecademy",
+        "datacamp",
+        "outschool",
+        "thinkific",
+        "teachable",
+        "degreed",
+        "chegg",
+        "varsity-tutors"
+      ]
+    },
+    "legal": {
+      "name": "Legal & Compliance",
+      "companies": [
+        "ironclad",
+        "clio",
+        "docusign",
+        "legalzoom",
+        "icertis",
+        "filevine",
+        "linksquares",
+        "unit21"
+      ]
+    },
+    "admin-hr-finance": {
+      "name": "Admin, HR & Finance",
+      "companies": [
+        "bamboohr",
+        "hibob",
+        "deel",
+        "oyster",
+        "remote",
+        "papaya-global",
+        "freshbooks",
+        "xero",
+        "expensify",
+        "ramp",
+        "belay",
+        "concentrix",
+        "ttec",
+        "teleperformance"
+      ]
+    },
+    "writing-content": {
+      "name": "Writing & Content",
+      "companies": [
+        "contently",
+        "nerdwallet",
+        "medium",
+        "substack",
+        "verbit",
+        "rev",
+        "lionbridge",
+        "transperfect",
+        "smartling"
+      ]
+    }
+  },
+  "notes": {
+    "usage": "Company slugs should be lowercase with hyphens. Test each new addition against apply.workable.com/api/v1/widget/accounts/{slug}",
+    "maintenance": "Regularly verify companies still use Workable and have active remote positions",
+    "discovery": "New companies can be discovered by checking career pages for 'Powered by Workable' or monitoring job aggregators"
+  }
+}

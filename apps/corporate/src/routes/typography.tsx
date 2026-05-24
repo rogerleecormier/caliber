@@ -10,7 +10,7 @@ import {
   Label,
   Overline,
   PageHero,
-} from "@spearyx/ui-kit";
+} from "@caliber/ui-kit";
 
 export const Route = createFileRoute("/typography")({
   component: TypographyLibrary,

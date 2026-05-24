@@ -1,0 +1,15 @@
+name = "caliber-sync-ats"
+main = "src/workers/ats-sync.ts"
+compatibility_date = "2025-11-30"
+compatibility_flags = ["nodejs_compat"]
+
+[triggers]
+crons = ["1,3,5,7,9,11,13,15,17,19,21,23,25,27,29,31,33,35,37,39,41,43,45,47,49,51,53,55,57,59 * * * *"]  # Every 2 min at :01
+
+[[d1_databases]]
+binding = "DB"
+database_name = "caliber-db"
+database_id = "55a19e36-ed5b-4a31-83db-56ec83dd9a71"
+
+[observability]
+enabled = true

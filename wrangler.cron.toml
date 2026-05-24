@@ -1,0 +1,10 @@
+name = "caliber-cron"
+main = "src/cron-worker.ts"
+compatibility_date = "2025-11-30"
+compatibility_flags = ["nodejs_compat"]
+
+[triggers]
+crons = ["*/10 * * * *"] # Run every 10 minutes (0, 10, 20, 30, 40, 50)
+
+[observability]
+enabled = true

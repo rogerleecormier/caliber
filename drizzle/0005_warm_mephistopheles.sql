@@ -1,0 +1,1 @@
+ALTER TABLE `sync_history` ADD `last_processed_index` integer DEFAULT 0;
