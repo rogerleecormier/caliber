@@ -20,6 +20,7 @@ import { Route as JobsRouteImport } from './routes/jobs'
 import { Route as HistoryRouteImport } from './routes/history'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as AnalyzeRouteImport } from './routes/analyze'
+import { Route as AdminSetupRouteImport } from './routes/admin-setup'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AnalyzeIndexRouteImport } from './routes/analyze.index'
@@ -94,6 +95,11 @@ const DashboardRoute = DashboardRouteImport.update({
 const AnalyzeRoute = AnalyzeRouteImport.update({
   id: '/analyze',
   path: '/analyze',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminSetupRoute = AdminSetupRouteImport.update({
+  id: '/admin-setup',
+  path: '/admin-setup',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminRoute = AdminRouteImport.update({
@@ -200,6 +206,7 @@ const ApiV3JobsPruneRoute = ApiV3JobsPruneRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
+  '/admin-setup': typeof AdminSetupRoute
   '/analyze': typeof AnalyzeRouteWithChildren
   '/dashboard': typeof DashboardRoute
   '/history': typeof HistoryRoute
@@ -233,6 +240,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
+  '/admin-setup': typeof AdminSetupRoute
   '/dashboard': typeof DashboardRoute
   '/history': typeof HistoryRoute
   '/jobs': typeof JobsRoute
@@ -266,6 +274,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
+  '/admin-setup': typeof AdminSetupRoute
   '/analyze': typeof AnalyzeRouteWithChildren
   '/dashboard': typeof DashboardRoute
   '/history': typeof HistoryRoute
@@ -301,6 +310,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/admin'
+    | '/admin-setup'
     | '/analyze'
     | '/dashboard'
     | '/history'
@@ -334,6 +344,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/admin'
+    | '/admin-setup'
     | '/dashboard'
     | '/history'
     | '/jobs'
@@ -366,6 +377,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/admin'
+    | '/admin-setup'
     | '/analyze'
     | '/dashboard'
     | '/history'
@@ -400,6 +412,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AdminRoute: typeof AdminRoute
+  AdminSetupRoute: typeof AdminSetupRoute
   AnalyzeRoute: typeof AnalyzeRouteWithChildren
   DashboardRoute: typeof DashboardRoute
   HistoryRoute: typeof HistoryRoute
@@ -505,6 +518,13 @@ declare module '@tanstack/react-router' {
       path: '/analyze'
       fullPath: '/analyze'
       preLoaderRoute: typeof AnalyzeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin-setup': {
+      id: '/admin-setup'
+      path: '/admin-setup'
+      fullPath: '/admin-setup'
+      preLoaderRoute: typeof AdminSetupRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin': {
@@ -678,6 +698,7 @@ const ApiV3JobsRouteWithChildren = ApiV3JobsRoute._addFileChildren(
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRoute: AdminRoute,
+  AdminSetupRoute: AdminSetupRoute,
   AnalyzeRoute: AnalyzeRouteWithChildren,
   DashboardRoute: DashboardRoute,
   HistoryRoute: HistoryRoute,

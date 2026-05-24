@@ -22,8 +22,14 @@ export const registerUser = createServerFn({ method: "POST" })
       password: data.password,
     });
 
+    console.log("[registerUser] signup result:", { error: result.error, user: result.data?.user });
+
     if (result.error) {
       throw new Error(result.error.message || "Signup failed");
+    }
+
+    if (!result.data?.user) {
+      throw new Error("User not created by auth provider");
     }
 
     // Fetch user to get role
@@ -34,7 +40,11 @@ export const registerUser = createServerFn({ method: "POST" })
       .where(eq(users.email, data.email))
       .limit(1);
 
-    if (!dbUser) throw new Error("User not found");
+    console.log("[registerUser] dbUser query result:", dbUser);
+
+    if (!dbUser) {
+      throw new Error(`User created in auth but not found in database. Email: ${data.email}`);
+    }
 
     return {
       user: { id: dbUser.id, email: dbUser.email, role: dbUser.role },
@@ -123,3 +133,23 @@ export const getCurrentUser = createServerFn({ method: "GET" }).handler(
     }
   },
 );
+
+/**
+ * Promote a user to admin (requires admin secret token).
+ * TEMPORARY: Remove after initial setup.
+ */
+export const promoteToAdmin = createServerFn({ method: "POST" })
+  .inputValidator((data: { email: string; token: string }) => data)
+  .handler(async ({ data }): Promise<{ success: boolean }> => {
+    const env = getCloudflareEnv();
+    const adminToken = env.ADMIN_PROMOTION_TOKEN || "temporary-admin-token";
+
+    if (data.token !== adminToken) {
+      throw new Error("Invalid token");
+    }
+
+    const db = getDb(env.DB);
+    await db.update(users).set({ role: "admin" }).where(eq(users.email, data.email));
+
+    return { success: true };
+  });
