@@ -14,41 +14,42 @@ import { users } from "@/db/schema";
 export const registerUser = createServerFn({ method: "POST" })
   .inputValidator((data: { email: string; password: string }) => data)
   .handler(async ({ data }): Promise<{ user: SessionUser }> => {
-    const env = getCloudflareEnv();
-    const auth = getAuthInstance(env);
+    try {
+      const env = getCloudflareEnv();
+      const auth = getAuthInstance(env);
 
-    const result = await auth.api.signUpEmail({
-      email: data.email,
-      password: data.password,
-    });
+      const result = await auth.api.signUpEmail({
+        email: data.email,
+        password: data.password,
+      });
 
-    console.log("[registerUser] signup result:", { error: result.error, user: result.data?.user });
+      if (result.error) {
+        throw new Error(`Better-auth error: ${result.error.message || JSON.stringify(result.error)}`);
+      }
 
-    if (result.error) {
-      throw new Error(result.error.message || "Signup failed");
+      if (!result.data?.user) {
+        throw new Error("User not created by auth provider - no user in response");
+      }
+
+      // Fetch user to get role
+      const db = getDb(env.DB);
+      const [dbUser] = await db
+        .select({ id: users.id, email: users.email, role: users.role })
+        .from(users)
+        .where(eq(users.email, data.email))
+        .limit(1);
+
+      if (!dbUser) {
+        throw new Error(`User created in auth but not found in database after query. Email: ${data.email}`);
+      }
+
+      return {
+        user: { id: dbUser.id, email: dbUser.email, role: dbUser.role },
+      };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      throw new Error(`Signup error: ${message}`);
     }
-
-    if (!result.data?.user) {
-      throw new Error("User not created by auth provider");
-    }
-
-    // Fetch user to get role
-    const db = getDb(env.DB);
-    const [dbUser] = await db
-      .select({ id: users.id, email: users.email, role: users.role })
-      .from(users)
-      .where(eq(users.email, data.email))
-      .limit(1);
-
-    console.log("[registerUser] dbUser query result:", dbUser);
-
-    if (!dbUser) {
-      throw new Error(`User created in auth but not found in database. Email: ${data.email}`);
-    }
-
-    return {
-      user: { id: dbUser.id, email: dbUser.email, role: dbUser.role },
-    };
   });
 
 /**
