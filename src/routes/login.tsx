@@ -1,8 +1,11 @@
-import { createFileRoute, redirect, useNavigate, useRouter } from "@tanstack/react-router";
+import { createFileRoute, redirect, useNavigate, useRouter, useSearch } from "@tanstack/react-router";
 import { useState } from "react";
 import { loginUser } from "@/server/functions/auth";
 
 export const Route = createFileRoute("/login")({
+  validateSearch: (search: Record<string, unknown>) => ({
+    redirect: (search.redirect as string) || undefined,
+  }),
   beforeLoad: ({ context }) => {
     const ctx = context as { user?: { id: string; role: string } | null };
     if (ctx.user) {
@@ -15,6 +18,7 @@ export const Route = createFileRoute("/login")({
 function LoginPage() {
   const navigate = useNavigate();
   const router = useRouter();
+  const { redirect: redirectTo } = useSearch({ from: Route.id });
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -29,7 +33,12 @@ function LoginPage() {
       const result = await loginUser({ email, password });
       if (result.user) {
         await router.invalidate();
-        navigate({ to: "/" });
+        if (redirectTo) {
+          const url = new URL(redirectTo);
+          window.location.href = url.pathname + url.search;
+        } else {
+          navigate({ to: "/" });
+        }
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Login failed");
