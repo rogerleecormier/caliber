@@ -1,5 +1,5 @@
-import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { createFileRoute, redirect, useNavigate, useRouter } from "@tanstack/react-router";
+import { useState } from "react";
 import { loginUser } from "@/server/functions/auth";
 
 export const Route = createFileRoute("/login")({
@@ -14,6 +14,7 @@ export const Route = createFileRoute("/login")({
 
 function LoginPage() {
   const navigate = useNavigate();
+  const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -27,6 +28,7 @@ function LoginPage() {
     try {
       const result = await loginUser({ email, password });
       if (result.user) {
+        await router.invalidate();
         navigate({ to: "/" });
       }
     } catch (err) {
