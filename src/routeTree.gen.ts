@@ -31,8 +31,7 @@ import { Route as ApiV3JobsRouteImport } from './routes/api/v3/jobs'
 import { Route as ApiV3JobContentRouteImport } from './routes/api/v3/job-content'
 import { Route as ApiV3CategoriesRouteImport } from './routes/api/v3/categories'
 import { Route as ApiLinkedinSearchRouteImport } from './routes/api/linkedin/search'
-import { Route as ApiAuthMeRouteImport } from './routes/api/auth/me'
-import { Route as ApiAuthLogoutRouteImport } from './routes/api/auth/logout'
+import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 import { Route as ApiAiUnicornRouteImport } from './routes/api/ai/unicorn'
 import { Route as ApiAiSearchRouteImport } from './routes/api/ai/search'
 import { Route as ApiAiScoreAllRouteImport } from './routes/api/ai/score-all'
@@ -152,14 +151,9 @@ const ApiLinkedinSearchRoute = ApiLinkedinSearchRouteImport.update({
   path: '/api/linkedin/search',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiAuthMeRoute = ApiAuthMeRouteImport.update({
-  id: '/api/auth/me',
-  path: '/api/auth/me',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiAuthLogoutRoute = ApiAuthLogoutRouteImport.update({
-  id: '/api/auth/logout',
-  path: '/api/auth/logout',
+const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
+  id: '/api/auth/$',
+  path: '/api/auth/$',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiAiUnicornRoute = ApiAiUnicornRouteImport.update({
@@ -227,8 +221,7 @@ export interface FileRoutesByFullPath {
   '/api/ai/score-all': typeof ApiAiScoreAllRoute
   '/api/ai/search': typeof ApiAiSearchRoute
   '/api/ai/unicorn': typeof ApiAiUnicornRoute
-  '/api/auth/logout': typeof ApiAuthLogoutRoute
-  '/api/auth/me': typeof ApiAuthMeRoute
+  '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/linkedin/search': typeof ApiLinkedinSearchRoute
   '/api/v3/categories': typeof ApiV3CategoriesRoute
   '/api/v3/job-content': typeof ApiV3JobContentRoute
@@ -260,8 +253,7 @@ export interface FileRoutesByTo {
   '/api/ai/score-all': typeof ApiAiScoreAllRoute
   '/api/ai/search': typeof ApiAiSearchRoute
   '/api/ai/unicorn': typeof ApiAiUnicornRoute
-  '/api/auth/logout': typeof ApiAuthLogoutRoute
-  '/api/auth/me': typeof ApiAuthMeRoute
+  '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/linkedin/search': typeof ApiLinkedinSearchRoute
   '/api/v3/categories': typeof ApiV3CategoriesRoute
   '/api/v3/job-content': typeof ApiV3JobContentRoute
@@ -295,8 +287,7 @@ export interface FileRoutesById {
   '/api/ai/score-all': typeof ApiAiScoreAllRoute
   '/api/ai/search': typeof ApiAiSearchRoute
   '/api/ai/unicorn': typeof ApiAiUnicornRoute
-  '/api/auth/logout': typeof ApiAuthLogoutRoute
-  '/api/auth/me': typeof ApiAuthMeRoute
+  '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/linkedin/search': typeof ApiLinkedinSearchRoute
   '/api/v3/categories': typeof ApiV3CategoriesRoute
   '/api/v3/job-content': typeof ApiV3JobContentRoute
@@ -331,8 +322,7 @@ export interface FileRouteTypes {
     | '/api/ai/score-all'
     | '/api/ai/search'
     | '/api/ai/unicorn'
-    | '/api/auth/logout'
-    | '/api/auth/me'
+    | '/api/auth/$'
     | '/api/linkedin/search'
     | '/api/v3/categories'
     | '/api/v3/job-content'
@@ -364,8 +354,7 @@ export interface FileRouteTypes {
     | '/api/ai/score-all'
     | '/api/ai/search'
     | '/api/ai/unicorn'
-    | '/api/auth/logout'
-    | '/api/auth/me'
+    | '/api/auth/$'
     | '/api/linkedin/search'
     | '/api/v3/categories'
     | '/api/v3/job-content'
@@ -398,8 +387,7 @@ export interface FileRouteTypes {
     | '/api/ai/score-all'
     | '/api/ai/search'
     | '/api/ai/unicorn'
-    | '/api/auth/logout'
-    | '/api/auth/me'
+    | '/api/auth/$'
     | '/api/linkedin/search'
     | '/api/v3/categories'
     | '/api/v3/job-content'
@@ -431,8 +419,7 @@ export interface RootRouteChildren {
   ApiAiScoreAllRoute: typeof ApiAiScoreAllRoute
   ApiAiSearchRoute: typeof ApiAiSearchRoute
   ApiAiUnicornRoute: typeof ApiAiUnicornRoute
-  ApiAuthLogoutRoute: typeof ApiAuthLogoutRoute
-  ApiAuthMeRoute: typeof ApiAuthMeRoute
+  ApiAuthSplatRoute: typeof ApiAuthSplatRoute
   ApiLinkedinSearchRoute: typeof ApiLinkedinSearchRoute
   ApiV3CategoriesRoute: typeof ApiV3CategoriesRoute
   ApiV3JobContentRoute: typeof ApiV3JobContentRoute
@@ -597,18 +584,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiLinkedinSearchRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/auth/me': {
-      id: '/api/auth/me'
-      path: '/api/auth/me'
-      fullPath: '/api/auth/me'
-      preLoaderRoute: typeof ApiAuthMeRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/auth/logout': {
-      id: '/api/auth/logout'
-      path: '/api/auth/logout'
-      fullPath: '/api/auth/logout'
-      preLoaderRoute: typeof ApiAuthLogoutRouteImport
+    '/api/auth/$': {
+      id: '/api/auth/$'
+      path: '/api/auth/$'
+      fullPath: '/api/auth/$'
+      preLoaderRoute: typeof ApiAuthSplatRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/ai/unicorn': {
@@ -717,8 +697,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiAiScoreAllRoute: ApiAiScoreAllRoute,
   ApiAiSearchRoute: ApiAiSearchRoute,
   ApiAiUnicornRoute: ApiAiUnicornRoute,
-  ApiAuthLogoutRoute: ApiAuthLogoutRoute,
-  ApiAuthMeRoute: ApiAuthMeRoute,
+  ApiAuthSplatRoute: ApiAuthSplatRoute,
   ApiLinkedinSearchRoute: ApiLinkedinSearchRoute,
   ApiV3CategoriesRoute: ApiV3CategoriesRoute,
   ApiV3JobContentRoute: ApiV3JobContentRoute,

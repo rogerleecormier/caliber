@@ -1,7 +1,6 @@
 import { betterAuth } from "better-auth";
 import { admin } from "better-auth/plugins";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
-import { createAuthMiddleware, APIError } from "better-auth/api";
 import type { CloudflareEnv } from "@/lib/cloudflare";
 import { getDb } from "@/db/db";
 import * as schema from "@/db/schema";
@@ -45,14 +44,5 @@ export function getAuthInstance(env: CloudflareEnv) {
         adminRole: "admin",
       }),
     ],
-    hooks: {
-      before: createAuthMiddleware(async (ctx) => {
-        if (ctx.path === "/sign-up/email") {
-          throw new APIError("FORBIDDEN", {
-            message: "Signups are disabled. Contact an administrator.",
-          });
-        }
-      }),
-    },
   });
 }
