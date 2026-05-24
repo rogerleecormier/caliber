@@ -8,9 +8,6 @@ import { eq } from "drizzle-orm";
 import { getDb } from "@/db/db";
 import { users } from "@/db/schema";
 
-/**
- * Get the current user from the session.
- */
 export const getSessionUser = createServerFn({ method: "GET" }).handler(
   async (): Promise<SessionUser | null> => {
     try {
@@ -24,15 +21,8 @@ export const getSessionUser = createServerFn({ method: "GET" }).handler(
 
       if (!session?.user) return null;
 
-      const db = getDb(env.DB);
-      const [dbUser] = await db
-        .select({ id: users.id, email: users.email, role: users.role })
-        .from(users)
-        .where(eq(users.id, session.user.id))
-        .limit(1);
-
-      if (!dbUser) return null;
-      return { id: dbUser.id, email: dbUser.email, role: dbUser.role };
+      const { id, email, role } = session.user as { id: string; email: string; role?: string };
+      return { id, email, role: role ?? "user" };
     } catch (error) {
       console.error("[getSessionUser] error:", error);
       return null;
