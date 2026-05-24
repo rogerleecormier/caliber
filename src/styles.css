@@ -1,5 +1,5 @@
-@import "@spearyx/shared-config/styles";
-@import "@spearyx/ui-kit/src/typography.css";
+@import "../packages/shared-config/styles.css";
+@import "../packages/ui-kit/src/typography.css";
 @import "./jobs.css";
 
 /* Prevent Radix UI scroll-lock from shifting the page */

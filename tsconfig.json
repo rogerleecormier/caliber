@@ -1,5 +1,24 @@
 {
-  "include": ["**/*.ts", "**/*.tsx"],
+  "include": [
+    "src/**/*.ts",
+    "src/**/*.tsx",
+    "app/**/*.ts",
+    "app/**/*.tsx",
+    "worker.ts",
+    "worker-configuration.d.ts",
+    "vite.config.ts",
+    "tailwind.config.ts",
+    "drizzle.config.ts",
+    "scripts/**/*.ts",
+    "scripts/**/*.tsx"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "apps",
+    "_archived_api",
+    "docs"
+  ],
   "compilerOptions": {
     "target": "ES2022",
     "jsx": "react-jsx",

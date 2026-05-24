@@ -1,5 +1,5 @@
 import { getDb, schema } from "@/db/db";
-import { linkedinSavedSearches } from "@/db/schema";
+import { linkedinSavedSearches, linkedinJobResults, masterResume } from "@/db/schema";
 import type { CloudflareEnv } from "@/lib/cloudflare";
 import { getLinkedinSettings, pruneDuplicateLinkedinJobResults, pruneExpiredLinkedinJobResults } from "@/lib/linkedin-persistence";
 import { buildLinkedInSearchUrl, buildLinkedInSearchUrlForPage, normalizeLinkedInSearchParams, type LinkedInScrapedJob, type LinkedInSearchParams } from "@/lib/linkedin-search";
@@ -144,8 +144,7 @@ async function extractJobDescription(page: BrowserPage): Promise<string | null> 
 }
 
 async function buildProfile(db: ReturnType<typeof getDb>, userId: number) {
-  const { masterResume } = await import("@/db/schema");
-  const [resume] = await db.select().from(masterResume).where((await import("drizzle-orm")).eq(masterResume.userId, userId)).limit(1);
+  const [resume] = await db.select().from(masterResume).where(eq(masterResume.userId, userId)).limit(1);
   if (!resume?.rawText) return null;
   let profile = `Resume:\n${resume.rawText}`;
   try {
@@ -209,7 +208,6 @@ export async function runLinkedinSearchMaintenance(env: CloudflareEnv) {
     const jobsDeletedResult = await db.delete(schema.jobs).where(lte(schema.jobs.createdAt, cutoffDate));
     
     // Prune agent job results (linkedinJobResults)
-    const { linkedinJobResults } = await import("@/db/schema");
     const agentJobsDeletedResult = await db.delete(linkedinJobResults).where(lte(linkedinJobResults.createdAt, cutoffIso));
     
     prunedCount = (jobsDeletedResult as any)?.rowsAffected || 0;
