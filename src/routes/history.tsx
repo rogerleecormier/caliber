@@ -38,9 +38,9 @@ type HistorySearchParams = {
 };
 
 export const Route = createFileRoute("/history")({
-  beforeLoad: ({ context, location }) => {
+  beforeLoad: ({ context }) => {
     const ctx = context as { user?: { id: number } | null };
-    if (!ctx.user) requireLoginRedirect(location, "analysis history");
+    if (!ctx.user) requireLoginRedirect();
   },
   validateSearch: (search: Record<string, unknown>) => ({
     page: Math.max(1, Number(search.page) || 1),

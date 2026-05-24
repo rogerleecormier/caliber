@@ -11,9 +11,9 @@ const searchSchema = z.object({
 });
 
 export const Route = createFileRoute("/analyze/")({
-  beforeLoad: ({ context, location }) => {
+  beforeLoad: ({ context }) => {
     const ctx = context as { user?: { id: number } | null };
-    if (!ctx.user) requireLoginRedirect(location, "job analysis");
+    if (!ctx.user) requireLoginRedirect();
   },
   validateSearch: searchSchema,
   component: AnalyzePage,

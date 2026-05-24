@@ -4,5 +4,7 @@ export default defineConfig({
   schema: './src/db/schema.ts',
   out: './drizzle',
   dialect: 'sqlite',
-  // dbCredentials is not needed for generating migrations for D1
+  dbCredentials: {
+    url: 'file:./local.db',
+  },
 })

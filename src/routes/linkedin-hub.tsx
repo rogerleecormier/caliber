@@ -93,9 +93,9 @@ export const Route = createFileRoute("/linkedin-hub")({
     status: typeof search.status === "string" ? search.status : "",
   }),
   loaderDeps: ({ search }: { search: HubSearchParams }) => search,
-  beforeLoad: ({ context, location }) => {
+  beforeLoad: ({ context }) => {
     const ctx = context as { user?: { id: number; role: string } | null };
-    if (!ctx.user) requireLoginRedirect(location, "Caliber Dashboard");
+    if (!ctx.user) requireLoginRedirect();
     requireLinkedInSearchOwner(context.user as any);
   },
   loader: async ({ deps }: { deps: HubSearchParams }) => {

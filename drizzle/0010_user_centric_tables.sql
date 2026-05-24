@@ -1,17 +1,20 @@
 --> statement-breakpoint
 CREATE TABLE `users` (
-	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+	`id` text PRIMARY KEY NOT NULL,
 	`email` text NOT NULL,
-	`password_hash` text NOT NULL,
+	`email_verified` integer DEFAULT 0 NOT NULL,
+	`name` text,
+	`image` text,
+	`password_hash` text,
 	`role` text NOT NULL DEFAULT 'user',
-	`created_at` text NOT NULL
+	`created_at` integer NOT NULL
 );
 --> statement-breakpoint
 CREATE UNIQUE INDEX `users_email_unique` ON `users` (`email`);
 --> statement-breakpoint
 CREATE TABLE `master_resume` (
 	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
-	`user_id` integer REFERENCES `users`(`id`),
+	`user_id` text REFERENCES `users`(`id`),
 	`full_name` text NOT NULL,
 	`email` text,
 	`phone` text,
@@ -29,7 +32,7 @@ CREATE TABLE `master_resume` (
 --> statement-breakpoint
 CREATE TABLE `job_analyses` (
 	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
-	`user_id` integer REFERENCES `users`(`id`),
+	`user_id` text REFERENCES `users`(`id`),
 	`job_url` text NOT NULL,
 	`job_title` text,
 	`company` text,
@@ -46,6 +49,7 @@ CREATE TABLE `job_analyses` (
 	`personal_interest` text,
 	`career_analysis` text,
 	`applied` integer DEFAULT 0,
+	`application_status` text,
 	`applied_at` text,
 	`created_at` text
 );
@@ -62,7 +66,7 @@ CREATE TABLE `generated_documents` (
 --> statement-breakpoint
 CREATE TABLE `analytics_summary` (
 	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
-	`user_id` integer REFERENCES `users`(`id`),
+	`user_id` text REFERENCES `users`(`id`),
 	`period` text NOT NULL,
 	`top_jd_keywords` text,
 	`top_resume_keywords` text,

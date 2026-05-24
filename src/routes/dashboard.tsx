@@ -17,9 +17,9 @@ import { requireLoginRedirect } from "@/lib/auth-redirect";
 import { PageActionBar, PageHero, PageSection } from "@caliber/ui-kit";
 
 export const Route = createFileRoute("/dashboard")({
-  beforeLoad: ({ context, location }) => {
+  beforeLoad: ({ context }) => {
     const ctx = context as { user?: { id: number } | null };
-    if (!ctx.user) requireLoginRedirect(location, "search insights");
+    if (!ctx.user) requireLoginRedirect();
   },
   loader: async () => getAnalytics({ data: { period: "all_time" } }),
   component: DashboardPage,

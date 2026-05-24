@@ -2,6 +2,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { eq } from "drizzle-orm";
 import bcrypt from "bcryptjs";
+import crypto from "crypto";
 import { getCloudflareEnv } from "@/lib/cloudflare";
 import { getDb } from "@/db/db";
 import { resolveSessionUser } from "@/lib/resolve-user";
@@ -30,16 +31,17 @@ export const createUser = createServerFn({ method: "POST" })
     const db = getDb(env.DB);
     const hash = await bcrypt.hash(data.password, 10);
     await db.insert(users).values({
+      id: crypto.randomUUID(),
       email: data.email.trim().toLowerCase(),
       passwordHash: hash,
       role: data.role ?? "user",
-      createdAt: new Date().toISOString(),
+      createdAt: Math.floor(Date.now() / 1000),
     });
     return { success: true };
   });
 
 export const deleteUser = createServerFn({ method: "POST" })
-  .inputValidator((data: { userId: number }) => data)
+  .inputValidator((data: { userId: string }) => data)
   .handler(async ({ data }) => {
     const currentUser = await requireAdmin();
     if (currentUser.id === data.userId) throw new Error("You cannot delete your own admin account");
