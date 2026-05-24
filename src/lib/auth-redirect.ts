@@ -1,6 +1,6 @@
 import { redirect } from "@tanstack/react-router";
 
-const CORPORATE_LOGIN = "https://spearyx.com/login";
+const CORPORATE_LOGIN = "https://caliber.rcormier.dev/login";
 const JOBS_ORIGIN = "https://caliber.rcormier.dev";
 
 type RedirectLocation = {

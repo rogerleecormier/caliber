@@ -95,9 +95,7 @@ export const getCurrentUser = createServerFn({ method: "GET" }).handler(
 
       const raw = await env.KV.get(`session:${token}`);
       if (!raw) {
-        // Clear with both domain variants to handle cookies set before domain=.spearyx.com was added
         const secure = shouldUseSecureSessionCookie(request);
-        setCookie(SESSION_COOKIE, "", { path: "/", httpOnly: true, secure, maxAge: 0, sameSite: "lax" as const, domain: ".spearyx.com" });
         setCookie(SESSION_COOKIE, "", { path: "/", httpOnly: true, secure, maxAge: 0, sameSite: "lax" as const, domain: "caliber.rcormier.dev" });
         setCookie(SESSION_COOKIE, "", { path: "/", httpOnly: true, secure, maxAge: 0, sameSite: "lax" as const });
         return null;

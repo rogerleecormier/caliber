@@ -1,6 +1,6 @@
 export const SESSION_COOKIE = "spearyx-session";
 export const SESSION_TTL = 60 * 60 * 24 * 7; // 7 days in seconds
-export const SPEARYX_ROOT_DOMAIN = "spearyx.com";
+export const ROOT_DOMAIN = "rcormier.dev";
 export const SPEARYX_JOBS_ORIGIN = "https://caliber.rcormier.dev";
 
 interface SessionKvStore {
@@ -17,8 +17,8 @@ function createSessionToken(): string {
   return `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 18)}`;
 }
 
-function isSpearyxHostname(hostname: string): boolean {
-  return hostname === SPEARYX_ROOT_DOMAIN || hostname.endsWith(`.${SPEARYX_ROOT_DOMAIN}`);
+function isCaliberHostname(hostname: string): boolean {
+  return hostname === ROOT_DOMAIN || hostname.endsWith(`.${ROOT_DOMAIN}`);
 }
 
 export function getRequestHostname(request: Request): string {
@@ -31,11 +31,11 @@ export function getRequestHostname(request: Request): string {
 }
 
 export function isProductionSessionRequest(request: Request): boolean {
-  return isSpearyxHostname(getRequestHostname(request));
+  return isCaliberHostname(getRequestHostname(request));
 }
 
 export function getSessionCookieDomain(request: Request): string | undefined {
-  return isProductionSessionRequest(request) ? `.${SPEARYX_ROOT_DOMAIN}` : undefined;
+  return isProductionSessionRequest(request) ? `.${ROOT_DOMAIN}` : undefined;
 }
 
 export function shouldUseSecureSessionCookie(request: Request): boolean {
@@ -93,7 +93,7 @@ export function getAuthCorsHeaders(request: Request): Record<string, string> {
 
   try {
     const { hostname } = new URL(origin);
-    if (isSpearyxHostname(hostname) || hostname === "localhost") {
+    if (isCaliberHostname(hostname) || hostname === "localhost") {
       return {
         "Access-Control-Allow-Origin": origin,
         "Access-Control-Allow-Credentials": "true",

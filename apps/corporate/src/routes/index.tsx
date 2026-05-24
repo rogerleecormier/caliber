@@ -70,7 +70,7 @@ function App() {
 
           <div className="flex flex-col sm:flex-row gap-3 justify-center items-center">
             <a
-              href="https://tools.spearyx.com"
+              href="https://caliber.rcormier.dev/tools"
               className="group inline-flex items-center gap-2.5 px-7 py-3.5 rounded-xl font-semibold text-white transition-all duration-200"
               style={{
                 background: "linear-gradient(135deg, #ef4444 0%, #dc2626 100%)",
@@ -182,7 +182,7 @@ function App() {
                   ))}
                 </ul>
                 <a
-                  href="https://tools.spearyx.com"
+                  href="https://caliber.rcormier.dev/tools"
                   className="inline-flex items-center gap-2 text-sm font-semibold text-primary-600 group-hover:gap-3 transition-all"
                 >
                   Explore Tools <ArrowRight size={14} />
@@ -290,11 +290,11 @@ function App() {
       >
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <img src="/images/spearyx-logo.svg" alt="Spearyx" className="h-6 w-auto opacity-80" />
-            <span className="text-sm text-slate-400">© 2025 Spearyx. All rights reserved.</span>
+            <img src="/images/caliber-logo.svg" alt="Caliber" className="h-6 w-auto opacity-80" />
+            <span className="text-sm text-slate-400">© 2025 Caliber. All rights reserved.</span>
           </div>
           <div className="flex items-center gap-6">
-            <a href="https://tools.spearyx.com" className="text-sm text-slate-400 hover:text-slate-700 transition-colors font-medium">
+            <a href="https://caliber.rcormier.dev/tools" className="text-sm text-slate-400 hover:text-slate-700 transition-colors font-medium">
               Tools
             </a>
             <a href="https://caliber.rcormier.dev" className="text-sm text-slate-400 hover:text-slate-700 transition-colors font-medium">

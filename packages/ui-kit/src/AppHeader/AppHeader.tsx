@@ -96,11 +96,6 @@ function getAppOrigin(app: AppHeaderProps["app"], currentPath: string): string {
     return window.location.origin;
   }
 
-  if (app === "corporate") return "https://spearyx.com";
-  if (app === "tools") return "https://tools.spearyx.com";
-  if (currentPath.startsWith("/login") || currentPath.startsWith("/analyze")) {
-    return "https://caliber.rcormier.dev";
-  }
   return "https://caliber.rcormier.dev";
 }
 
@@ -354,7 +349,7 @@ export function AppHeader({
         ? window.location.href
         : `${appOrigin}${currentPath || "/"}`;
     const params = new URLSearchParams({ redirect: returnTo });
-    return `https://spearyx.com/login?${params.toString()}`;
+    return `https://caliber.rcormier.dev/login?${params.toString()}`;
   }, [app, appOrigin, currentPath]);
 
   async function handleSharedLogout() {
@@ -489,7 +484,7 @@ export function AppHeader({
       type: "link",
       key: "cards",
       label: "Card Library",
-      href: "https://spearyx.com/cards",
+      href: "https://caliber.rcormier.dev/cards",
       icon: Layers,
       tone: "primary",
     },
@@ -497,7 +492,7 @@ export function AppHeader({
       type: "link",
       key: "typography",
       label: "Typography",
-      href: "https://spearyx.com/typography",
+      href: "https://caliber.rcormier.dev/typography",
       icon: Layers,
       tone: "primary",
     },

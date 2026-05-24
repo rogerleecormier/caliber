@@ -8,7 +8,6 @@ const loginSearchSchema = z.object({
   reason: z.string().optional(),
 });
 
-// Allow same-site paths and any *.spearyx.com subdomain URL
 function isSafeRedirect(url: string | undefined): url is string {
   if (!url) return false;
   if (url.startsWith("/") && !url.startsWith("//")) return true;
@@ -16,7 +15,7 @@ function isSafeRedirect(url: string | undefined): url is string {
     const { hostname, protocol } = new URL(url);
     return (
       protocol === "https:" &&
-      (hostname === "spearyx.com" || hostname.endsWith(".spearyx.com"))
+      (hostname === "caliber.rcormier.dev" || hostname.endsWith(".rcormier.dev"))
     );
   } catch {
     return false;
@@ -77,8 +76,8 @@ function LoginPage() {
     <div className="spx-auth-shell">
       <div className="spx-auth-card max-w-sm">
         <div className="mb-8 text-center">
-          <div className="spx-kicker mb-4">Spearyx Access</div>
-          <h1 className="text-2xl font-bold tracking-tight">Sign in to Spearyx</h1>
+          <div className="spx-kicker mb-4">Caliber Access</div>
+          <h1 className="text-2xl font-bold tracking-tight">Sign in to Caliber</h1>
           <p className="mt-2 text-sm text-muted-foreground">
             {search.reason || "Enter your credentials to access your account"}
           </p>
