@@ -18,7 +18,12 @@ import {
   setSearchAgentRunning,
   toggleLinkedinSearchCron,
 } from "@/server/functions/linkedin-searches";
-import type { LinkedInScrapedJob, LinkedInSearchParams } from "@/lib/linkedin-search";
+import {
+  type LinkedInScrapedJob,
+  type LinkedInSearchParams,
+  POPULAR_CITIES,
+  SALARY_BANDS,
+} from "@/lib/linkedin-search";
 import {
   type SearchPreset,
   defaultSearchPresets,
@@ -241,10 +246,24 @@ export function AgentsSearchDrawer({
   const [broadenDiscovery, setBroadenDiscovery] = useState(false);
   const [selectedPresets, setSelectedPresets] = useState<SearchPreset[]>(defaultSearchPresets);
   const [mounted, setMounted] = useState(false);
+  const [showCitySuggestions, setShowCitySuggestions] = useState(false);
 
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  const citySuggestions = form.location.trim().length >= 2
+    ? POPULAR_CITIES.filter((c) =>
+        c.city.toLowerCase().includes(form.location.toLowerCase()) ||
+        c.state.toLowerCase().includes(form.location.toLowerCase())
+      ).slice(0, 5)
+    : [];
+
+  const handleSelectCitySuggestion = (suggestion: typeof POPULAR_CITIES[number]) => {
+    update("location", `${suggestion.city}, ${suggestion.state}`);
+    update("geoId", suggestion.geoId);
+    setShowCitySuggestions(false);
+  };
 
   function formatLastRunLocalTime(lastRunAt: string | null): string {
     if (!lastRunAt) return "never";
@@ -499,32 +518,6 @@ export function AgentsSearchDrawer({
                     required
                   />
                 </div>
-                <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_120px]">
-                  <div className="space-y-1.5">
-                    <label className="text-sm font-medium text-slate-700" htmlFor="drawer-location">Location</label>
-                    <Input
-                      id="drawer-location"
-                      value={form.location}
-                      onChange={(e: ChangeEvent<HTMLInputElement>) => update("location", e.target.value)}
-                      placeholder="United States, Boston, Remote"
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <FieldLabelWithInfo
-                      htmlFor="drawer-limit"
-                      label="Max cards"
-                      tooltip="Maximum LinkedIn cards to extract per scanned results page. Already-saved jobs reuse historical scores, and only brand-new jobs consume AI scoring."
-                    />
-                    <Input
-                      id="drawer-limit"
-                      type="number"
-                      min="1"
-                      max="25"
-                      value={String(form.limit)}
-                      onChange={(e: ChangeEvent<HTMLInputElement>) => update("limit", Math.max(1, Math.min(25, Number(e.target.value || 10))))}
-                    />
-                  </div>
-                </div>
               </div>
             </div>
 
@@ -563,311 +556,389 @@ export function AgentsSearchDrawer({
               </div>
             </div>
 
-            {/* Filter summary + Advanced toggle */}
-            <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <div className="flex flex-wrap gap-2">
-                  <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-medium text-slate-600">
-                    {formatWorkplaceSummary(form.workplaceTypes)}
-                  </span>
-                  <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-medium text-slate-600">
-                    {formatPostedSummary(form.postedWithin)}
-                  </span>
-                  <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-medium text-slate-600">
-                    {formatSortSummary(form.sortBy)}
-                  </span>
-                  <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-medium text-slate-600">
-                    {`Scan ${form.pagesToScan} page${form.pagesToScan === 1 ? "" : "s"} from page ${form.page}`}
-                  </span>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setShowAdvanced((prev) => !prev)}
-                  className="inline-flex shrink-0 items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
-                >
-                  Advanced
-                  <ChevronDown className={`h-4 w-4 transition ${showAdvanced ? "rotate-180" : ""}`} />
-                </button>
-              </div>
-            </div>
-
-            {/* Advanced panel */}
-            {showAdvanced ? (
-              <div className="space-y-px overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-
-                <div className="border-b border-slate-100 p-4">
-                  <p className="mb-0.5 text-xs font-semibold uppercase tracking-wider text-slate-400">Targeting</p>
-                  <p className="mb-3 text-sm text-slate-500">Filter to a specific company before scraping begins.</p>
-                  <Input
-                    value={form.company}
-                    onChange={(e: ChangeEvent<HTMLInputElement>) => update("company", e.target.value)}
-                    placeholder="Company name (optional)"
-                  />
-                </div>
-
-                <div className="border-b border-slate-100 p-4">
-                  <p className="mb-0.5 text-xs font-semibold uppercase tracking-wider text-slate-400">Freshness & Ranking</p>
-                  <p className="mb-3 text-sm text-slate-500">Control how recent results must be and how LinkedIn orders them.</p>
-                  <div className="space-y-3">
-                    <div className="space-y-1.5">
-                      <label className="text-sm font-medium text-slate-700" htmlFor="drawer-postedWithin">Posted Within</label>
-                      <select
-                        id="drawer-postedWithin"
-                        value={form.postedWithin}
-                        onChange={(e) => update("postedWithin", e.target.value as FormState["postedWithin"])}
-                        className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700"
-                      >
-                        <option value="any">Any time</option>
-                        <option value="24h">Last 24 hours</option>
-                        <option value="7d">Last 7 days</option>
-                        <option value="30d">Last 30 days</option>
-                      </select>
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className="text-sm font-medium text-slate-700" htmlFor="drawer-sortBy">Sort Order</label>
-                      <select
-                        id="drawer-sortBy"
-                        value={form.sortBy}
-                        onChange={(e) => update("sortBy", e.target.value as FormState["sortBy"])}
-                        className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700"
-                      >
-                        <option value="recent">Most recent</option>
-                        <option value="relevant">Most relevant</option>
-                      </select>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="border-b border-slate-100 p-4">
-                  <p className="mb-0.5 text-xs font-semibold uppercase tracking-wider text-slate-400">Salary & Application</p>
-                  <p className="mb-3 text-sm text-slate-500">Set a salary floor and narrow to quick-apply listings.</p>
-                  <div className="space-y-3">
-                    <div className="space-y-1.5">
-                      <label className="text-sm font-medium text-slate-700" htmlFor="drawer-salaryMin">Minimum Salary</label>
-                      <Input
-                        id="drawer-salaryMin"
-                        type="number"
-                        min="0"
-                        step="5000"
-                        value={form.salaryMin}
-                        onChange={(e: ChangeEvent<HTMLInputElement>) => update("salaryMin", e.target.value)}
-                        placeholder="e.g. 120000"
-                      />
-                    </div>
-                    <label className="flex cursor-pointer items-center gap-3 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-medium text-slate-700 transition hover:bg-slate-100">
-                      <input
-                        type="checkbox"
-                        checked={form.easyApply}
-                        onChange={(e) => update("easyApply", e.target.checked)}
-                        className="h-4 w-4 rounded"
-                      />
-                      Easy Apply only
-                    </label>
-                  </div>
-                </div>
-
-                <div className="border-b border-slate-100 p-4">
-                  <p className="mb-0.5 text-xs font-semibold uppercase tracking-wider text-slate-400">Page Coverage</p>
-                  <p className="mb-3 text-sm text-slate-500">Choose which result pages to harvest.</p>
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <div className="space-y-1.5">
-                      <FieldLabelWithInfo
-                        htmlFor="drawer-page"
-                        label="Start Page"
-                        tooltip="The first LinkedIn results page to scan. If you set Start Page to 5 and Pages To Scan to 3, the search will scan pages 5, 6, and 7."
-                      />
-                      <Input
-                        id="drawer-page"
-                        type="number"
-                        min="1"
-                        max="100"
-                        value={String(form.page)}
-                        onChange={(e: ChangeEvent<HTMLInputElement>) => update("page", Math.max(1, Number(e.target.value || 1)))}
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <FieldLabelWithInfo
-                        htmlFor="drawer-pagesToScan"
-                        label="Pages to Scan"
-                        tooltip="How many consecutive LinkedIn result pages to harvest starting from the Start Page."
-                      />
-                      <Input
-                        id="drawer-pagesToScan"
-                        type="number"
-                        min="1"
-                        max="10"
-                        value={String(form.pagesToScan)}
-                        onChange={(e: ChangeEvent<HTMLInputElement>) => update("pagesToScan", Math.max(1, Math.min(10, Number(e.target.value || 1))))}
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                <div className="border-b border-slate-100 p-4">
-                  <p className="mb-0.5 text-xs font-semibold uppercase tracking-wider text-slate-400">Role Preferences</p>
-                  <p className="mb-3 text-sm text-slate-500">Narrow by work arrangement, seniority, and employment type.</p>
-                  <div className="space-y-4">
-                    <div>
-                      <p className="mb-2 text-sm font-medium text-slate-700">Workplace Type</p>
-                      <div className="space-y-2">
-                        {workplaceOptions.map((option) => (
-                          <label key={option.value} className="flex cursor-pointer items-center gap-3 text-sm text-slate-600">
-                            <input
-                              type="checkbox"
-                              className="h-4 w-4 rounded"
-                              checked={form.workplaceTypes.includes(option.value)}
-                              onChange={() => update("workplaceTypes", toggleValue(form.workplaceTypes, option.value))}
-                            />
-                            {option.label}
-                          </label>
+            {/* LinkedIn-specific Settings */}
+            {form.sources.includes("linkedin") && (
+              <>
+                <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_120px]">
+                  <div className="relative space-y-1.5">
+                    <label className="text-sm font-medium text-slate-700" htmlFor="drawer-location">Location</label>
+                    <Input
+                      id="drawer-location"
+                      value={form.location}
+                      onChange={(e: ChangeEvent<HTMLInputElement>) => {
+                        update("location", e.target.value);
+                        setShowCitySuggestions(true);
+                      }}
+                      onFocus={() => setShowCitySuggestions(true)}
+                      onBlur={() => setShowCitySuggestions(false)}
+                      placeholder="United States, Boston, Remote"
+                    />
+                    {showCitySuggestions && citySuggestions.length > 0 && (
+                      <div className="absolute left-0 right-0 top-full z-50 mt-1 max-h-60 overflow-y-auto rounded-lg border border-slate-200 bg-white py-1 shadow-lg">
+                        {citySuggestions.map((suggestion) => (
+                          <button
+                            key={suggestion.geoId}
+                            type="button"
+                            onMouseDown={(e) => {
+                              e.preventDefault();
+                              handleSelectCitySuggestion(suggestion);
+                            }}
+                            className="flex w-full items-center justify-between px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50 transition"
+                          >
+                            <span className="font-medium">
+                              {suggestion.city}, {suggestion.state}
+                            </span>
+                            <span className="text-[10px] rounded bg-slate-100 px-1.5 py-0.5 text-slate-500">
+                              GeoID: {suggestion.geoId}
+                            </span>
+                          </button>
                         ))}
                       </div>
-                    </div>
-                    <div className="border-t border-slate-100 pt-4">
-                      <p className="mb-2 text-sm font-medium text-slate-700">Experience Level</p>
-                      <div className="space-y-2">
-                        {experienceOptions.map((option) => (
-                          <label key={option.value} className="flex cursor-pointer items-center gap-3 text-sm text-slate-600">
-                            <input
-                              type="checkbox"
-                              className="h-4 w-4 rounded"
-                              checked={form.experienceLevels.includes(option.value)}
-                              onChange={() => update("experienceLevels", toggleValue(form.experienceLevels, option.value))}
-                            />
-                            {option.label}
-                          </label>
-                        ))}
-                      </div>
-                    </div>
-                    <div className="border-t border-slate-100 pt-4">
-                      <p className="mb-2 text-sm font-medium text-slate-700">Job Type</p>
-                      <div className="space-y-2">
-                        {jobTypeOptions.map((option) => (
-                          <label key={option.value} className="flex cursor-pointer items-center gap-3 text-sm text-slate-600">
-                            <input
-                              type="checkbox"
-                              className="h-4 w-4 rounded"
-                              checked={form.jobTypes.includes(option.value)}
-                              onChange={() => update("jobTypes", toggleValue(form.jobTypes, option.value))}
-                            />
-                            {option.label}
-                          </label>
-                        ))}
-                      </div>
-                    </div>
+                    )}
+                  </div>
+                  <div className="space-y-1.5">
+                    <FieldLabelWithInfo
+                      htmlFor="drawer-limit"
+                      label="Max cards"
+                      tooltip="Maximum LinkedIn cards to extract per scanned results page. Already-saved jobs reuse historical scores, and only brand-new jobs consume AI scoring."
+                    />
+                    <Input
+                      id="drawer-limit"
+                      type="number"
+                      min="1"
+                      max="25"
+                      value={String(form.limit)}
+                      onChange={(e: ChangeEvent<HTMLInputElement>) => update("limit", Math.max(1, Math.min(25, Number(e.target.value || 10))))}
+                    />
                   </div>
                 </div>
 
-                <div className="border-b border-slate-100 p-4">
-                  <p className="mb-0.5 text-xs font-semibold uppercase tracking-wider text-slate-400">AI / Semantic Search Options</p>
-                  <p className="mb-3 text-sm text-slate-500">Configure parameters for the new LinkedIn job search format.</p>
-                  <div className="space-y-3">
-                    <label className="flex cursor-pointer items-center gap-3 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-medium text-slate-700 transition hover:bg-slate-100">
-                      <input
-                        type="checkbox"
-                        checked={form.useSemanticFormat}
-                        onChange={(e) => update("useSemanticFormat", e.target.checked)}
-                        className="h-4 w-4 rounded"
-                      />
-                      Use AI Semantic URL format
-                    </label>
-
-                    <div className="space-y-1.5">
-                      <FieldLabelWithInfo
-                        htmlFor="drawer-geoId"
-                        label="Location Geo ID"
-                        tooltip="The internal numerical identifier for a location in LinkedIn URLs (e.g. 105142029 for Orlando, FL). Retrieve this by running a search on LinkedIn and copying the geoId parameter."
-                      />
-                      <Input
-                        id="drawer-geoId"
-                        value={form.geoId}
-                        onChange={(e: ChangeEvent<HTMLInputElement>) => update("geoId", e.target.value)}
-                        placeholder="e.g. 105142029"
-                      />
+                {/* Filter summary + Advanced toggle */}
+                <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex flex-wrap gap-2">
+                      <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-medium text-slate-600">
+                        {formatWorkplaceSummary(form.workplaceTypes)}
+                      </span>
+                      <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-medium text-slate-600">
+                        {formatPostedSummary(form.postedWithin)}
+                      </span>
+                      <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-medium text-slate-600">
+                        {formatSortSummary(form.sortBy)}
+                      </span>
+                      <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-medium text-slate-600">
+                        {`Scan ${form.pagesToScan} page${form.pagesToScan === 1 ? "" : "s"} from page ${form.page}`}
+                      </span>
                     </div>
-
-                    <div className="space-y-1.5">
-                      <FieldLabelWithInfo
-                        htmlFor="drawer-distance"
-                        label="Distance Radius (miles)"
-                        tooltip="Distance/radius in miles around your chosen location for job suggestions."
-                      />
-                      <Input
-                        id="drawer-distance"
-                        type="number"
-                        min="0"
-                        value={form.distance}
-                        onChange={(e: ChangeEvent<HTMLInputElement>) => update("distance", e.target.value)}
-                        placeholder="e.g. 50"
-                      />
-                    </div>
-
-                    <div className="space-y-1.5">
-                      <FieldLabelWithInfo
-                        htmlFor="drawer-f_SAL"
-                        label="Salary Filter ID (f_SAL)"
-                        tooltip="Specific ID used by LinkedIn's new salary filter (e.g. f_SA_id_226001:272015). Retrieve this from the address bar of a filtered LinkedIn search."
-                      />
-                      <Input
-                        id="drawer-f_SAL"
-                        value={form.f_SAL}
-                        onChange={(e: ChangeEvent<HTMLInputElement>) => update("f_SAL", e.target.value)}
-                        placeholder="e.g. f_SA_id_226001:272015"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                <div className="p-4">
-                  <div className="mb-0.5 flex items-center gap-2">
-                    <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Discovery Strategy</p>
-                    <span className="rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-700">
+                    <button
+                      type="button"
+                      onClick={() => setShowAdvanced((prev) => !prev)}
+                      className="inline-flex shrink-0 items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
+                    >
                       Advanced
-                    </span>
-                  </div>
-                  <p className="mb-1 text-sm text-slate-500">Run several broader LinkedIn searches, then merge and narrow the pool locally.</p>
-                  <p className="mb-3 text-xs font-medium text-amber-600">Takes longer — runs multiple LinkedIn searches before combining results.</p>
-                  <div className="space-y-3">
-                    <label className="flex cursor-pointer items-center gap-3 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-medium text-slate-700 transition hover:bg-slate-100">
-                      <input
-                        type="checkbox"
-                        className="h-4 w-4 rounded"
-                        checked={broadenDiscovery}
-                        onChange={(e) => setBroadenDiscovery(e.target.checked)}
-                      />
-                      Broaden search before local filtering
-                    </label>
-                    <div className="space-y-2">
-                      {discoveryPresetOptions.map((preset) => {
-                        const active = selectedPresets.includes(preset.value);
-                        return (
-                          <Tooltip key={preset.value}>
-                            <TooltipTrigger asChild>
-                              <button
-                                type="button"
-                                onClick={() => togglePreset(preset.value)}
-                                className={`flex w-full items-center justify-between gap-2 rounded-lg border px-4 py-2.5 text-sm font-medium transition ${
-                                  active
-                                    ? "border-sky-200 bg-sky-50 text-sky-700"
-                                    : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
-                                }`}
-                              >
-                                <span>{preset.label}</span>
-                                <CircleHelp className="h-4 w-4 shrink-0 opacity-50" />
-                              </button>
-                            </TooltipTrigger>
-                            <TooltipContent className="max-w-xs text-xs leading-relaxed">
-                              {preset.description}
-                            </TooltipContent>
-                          </Tooltip>
-                        );
-                      })}
-                    </div>
+                      <ChevronDown className={`h-4 w-4 transition ${showAdvanced ? "rotate-180" : ""}`} />
+                    </button>
                   </div>
                 </div>
 
-              </div>
-            ) : null}
+                {/* Advanced panel */}
+                {showAdvanced ? (
+                  <div className="space-y-px overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+
+                    <div className="border-b border-slate-100 p-4">
+                      <p className="mb-0.5 text-xs font-semibold uppercase tracking-wider text-slate-400">Targeting</p>
+                      <p className="mb-3 text-sm text-slate-500">Filter to a specific company before scraping begins.</p>
+                      <Input
+                        value={form.company}
+                        onChange={(e: ChangeEvent<HTMLInputElement>) => update("company", e.target.value)}
+                        placeholder="Company name (optional)"
+                      />
+                    </div>
+
+                    <div className="border-b border-slate-100 p-4">
+                      <p className="mb-0.5 text-xs font-semibold uppercase tracking-wider text-slate-400">Freshness & Ranking</p>
+                      <p className="mb-3 text-sm text-slate-500">Control how recent results must be and how LinkedIn orders them.</p>
+                      <div className="space-y-3">
+                        <div className="space-y-1.5">
+                          <label className="text-sm font-medium text-slate-700" htmlFor="drawer-postedWithin">Posted Within</label>
+                          <select
+                            id="drawer-postedWithin"
+                            value={form.postedWithin}
+                            onChange={(e) => update("postedWithin", e.target.value as FormState["postedWithin"])}
+                            className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700"
+                          >
+                            <option value="any">Any time</option>
+                            <option value="24h">Last 24 hours</option>
+                            <option value="7d">Last 7 days</option>
+                            <option value="30d">Last 30 days</option>
+                          </select>
+                        </div>
+                        <div className="space-y-1.5">
+                          <label className="text-sm font-medium text-slate-700" htmlFor="drawer-sortBy">Sort Order</label>
+                          <select
+                            id="drawer-sortBy"
+                            value={form.sortBy}
+                            onChange={(e) => update("sortBy", e.target.value as FormState["sortBy"])}
+                            className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700"
+                          >
+                            <option value="recent">Most recent</option>
+                            <option value="relevant">Most relevant</option>
+                          </select>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="border-b border-slate-100 p-4">
+                      <p className="mb-0.5 text-xs font-semibold uppercase tracking-wider text-slate-400">Salary & Application</p>
+                      <p className="mb-3 text-sm text-slate-500">Set a salary floor and narrow to quick-apply listings.</p>
+                      <div className="space-y-3">
+                        <div className="space-y-1.5">
+                          <label className="text-sm font-medium text-slate-700" htmlFor="drawer-salaryMin">Minimum Salary</label>
+                          <select
+                            id="drawer-salaryMin"
+                            value={form.salaryMin}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              update("salaryMin", val);
+                              if (val) {
+                                const numVal = Number(val);
+                                if (SALARY_BANDS[numVal]) {
+                                  update("f_SAL", SALARY_BANDS[numVal]);
+                                }
+                              } else {
+                                update("f_SAL", "");
+                              }
+                            }}
+                            className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700"
+                          >
+                            <option value="">Any Salary</option>
+                            <option value="40000">$40,000+</option>
+                            <option value="60000">$60,000+</option>
+                            <option value="80000">$80,000+</option>
+                            <option value="100000">$100,000+</option>
+                            <option value="120000">$120,000+</option>
+                            <option value="140000">$140,000+</option>
+                            <option value="160000">$160,000+</option>
+                            <option value="180000">$180,000+</option>
+                            <option value="200000">$200,000+</option>
+                          </select>
+                        </div>
+                        <label className="flex cursor-pointer items-center gap-3 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-medium text-slate-700 transition hover:bg-slate-100">
+                          <input
+                            type="checkbox"
+                            checked={form.easyApply}
+                            onChange={(e) => update("easyApply", e.target.checked)}
+                            className="h-4 w-4 rounded"
+                          />
+                          Easy Apply only
+                        </label>
+                      </div>
+                    </div>
+
+                    <div className="border-b border-slate-100 p-4">
+                      <p className="mb-0.5 text-xs font-semibold uppercase tracking-wider text-slate-400">Page Coverage</p>
+                      <p className="mb-3 text-sm text-slate-500">Choose which result pages to harvest.</p>
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        <div className="space-y-1.5">
+                          <FieldLabelWithInfo
+                            htmlFor="drawer-page"
+                            label="Start Page"
+                            tooltip="The first LinkedIn results page to scan. If you set Start Page to 5 and Pages To Scan to 3, the search will scan pages 5, 6, and 7."
+                          />
+                          <Input
+                            id="drawer-page"
+                            type="number"
+                            min="1"
+                            max="100"
+                            value={String(form.page)}
+                            onChange={(e: ChangeEvent<HTMLInputElement>) => update("page", Math.max(1, Number(e.target.value || 1)))}
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <FieldLabelWithInfo
+                            htmlFor="drawer-pagesToScan"
+                            label="Pages to Scan"
+                            tooltip="How many consecutive LinkedIn result pages to harvest starting from the Start Page."
+                          />
+                          <Input
+                            id="drawer-pagesToScan"
+                            type="number"
+                            min="1"
+                            max="10"
+                            value={String(form.pagesToScan)}
+                            onChange={(e: ChangeEvent<HTMLInputElement>) => update("pagesToScan", Math.max(1, Math.min(10, Number(e.target.value || 1))))}
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="border-b border-slate-100 p-4">
+                      <p className="mb-0.5 text-xs font-semibold uppercase tracking-wider text-slate-400">Role Preferences</p>
+                      <p className="mb-3 text-sm text-slate-500">Narrow by work arrangement, seniority, and employment type.</p>
+                      <div className="space-y-4">
+                        <div>
+                          <p className="mb-2 text-sm font-medium text-slate-700">Workplace Type</p>
+                          <div className="space-y-2">
+                            {workplaceOptions.map((option) => (
+                              <label key={option.value} className="flex cursor-pointer items-center gap-3 text-sm text-slate-600">
+                                <input
+                                  type="checkbox"
+                                  className="h-4 w-4 rounded"
+                                  checked={form.workplaceTypes.includes(option.value)}
+                                  onChange={() => update("workplaceTypes", toggleValue(form.workplaceTypes, option.value))}
+                                />
+                                {option.label}
+                              </label>
+                            ))}
+                          </div>
+                        </div>
+                        <div className="border-t border-slate-100 pt-4">
+                          <p className="mb-2 text-sm font-medium text-slate-700">Experience Level</p>
+                          <div className="space-y-2">
+                            {experienceOptions.map((option) => (
+                              <label key={option.value} className="flex cursor-pointer items-center gap-3 text-sm text-slate-600">
+                                <input
+                                  type="checkbox"
+                                  className="h-4 w-4 rounded"
+                                  checked={form.experienceLevels.includes(option.value)}
+                                  onChange={() => update("experienceLevels", toggleValue(form.experienceLevels, option.value))}
+                                />
+                                {option.label}
+                              </label>
+                            ))}
+                          </div>
+                        </div>
+                        <div className="border-t border-slate-100 pt-4">
+                          <p className="mb-2 text-sm font-medium text-slate-700">Job Type</p>
+                          <div className="space-y-2">
+                            {jobTypeOptions.map((option) => (
+                              <label key={option.value} className="flex cursor-pointer items-center gap-3 text-sm text-slate-600">
+                                <input
+                                  type="checkbox"
+                                  className="h-4 w-4 rounded"
+                                  checked={form.jobTypes.includes(option.value)}
+                                  onChange={() => update("jobTypes", toggleValue(form.jobTypes, option.value))}
+                                />
+                                {option.label}
+                              </label>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="border-b border-slate-100 p-4">
+                      <p className="mb-0.5 text-xs font-semibold uppercase tracking-wider text-slate-400">AI / Semantic Search Options</p>
+                      <p className="mb-3 text-sm text-slate-500">Configure parameters for the new LinkedIn job search format.</p>
+                      <div className="space-y-3">
+                        <label className="flex cursor-pointer items-center gap-3 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-medium text-slate-700 transition hover:bg-slate-100">
+                          <input
+                            type="checkbox"
+                            checked={form.useSemanticFormat}
+                            onChange={(e) => update("useSemanticFormat", e.target.checked)}
+                            className="h-4 w-4 rounded"
+                          />
+                          Use AI Semantic URL format
+                        </label>
+
+                        <div className="space-y-1.5">
+                          <FieldLabelWithInfo
+                            htmlFor="drawer-geoId"
+                            label="Location Geo ID"
+                            tooltip="The internal numerical identifier for a location in LinkedIn URLs (e.g. 105142029 for Orlando, FL). Retrieve this by running a search on LinkedIn and copying the geoId parameter."
+                          />
+                          <Input
+                            id="drawer-geoId"
+                            value={form.geoId}
+                            onChange={(e: ChangeEvent<HTMLInputElement>) => update("geoId", e.target.value)}
+                            placeholder="e.g. 105142029"
+                          />
+                        </div>
+
+                        <div className="space-y-1.5">
+                          <FieldLabelWithInfo
+                            htmlFor="drawer-distance"
+                            label="Distance Radius (miles)"
+                            tooltip="Distance/radius in miles around your chosen location for job suggestions."
+                          />
+                          <Input
+                            id="drawer-distance"
+                            type="number"
+                            min="0"
+                            value={form.distance}
+                            onChange={(e: ChangeEvent<HTMLInputElement>) => update("distance", e.target.value)}
+                            placeholder="e.g. 50"
+                          />
+                        </div>
+
+                        <div className="space-y-1.5">
+                          <FieldLabelWithInfo
+                            htmlFor="drawer-f_SAL"
+                            label="Salary Filter ID (f_SAL)"
+                            tooltip="Specific ID used by LinkedIn's new salary filter (e.g. f_SA_id_226001:272015). Retrieve this from the address bar of a filtered LinkedIn search."
+                          />
+                          <Input
+                            id="drawer-f_SAL"
+                            value={form.f_SAL}
+                            onChange={(e: ChangeEvent<HTMLInputElement>) => update("f_SAL", e.target.value)}
+                            placeholder="e.g. f_SA_id_226001:272015"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="p-4">
+                      <div className="mb-0.5 flex items-center gap-2">
+                        <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Discovery Strategy</p>
+                        <span className="rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-700">
+                          Advanced
+                        </span>
+                      </div>
+                      <p className="mb-1 text-sm text-slate-500">Run several broader LinkedIn searches, then merge and narrow the pool locally.</p>
+                      <p className="mb-3 text-xs font-medium text-amber-600">Takes longer — runs multiple LinkedIn searches before combining results.</p>
+                      <div className="space-y-3">
+                        <label className="flex cursor-pointer items-center gap-3 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-medium text-slate-700 transition hover:bg-slate-100">
+                          <input
+                            type="checkbox"
+                            className="h-4 w-4 rounded"
+                            checked={broadenDiscovery}
+                            onChange={(e) => setBroadenDiscovery(e.target.checked)}
+                          />
+                          Broaden search before local filtering
+                        </label>
+                        <div className="space-y-2">
+                          {discoveryPresetOptions.map((preset) => {
+                            const active = selectedPresets.includes(preset.value);
+                            return (
+                              <Tooltip key={preset.value}>
+                                <TooltipTrigger asChild>
+                                  <button
+                                    type="button"
+                                    onClick={() => togglePreset(preset.value)}
+                                    className={`flex w-full items-center justify-between gap-2 rounded-lg border px-4 py-2.5 text-sm font-medium transition ${
+                                      active
+                                        ? "border-sky-200 bg-sky-50 text-sky-700"
+                                        : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+                                    }`}
+                                  >
+                                    <span>{preset.label}</span>
+                                    <CircleHelp className="h-4 w-4 shrink-0 opacity-50" />
+                                  </button>
+                                </TooltipTrigger>
+                                <TooltipContent className="max-w-xs text-xs leading-relaxed">
+                                  {preset.description}
+                                </TooltipContent>
+                              </Tooltip>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    </div>
+
+                  </div>
+                ) : null}
+              </>
+            )}
 
             {/* Save name + action buttons */}
             <div className="space-y-2">
