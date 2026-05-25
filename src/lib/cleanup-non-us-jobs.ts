@@ -1,6 +1,6 @@
 import { linkedinJobResults, pipelineJobs } from '@/db/schema'
 import { sql } from 'drizzle-orm'
-import type { Database } from '@/db/db'
+import type { DrizzleD1Database } from '@/db/db'
 
 function isUSLocation(location: string | null): boolean {
   if (!location) return false
@@ -9,7 +9,7 @@ function isUSLocation(location: string | null): boolean {
   return usIndicators.some((indicator) => normalized.includes(indicator))
 }
 
-export async function cleanupNonUSJobs(db: Database): Promise<{ deletedLinkedin: number; deletedPipeline: number }> {
+export async function cleanupNonUSJobs(db: DrizzleD1Database): Promise<{ deletedLinkedin: number; deletedPipeline: number }> {
   // Get all jobs and filter in memory
   const allLinkedinJobs = await db.select().from(linkedinJobResults)
   const allPipelineJobs = await db.select().from(pipelineJobs)
