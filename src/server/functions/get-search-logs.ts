@@ -15,7 +15,53 @@ export interface SearchLogRow {
   metadata: Record<string, any> | null;
   level: string;
   createdAt: string;
+  savedSearchId?: number | null;
 }
+
+export type GroupedActivityLog =
+  | {
+      id: string;
+      type: 'search';
+      agentName: string | null;
+      platform: string | null;
+      savedSearchId: number | null;
+      status: 'completed' | 'failed' | 'running';
+      level: 'info' | 'success' | 'warning' | 'error';
+      createdAt: string;
+      completedAt: string | null;
+      message: string;
+      metadata: Record<string, any>;
+      events: SearchLogRow[];
+    }
+  | {
+      id: string;
+      type: 'sync';
+      agentName: string;
+      platform: string | null;
+      status: 'completed' | 'failed' | 'running';
+      level: 'info' | 'success' | 'warning' | 'error';
+      createdAt: string;
+      completedAt: string | null;
+      message: string;
+      metadata: {
+        status: string;
+        completedAt: string | null;
+        stats: {
+          jobsAdded?: number;
+          jobsUpdated?: number;
+          jobsDeleted?: number;
+          companiesChecked?: number;
+          companiesAdded?: number;
+          companiesUpdated?: number;
+          error?: string;
+        };
+        workerLogs: Array<{
+          timestamp: string;
+          type: 'info' | 'success' | 'warning' | 'error';
+          message: string;
+        }>;
+      };
+    };
 
 export interface SearchLogsSummary {
   totalSearches: number;
@@ -35,7 +81,7 @@ export const getSearchLogs = createServerFn({ method: "GET" })
     dateFrom?: string;
     dateTo?: string;
   }) => data)
-  .handler(async ({ data }): Promise<{ rows: SearchLogRow[]; total: number; summary: SearchLogsSummary }> => {
+  .handler(async ({ data }): Promise<{ rows: GroupedActivityLog[]; total: number; summary: SearchLogsSummary }> => {
     const env = getCloudflareEnv();
     if (!env.DB) return { rows: [], total: 0, summary: { totalSearches: 0, totalJobsFound: 0, totalJobsSkipped: 0, totalErrors: 0 } };
 
@@ -49,9 +95,6 @@ export const getSearchLogs = createServerFn({ method: "GET" })
 
     // ─── 1. Query conditions for search_logs ─────────────────────────────────
     const conditions = [eq(searchLogs.userId, user.id)];
-    if (data.eventType) conditions.push(eq(searchLogs.eventType, data.eventType));
-    if (data.platform) conditions.push(eq(searchLogs.platform, data.platform));
-    if (data.level) conditions.push(eq(searchLogs.level, data.level));
     if (data.agentName) {
       conditions.push(sql`lower(${searchLogs.agentName}) like ${`%${data.agentName.toLowerCase()}%`}`);
     }
@@ -78,11 +121,6 @@ export const getSearchLogs = createServerFn({ method: "GET" })
       }
     }
 
-    // Check if syncHistory should be skipped based on level filter
-    if (data.level && data.level === 'warning') {
-      matchSyncHistory = false;
-    }
-
     // Check if syncHistory should be skipped based on agentName filter
     if (data.agentName) {
       const lowerQuery = data.agentName.toLowerCase();
@@ -100,15 +138,6 @@ export const getSearchLogs = createServerFn({ method: "GET" })
     }
     if (data.platform) {
       syncConditions.push(eq(schema.syncHistory.source, data.platform.toLowerCase()));
-    }
-    if (data.level) {
-      if (data.level === 'error') {
-        syncConditions.push(eq(schema.syncHistory.status, 'failed'));
-      } else if (data.level === 'success') {
-        syncConditions.push(eq(schema.syncHistory.status, 'completed'));
-      } else if (data.level === 'info') {
-        syncConditions.push(eq(schema.syncHistory.status, 'running'));
-      }
     }
     if (data.agentName) {
       const lowerQuery = data.agentName.toLowerCase();
@@ -129,27 +158,7 @@ export const getSearchLogs = createServerFn({ method: "GET" })
 
     const syncWhereClause = and(...syncConditions);
 
-    // ─── 3. Count matching records ───────────────────────────────────────────
-    const [searchLogsCountRow] = await db
-      .select({ count: sql<number>`count(*)` })
-      .from(searchLogs)
-      .where(whereClause);
-    const searchLogsCount = Number(searchLogsCountRow?.count ?? 0);
-
-    let syncHistoryCount = 0;
-    if (matchSyncHistory) {
-      const [syncHistoryCountRow] = await db
-        .select({ count: sql<number>`count(*)` })
-        .from(schema.syncHistory)
-        .where(syncWhereClause);
-      syncHistoryCount = Number(syncHistoryCountRow?.count ?? 0);
-    }
-
-    const totalCombined = searchLogsCount + syncHistoryCount;
-
-    // ─── 4. Fetch records (up to offset + pageSize to merge correctly) ───────
-    const fetchLimit = offset + pageSize;
-
+    // ─── 3. Fetch raw database rows (up to limits, then group & filter in-memory) ───
     const searchRows = await db
       .select({
         id: searchLogs.id,
@@ -160,11 +169,12 @@ export const getSearchLogs = createServerFn({ method: "GET" })
         metadata: searchLogs.metadata,
         level: searchLogs.level,
         createdAt: searchLogs.createdAt,
+        savedSearchId: searchLogs.savedSearchId,
       })
       .from(searchLogs)
       .where(whereClause)
       .orderBy(desc(searchLogs.createdAt))
-      .limit(fetchLimit);
+      .limit(3000);
 
     let syncRows: any[] = [];
     if (matchSyncHistory) {
@@ -173,36 +183,146 @@ export const getSearchLogs = createServerFn({ method: "GET" })
         .from(schema.syncHistory)
         .where(syncWhereClause)
         .orderBy(desc(schema.syncHistory.startedAt))
-        .limit(fetchLimit);
+        .limit(1000);
     }
 
-    // ─── 5. Map and Merge ────────────────────────────────────────────────────
-    const mappedSearchRows: SearchLogRow[] = searchRows.map((row) => ({
-      id: row.id,
-      eventType: row.eventType,
-      platform: row.platform,
-      agentName: row.agentName,
-      message: row.message,
-      metadata: row.metadata,
-      level: row.level,
-      createdAt: row.createdAt,
-    }));
+    // ─── 4. Group search events into Search Runs ───────────────────────────────
+    // Sort raw search logs chronologically for grouping
+    const sortedSearchLogs = [...searchRows].sort(
+      (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+    );
 
-    const mappedSyncRows: SearchLogRow[] = syncRows.map((sync) => {
-      let level = 'info';
-      if (sync.status === 'failed') level = 'error';
-      else if (sync.status === 'completed') level = 'success';
+    const groupedSearchRuns: GroupedActivityLog[] = [];
+    const activeRunsByKey = new Map<string, GroupedActivityLog & { type: 'search' }>();
 
-      const eventType = sync.syncType === 'discovery' ? 'discovery_sync' : 'job_sync';
-      const agentName = sync.syncType === 'discovery' ? 'Discovery Sync Worker' : 'ATS/Aggregator Sync Worker';
-      
+    for (const log of sortedSearchLogs) {
+      const runKey = log.savedSearchId
+        ? `saved-${log.savedSearchId}`
+        : (log.agentName ? `agent-${log.agentName}` : 'manual');
+
+      const logTime = new Date(log.createdAt).getTime();
+      const activeRun = activeRunsByKey.get(runKey);
+
+      // Force creating a new run if we see a start marker or if time gap is too large
+      const isStartEvent = log.eventType === 'search_started' || log.eventType === 'cron_triggered';
+      const thresholdMs = 15 * 60 * 1000; // 15 minutes max gap
+
+      let parsedMetadata: Record<string, any> = {};
+      if (log.metadata) {
+        try {
+          parsedMetadata = typeof log.metadata === 'string'
+            ? JSON.parse(log.metadata)
+            : log.metadata;
+        } catch {
+          parsedMetadata = {};
+        }
+      }
+
+      if (activeRun && !isStartEvent && (logTime - new Date(activeRun.createdAt).getTime()) < thresholdMs) {
+        activeRun.events.push({
+          id: log.id,
+          eventType: log.eventType,
+          platform: log.platform,
+          agentName: log.agentName,
+          message: log.message,
+          metadata: parsedMetadata,
+          level: log.level,
+          createdAt: log.createdAt,
+          savedSearchId: log.savedSearchId,
+        });
+
+        activeRun.completedAt = log.createdAt;
+
+        // Escalate status and level
+        if (log.level === 'error') {
+          activeRun.level = 'error';
+          activeRun.status = 'failed';
+        } else if (log.level === 'warning' && activeRun.level !== 'error') {
+          activeRun.level = 'warning';
+        } else if (log.level === 'success' && activeRun.level !== 'error' && activeRun.level !== 'warning') {
+          activeRun.level = 'success';
+        }
+
+        if (log.eventType === 'search_completed') {
+          activeRun.status = 'completed';
+        }
+
+        // Consolidated message: prioritize final success/failure logs
+        if (log.eventType === 'search_completed' || log.level === 'error') {
+          activeRun.message = log.message;
+        }
+
+        activeRun.metadata = {
+          ...activeRun.metadata,
+          ...parsedMetadata,
+        };
+      } else {
+        let status: 'completed' | 'failed' | 'running' = 'running';
+        if (log.eventType === 'search_completed') status = 'completed';
+        else if (log.level === 'error') status = 'failed';
+
+        let runName = log.agentName;
+        if (!runName && log.savedSearchId) {
+          runName = `Saved Search #${log.savedSearchId}`;
+        }
+        if (!runName) {
+          runName = 'Manual Search';
+        }
+
+        const newRun: GroupedActivityLog & { type: 'search' } = {
+          id: `search-run-${log.id}`,
+          type: 'search',
+          agentName: runName,
+          platform: log.platform,
+          savedSearchId: log.savedSearchId,
+          status,
+          level: log.level as any,
+          createdAt: log.createdAt,
+          completedAt: log.createdAt,
+          message: log.message,
+          metadata: parsedMetadata,
+          events: [
+            {
+              id: log.id,
+              eventType: log.eventType,
+              platform: log.platform,
+              agentName: log.agentName,
+              message: log.message,
+              metadata: parsedMetadata,
+              level: log.level,
+              createdAt: log.createdAt,
+              savedSearchId: log.savedSearchId,
+            }
+          ],
+        };
+
+        groupedSearchRuns.push(newRun);
+        activeRunsByKey.set(runKey, newRun);
+      }
+    }
+
+    // ─── 5. Map Sync History Runs ─────────────────────────────────────────────
+    const mappedSyncRuns: GroupedActivityLog[] = syncRows.map((sync) => {
+      let level: 'info' | 'success' | 'warning' | 'error' = 'info';
+      let status: 'completed' | 'failed' | 'running' = 'running';
+
+      if (sync.status === 'failed') {
+        level = 'error';
+        status = 'failed';
+      } else if (sync.status === 'completed') {
+        level = 'success';
+        status = 'completed';
+      }
+
+      const agentName = sync.syncType === 'discovery' ? 'Company Discovery Sync' : 'ATS Ingestion Sync';
+
       let message = '';
       const stats = sync.stats as any;
       if (sync.status === 'failed') {
-        message = `Sync worker failed for ${sync.source || 'Discovery'}: ${stats?.error || 'Unknown fatal error'}`;
+        message = `Sync failed for ${sync.source || 'Discovery'}: ${stats?.error || 'Unknown error'}`;
       } else if (sync.status === 'completed') {
         if (sync.syncType === 'discovery') {
-          message = `Discovery completed. Checked ${stats?.companiesChecked || 0} companies, discovered ${stats?.companiesAdded || 0} new, updated ${stats?.companiesUpdated || 0}`;
+          message = `Discovery completed for ${sync.source || 'Greenhouse/Lever'}. Checked ${stats?.companiesChecked || 0} companies, discovered ${stats?.companiesAdded || 0} new`;
         } else {
           message = `Ingestion completed for ${sync.source || 'unknown'}. Added ${stats?.jobsAdded || 0} jobs, updated ${stats?.jobsUpdated || 0}`;
         }
@@ -212,30 +332,67 @@ export const getSearchLogs = createServerFn({ method: "GET" })
 
       return {
         id: `sync-${sync.id}`,
-        eventType,
-        platform: sync.source,
+        type: 'sync',
         agentName,
+        platform: sync.source,
+        status,
+        level,
+        createdAt: sync.startedAt ? new Date(sync.startedAt).toISOString() : new Date().toISOString(),
+        completedAt: sync.completedAt ? new Date(sync.completedAt).toISOString() : null,
         message,
         metadata: {
           status: sync.status,
           completedAt: sync.completedAt ? new Date(sync.completedAt).toISOString() : null,
-          stats: sync.stats,
-          workerLogs: Array.isArray(sync.logs) ? sync.logs : [], // Detail console logs
+          stats: sync.stats || {},
+          workerLogs: Array.isArray(sync.logs) ? sync.logs : [],
         },
-        level,
-        createdAt: sync.startedAt ? new Date(sync.startedAt).toISOString() : new Date().toISOString(),
       };
     });
 
-    const combinedRows = [...mappedSearchRows, ...mappedSyncRows];
+    // ─── 6. Merge and Sort Grouped Runs ───────────────────────────────────────
+    const combinedRuns = [...groupedSearchRuns, ...mappedSyncRuns];
+    combinedRuns.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
-    // Sort by createdAt descending
-    combinedRows.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    // ─── 7. Apply Filters In-Memory ──────────────────────────────────────────
+    const filteredRuns = combinedRuns.filter((run) => {
+      // Filter by Level
+      if (data.level) {
+        if (run.level !== data.level) return false;
+      }
 
-    // Slice for page
-    const paginatedRows = combinedRows.slice(offset, offset + pageSize);
+      // Filter by Platform
+      if (data.platform) {
+        const queryPlatform = data.platform.toLowerCase();
+        const runPlatform = run.platform?.toLowerCase() || '';
+        if (run.type === 'search') {
+          const matchesRunPlatform = runPlatform.includes(queryPlatform);
+          const matchesEventPlatform = run.events.some(
+            (e) => e.platform?.toLowerCase().includes(queryPlatform)
+          );
+          if (!matchesRunPlatform && !matchesEventPlatform) return false;
+        } else {
+          if (!runPlatform.includes(queryPlatform)) return false;
+        }
+      }
 
-    // ─── 6. Compute statistics ───────────────────────────────────────────────
+      // Filter by Event Type
+      if (data.eventType) {
+        if (run.type === 'search') {
+          const hasEventType = run.events.some((e) => e.eventType === data.eventType);
+          if (!hasEventType) return false;
+        } else {
+          const runEventType = run.agentName.includes('Discovery') ? 'discovery_sync' : 'job_sync';
+          if (runEventType !== data.eventType) return false;
+        }
+      }
+
+      return true;
+    });
+
+    const total = filteredRuns.length;
+    const paginatedRows = filteredRuns.slice(offset, offset + pageSize);
+
+    // ─── 8. Compute global statistics ─────────────────────────────────────────
     const [searchCount] = await db
       .select({ count: sql<number>`count(*)` })
       .from(searchLogs)
@@ -280,7 +437,7 @@ export const getSearchLogs = createServerFn({ method: "GET" })
 
     return {
       rows: paginatedRows,
-      total: totalCombined,
+      total,
       summary: {
         totalSearches: Number(searchCount?.count ?? 0),
         totalJobsFound: Number(foundCount?.count ?? 0),
