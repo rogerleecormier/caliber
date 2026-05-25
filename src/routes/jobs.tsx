@@ -23,9 +23,9 @@ import {
 } from "@caliber/ui-kit";
 import { requireLoginRedirect } from "@/lib/auth-redirect";
 import {
-  LinkedinResultCard,
-  type LinkedinJobStatus,
-} from "@/components/features/linkedin-result-card";
+  JobResultCard,
+  type JobStatus,
+} from "@/components/features/job-result-card";
 import { LinkedinSearchDrawer } from "@/components/features/linkedin-search-drawer";
 import { AnalysisModal } from "@/components/features/analysis-modal";
 import { JobTableView } from "@/components/features/job-table-view";
@@ -76,7 +76,7 @@ type HubJob = Awaited<ReturnType<typeof getPipelineJobHistory>>["rows"][number] 
 
 const PAGE_SIZE = 20;
 const VALID_SORT_OPTIONS: SortOption[] = ["posted-date", "title", "score", "company", "location"];
-const JOB_STATUSES = PIPELINE_STATUSES as unknown as LinkedinJobStatus[];
+const JOB_STATUSES = PIPELINE_STATUSES as unknown as JobStatus[];
 
 // ─── Route ────────────────────────────────────────────────────────────────────
 
@@ -229,7 +229,7 @@ function JobsPage() {
     });
   }
 
-  async function handleStatusChange(id: number, status: LinkedinJobStatus) {
+  async function handleStatusChange(id: number, status: JobStatus) {
     const previousRows = jobs;
     setPendingStatusId(id);
     setJobs((prev) => prev.map((job) => (job.id === id ? { ...job, status } : job)));
@@ -310,7 +310,7 @@ function JobsPage() {
     setDrawerOpen(true);
   }
 
-  function toggleStatusFilter(status: LinkedinJobStatus) {
+  function toggleStatusFilter(status: JobStatus) {
     navigate({
       search: (prev) => ({
         ...prev,
@@ -658,7 +658,7 @@ function JobsPage() {
           {viewMode === "cards" ? (
             <div className="grid gap-4 grid-cols-1 lg:grid-cols-2">
               {jobs.map((job) => (
-                <LinkedinResultCard
+                <JobResultCard
                   key={job.id ?? job.sourceUrl}
                   job={{ ...job, resultSource: "history" }}
                   isNew={!!job.isNew}
@@ -668,7 +668,7 @@ function JobsPage() {
                   statusOptions={JOB_STATUSES}
                   onStatusChange={job.id ? (status) => handleStatusChange(job.id!, status) : undefined}
                   statusPending={job.id ? pendingStatusId === job.id : false}
-                  isAnalyzed={job.id ? analyzedJobIds.has(job.id) : false}
+                  isAnalyzed={job.status === "Analyzed"}
                   onAnalyzeClick={job.id ? () => openAnalysisModal(job) : undefined}
                 />
               ))}
@@ -696,7 +696,7 @@ function JobsPage() {
                 const job = jobs.find((j) => j.sourceUrl === jobUrl);
                 if (job) openAnalysisModal(job);
               }}
-              analyzedJobIds={analyzedJobIds}
+              analyzedJobIds={new Set(jobs.filter((j) => j.status === "Analyzed").map((j) => j.id).filter((id): id is number => !!id))}
             />
           )}
 
@@ -740,6 +740,7 @@ function JobsPage() {
               markJobAsAnalyzed(selectedJobForAnalysis.id);
             }
           }}
+          isFromExistingJob
         />
       )}
 

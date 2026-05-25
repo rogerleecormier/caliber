@@ -7,6 +7,7 @@ interface AnalysisModalProps {
   jobUrl: string;
   onClose: () => void;
   onAnalysisComplete?: () => void;
+  isFromExistingJob?: boolean;
 }
 
 export function AnalysisModal({
@@ -15,6 +16,7 @@ export function AnalysisModal({
   jobUrl,
   onClose,
   onAnalysisComplete,
+  isFromExistingJob = false,
 }: AnalysisModalProps) {
   if (!isOpen) return null;
 
@@ -35,7 +37,7 @@ export function AnalysisModal({
           </button>
         </div>
         <div className="p-6">
-          <AnalysisForm initialUrl={jobUrl} />
+          <AnalysisForm initialUrl={jobUrl} hideInputModeToggle={isFromExistingJob} />
         </div>
       </div>
     </div>

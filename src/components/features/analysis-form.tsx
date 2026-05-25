@@ -11,9 +11,10 @@ type InputMode = "url" | "text";
 interface AnalysisFormProps {
   initialUrl?: string;
   initialJd?: string;
+  hideInputModeToggle?: boolean;
 }
 
-export function AnalysisForm({ initialUrl, initialJd }: AnalysisFormProps = {}) {
+export function AnalysisForm({ initialUrl, initialJd, hideInputModeToggle = false }: AnalysisFormProps = {}) {
   const [mode, setMode] = useState<InputMode>(initialJd ? "text" : "url");
   const [url, setUrl] = useState(initialUrl ?? "");
   const [jdText, setJdText] = useState(initialJd ?? "");
@@ -83,27 +84,29 @@ export function AnalysisForm({ initialUrl, initialJd }: AnalysisFormProps = {}) 
         </div>
 
         {/* Mode toggle */}
-        <div className="inline-flex items-center rounded-lg border border-border bg-muted/40 p-1 gap-1 mb-5">
-          {([
-            { id: "url" as InputMode, label: "From URL", Icon: Link2 },
-            { id: "text" as InputMode, label: "Paste Text", Icon: FileText },
-          ] as const).map(({ id, label, Icon }) => (
-            <button
-              key={id}
-              type="button"
-              onClick={() => setMode(id)}
-              className={[
-                "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors",
-                mode === id
-                  ? "bg-background shadow-sm border border-border text-foreground"
-                  : "text-muted-foreground hover:text-foreground",
-              ].join(" ")}
-            >
-              <Icon className="h-3.5 w-3.5" />
-              {label}
-            </button>
-          ))}
-        </div>
+        {!hideInputModeToggle && (
+          <div className="inline-flex items-center rounded-lg border border-border bg-muted/40 p-1 gap-1 mb-5">
+            {([
+              { id: "url" as InputMode, label: "From URL", Icon: Link2 },
+              { id: "text" as InputMode, label: "Paste Text", Icon: FileText },
+            ] as const).map(({ id, label, Icon }) => (
+              <button
+                key={id}
+                type="button"
+                onClick={() => setMode(id)}
+                className={[
+                  "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors",
+                  mode === id
+                    ? "bg-background shadow-sm border border-border text-foreground"
+                    : "text-muted-foreground hover:text-foreground",
+                ].join(" ")}
+              >
+                <Icon className="h-3.5 w-3.5" />
+                {label}
+              </button>
+            ))}
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} className="space-y-3">
           {mode === "url" ? (

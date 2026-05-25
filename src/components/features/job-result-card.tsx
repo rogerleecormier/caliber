@@ -23,9 +23,9 @@ import {
 } from "@/server/functions/linkedin-searches";
 import { getDocumentDownload } from "@/server/functions/get-history";
 
-export type LinkedinJobStatus = "Discovered" | "Analyzed" | "Prepped" | "Applied" | "Interviewed" | "Hired" | "Not Hired" | "Archived";
+export type JobStatus = "Discovered" | "Analyzed" | "Prepped" | "Applied" | "Interviewed" | "Hired" | "Not Hired" | "Archived";
 
-export type LinkedinResultCardJob = {
+export type JobResultCardJob = {
   id?: number;
   title: string;
   company: string;
@@ -37,7 +37,7 @@ export type LinkedinResultCardJob = {
   postDateText?: string | null;
   resultSource?: string;
   ownerEmail?: string | null;
-  status?: LinkedinJobStatus | null;
+  status?: JobStatus | null;
   sourceName?: string | null;
   score?: {
     atsScore: number;
@@ -60,20 +60,20 @@ export type LinkedinResultCardJob = {
 };
 
 
-interface LinkedinResultCardProps {
-  job: LinkedinResultCardJob;
+interface JobResultCardProps {
+  job: JobResultCardJob;
   isNew?: boolean;
   selected?: boolean;
   showSelection?: boolean;
   onSelect?: () => void;
-  statusOptions?: LinkedinJobStatus[];
-  onStatusChange?: (status: LinkedinJobStatus) => void | Promise<void>;
+  statusOptions?: JobStatus[];
+  onStatusChange?: (status: JobStatus) => void | Promise<void>;
   statusPending?: boolean;
   isAnalyzed?: boolean;
   onAnalyzeClick?: () => void;
 }
 
-function getScore(job: LinkedinResultCardJob) {
+function getScore(job: JobResultCardJob) {
   if (job.score) return job.score;
   const hasAnyScore =
     job.masterScore != null ||
@@ -102,7 +102,7 @@ function formatScore(value: number | null | undefined): string {
 }
 
 
-export function LinkedinResultCard({
+export function JobResultCard({
   job,
   isNew = false,
   selected = false,
@@ -113,7 +113,7 @@ export function LinkedinResultCard({
   statusPending = false,
   isAnalyzed = false,
   onAnalyzeClick,
-}: LinkedinResultCardProps) {
+}: JobResultCardProps) {
   const score = getScore(job);
   const [outreach, setOutreach] = useState("");
   const [outreachLoading, setOutreachLoading] = useState(false);
@@ -390,9 +390,9 @@ export function LinkedinResultCard({
               <div className="flex items-center gap-2">
                 <span className="text-xs font-medium text-slate-600">Status</span>
                 <select
-                  value={(job.status ?? "Analyzed") as LinkedinJobStatus}
+                  value={(job.status ?? "Analyzed") as JobStatus}
                   onChange={(event: ChangeEvent<HTMLSelectElement>) =>
-                    onStatusChange(event.target.value as LinkedinJobStatus)
+                    onStatusChange(event.target.value as JobStatus)
                   }
                   disabled={statusPending}
                   className="h-8 w-36 rounded-lg border border-slate-200 bg-white px-2 text-xs font-semibold text-slate-700 disabled:opacity-60"

@@ -1,16 +1,16 @@
 import { Link } from "@tanstack/react-router";
 import { ExternalLink, Sparkles, MessageSquareText, Archive, Trash2 } from "lucide-react";
-import type { LinkedinResultCardJob, LinkedinJobStatus } from "./linkedin-result-card";
+import type { JobResultCardJob, JobStatus } from "./job-result-card";
 import { getScoreBorderColor } from "@/lib/scoreUtils";
 import type { ChangeEvent } from "react";
 
 interface JobTableViewProps {
-  jobs: LinkedinResultCardJob[];
+  jobs: JobResultCardJob[];
   selectedIds: Set<number>;
   onSelect: (id: number) => void;
   onSelectAll: (checked: boolean) => void;
-  onStatusChange: (id: number, status: LinkedinJobStatus) => void;
-  statusOptions: LinkedinJobStatus[];
+  onStatusChange: (id: number, status: JobStatus) => void;
+  statusOptions: JobStatus[];
   statusPending: number | null;
   onAnalyze: (jobUrl: string) => void;
   analyzedJobIds: Set<number>;
@@ -21,7 +21,7 @@ function formatScore(value: number | null | undefined): string {
   return `${value}%`;
 }
 
-function getScore(job: LinkedinResultCardJob) {
+function getScore(job: JobResultCardJob) {
   if (job.score) return job.score;
   const hasAnyScore =
     job.masterScore != null ||
@@ -148,9 +148,9 @@ export function JobTableView({
                 <td className="px-4 py-3">
                   {job.id && (
                     <select
-                      value={(job.status ?? "Analyzed") as LinkedinJobStatus}
+                      value={(job.status ?? "Analyzed") as JobStatus}
                       onChange={(e: ChangeEvent<HTMLSelectElement>) =>
-                        onStatusChange(job.id!, e.target.value as LinkedinJobStatus)
+                        onStatusChange(job.id!, e.target.value as JobStatus)
                       }
                       disabled={statusPending === job.id}
                       className="h-8 rounded border border-slate-200 bg-white px-2 text-xs font-semibold text-slate-700 disabled:opacity-60"
