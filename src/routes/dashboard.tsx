@@ -1,20 +1,36 @@
-import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { getAnalytics } from "@/server/functions/get-analytics";
-import { manuallyAggregateAnalytics } from "@/server/functions/manually-aggregate-analytics";
+import { useQuery } from "@tanstack/react-query";
 import {
   BarChart3,
   Briefcase,
   FileText,
   Gauge,
-  RefreshCw,
   Sparkles,
   Target,
   TrendingUp,
+  ChevronRight,
+  X,
 } from "lucide-react";
 import type { ReactNode } from "react";
 import { useMemo, useState } from "react";
 import { requireLoginRedirect } from "@/lib/auth-redirect";
-import { PageActionBar, PageHero, PageSection } from "@caliber/ui-kit";
+import { PageHero, PageSection } from "@caliber/ui-kit";
+import {
+  BarChart,
+  Bar,
+  LineChart,
+  Line,
+  PieChart,
+  Pie,
+  Cell,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+} from "recharts";
 
 export const Route = createFileRoute("/dashboard")({
   beforeLoad: ({ context }) => {
@@ -27,38 +43,63 @@ export const Route = createFileRoute("/dashboard")({
 });
 
 function DashboardPage() {
-  const data = Route.useLoaderData();
-  const router = useRouter();
-  const [syncing, setSyncing] = useState(false);
+  const initialData = Route.useLoaderData();
+  const [selectedDrillDown, setSelectedDrillDown] = useState<{
+    type: "keywords" | "titles" | "industries" | null;
+    data?: any[];
+    title?: string;
+  }>({ type: null });
+
+  // Real-time data fetching with auto-refresh every 30 seconds
+  const { data } = useQuery({
+    queryKey: ["analytics"],
+    queryFn: async () => {
+      const result = await getAnalytics({ data: { period: "all_time" } });
+      return result;
+    },
+    initialData: initialData,
+    refetchInterval: 30000, // Auto-refresh every 30 seconds
+  });
 
   const derived = useMemo(() => {
-    const analyses = data?.totalAnalyses ?? 0;
-    const resumes = data?.totalResumesGenerated ?? 0;
-    const applied = data?.totalApplied ?? 0;
-    const pursued = data?.totalPursued ?? 0;
-    const avgMatch = data?.averageMatchScore ?? 0;
+    if (!data) return null;
+
+    const analyses = data.totalAnalyses ?? 0;
+    const resumes = data.totalResumesGenerated ?? 0;
+    const applied = data.totalApplied ?? 0;
+    const pursued = data.totalPursued ?? 0;
+    const avgMatch = data.averageMatchScore ?? 0;
 
     const applicationRate = analyses > 0 ? Math.round((applied / analyses) * 100) : 0;
     const resumeCoverage = analyses > 0 ? Math.round((resumes / analyses) * 100) : 0;
     const pursueRate = analyses > 0 ? Math.round((pursued / analyses) * 100) : 0;
-    // of roles recommended to pursue, how many were actually applied to
     const pursueToApplyRate = pursued > 0 ? Math.round((applied / pursued) * 100) : 0;
     const analysisGap = Math.max(analyses - applied, 0);
 
     let matchLabel = "Needs attention";
-    let matchTone = "text-amber-700 bg-amber-50 border-amber-100";
+    let matchColor = "#f59e0b";
     if (avgMatch >= 75) {
       matchLabel = "Strong alignment";
-      matchTone = "text-emerald-700 bg-emerald-50 border-emerald-100";
+      matchColor = "#10b981";
     } else if (avgMatch >= 60) {
       matchLabel = "Solid base";
-      matchTone = "text-sky-700 bg-sky-50 border-sky-100";
+      matchColor = "#0ea5e9";
     }
 
-    const topRole = data?.topJobTitles?.[0];
-    const topIndustry = data?.topIndustries?.[0];
-    const topJdKeyword = data?.topJdKeywords?.[0];
-    const topResumeKeyword = data?.topResumeKeywords?.[0];
+    const funnelData = [
+      { name: "Analyzed", value: analyses, fill: "#8b5cf6" },
+      { name: "Pursuing", value: pursued, fill: "#06b6d4" },
+      { name: "Applied", value: applied, fill: "#10b981" },
+    ];
+
+    const industryChartData = data.topIndustries.slice(0, 8).map((item) => ({
+      name: item.industry,
+      value: item.count,
+      fill: generateColor(item.industry),
+    }));
+
+    const topRole = data.topJobTitles?.[0];
+    const topIndustry = data.topIndustries?.[0];
 
     return {
       applicationRate,
@@ -67,25 +108,15 @@ function DashboardPage() {
       pursueToApplyRate,
       analysisGap,
       matchLabel,
-      matchTone,
+      matchColor,
       topRole,
       topIndustry,
-      topJdKeyword,
-      topResumeKeyword,
+      funnelData,
+      industryChartData,
     };
   }, [data]);
 
-  async function handleResync() {
-    setSyncing(true);
-    try {
-      await manuallyAggregateAnalytics();
-      await router.invalidate();
-    } finally {
-      setSyncing(false);
-    }
-  }
-
-  if (!data) {
+  if (!data || !derived) {
     return (
       <div className="spx-page text-center text-muted-foreground">
         No analytics data yet. Analyze some job postings to get started.
@@ -98,34 +129,11 @@ function DashboardPage() {
       <PageHero
         eyebrow="Search Insights"
         icon={<BarChart3 className="h-3.5 w-3.5" />}
-        title="Search Insights"
-        description="Monitor match quality, application momentum, and where your strongest positioning is emerging."
-        actions={
-          <>
-            <button
-              onClick={handleResync}
-              disabled={syncing}
-              className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white/80 px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-white disabled:opacity-50"
-            >
-              <RefreshCw className={`h-4 w-4 ${syncing ? "animate-spin" : ""}`} />
-              {syncing ? "Syncing..." : "Resync"}
-            </button>
-            <Link
-              to="/jobs" search={{ analyzedOnly: true }}
-              className="inline-flex items-center rounded-lg border border-slate-200 bg-white/80 px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-white"
-            >
-              View History
-            </Link>
-            <Link
-              to="/analyze"
-              className="inline-flex items-center gap-2 rounded-lg bg-primary-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-primary-700"
-            >
-              Analyze a Job
-            </Link>
-          </>
-        }
+        title="Search Insights Dashboard"
+        description="Real-time analytics on your job search performance, match quality, and positioning trends."
       />
 
+      {/* Key Metrics Grid */}
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <MetricCard
           icon={<Gauge className="h-5 w-5 text-violet-600" />}
@@ -133,114 +141,202 @@ function DashboardPage() {
           value={`${data.averageMatchScore.toFixed(1)}%`}
           note={derived.matchLabel}
           accent="bg-violet-50 border-violet-100"
+          color={derived.matchColor}
         />
         <MetricCard
           icon={<Sparkles className="h-5 w-5 text-sky-600" />}
           label="Pursue Rate"
           value={`${derived.pursueRate}%`}
-          note={`${data.totalPursued ?? 0} of ${data.totalAnalyses} roles flagged to pursue`}
+          note={`${data.totalPursued ?? 0} of ${data.totalAnalyses} roles`}
           accent="bg-sky-50 border-sky-100"
+          color="#06b6d4"
         />
         <MetricCard
           icon={<Target className="h-5 w-5 text-emerald-600" />}
-          label="Apply Rate"
+          label="Application Rate"
           value={`${derived.applicationRate}%`}
-          note={`${data.totalApplied} of ${data.totalAnalyses} analyzed roles applied to`}
+          note={`${data.totalApplied} of ${data.totalAnalyses} analyzed`}
           accent="bg-emerald-50 border-emerald-100"
+          color="#10b981"
         />
         <MetricCard
           icon={<FileText className="h-5 w-5 text-amber-600" />}
           label="Resume Coverage"
           value={`${derived.resumeCoverage}%`}
-          note={`${data.totalResumesGenerated} tailored resumes across ${data.totalAnalyses} analyses`}
+          note={`${data.totalResumesGenerated} tailored resumes`}
           accent="bg-amber-50 border-amber-100"
+          color="#f59e0b"
         />
       </section>
 
-      <section className="grid gap-6 xl:grid-cols-[1.35fr_0.95fr]">
+      {/* Funnel & Industries */}
+      <section className="grid gap-6 lg:grid-cols-2">
         <PageSection
-          title="Performance Snapshot"
-          description="A quick read on momentum and alignment across your saved analyses."
+          title="Application Funnel"
+          description="Track your progression from discovery to application."
         >
-          <div className="grid gap-5 md:grid-cols-2">
-            {/* Rate breakdown */}
-            <div className="rounded-xl border border-slate-200 bg-white p-5 space-y-5">
-              <div>
-                <h3 className="text-sm font-semibold text-slate-900">Rate breakdown</h3>
-                <p className="mt-0.5 text-xs text-slate-500">Each rate is calculated out of total analyses ({data.totalAnalyses})</p>
-              </div>
-              <RateBar label="Pursue rate" value={derived.pursueRate} count={data.totalPursued ?? 0} color="bg-sky-500" />
-              <RateBar label="Resume generated" value={derived.resumeCoverage} count={data.totalResumesGenerated} color="bg-violet-500" />
-              <RateBar label="Applied" value={derived.applicationRate} count={data.totalApplied} color="bg-emerald-500" />
-              <RateBar label="Avg match score" value={data.averageMatchScore} count={null} color="bg-primary" />
-            </div>
-
-
-            {/* What stands out — full width */}
-            <div className="md:col-span-2 rounded-xl border border-slate-200 bg-slate-50 p-5">
-              <div className="flex items-center gap-2 text-slate-900">
-                <Sparkles className="h-4 w-4 text-primary" />
-                <h3 className="text-sm font-semibold">What stands out</h3>
-              </div>
-              <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                <HighlightRow
-                  label="Primary role focus"
-                  value={derived.topRole ? `${derived.topRole.title} (${derived.topRole.count})` : "No dominant title yet"}
+          <div className="flex items-center justify-center h-80">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart
+                data={derived.funnelData}
+                layout="vertical"
+                margin={{ top: 5, right: 30, left: 120, bottom: 5 }}
+              >
+                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                <XAxis type="number" stroke="#64748b" />
+                <YAxis dataKey="name" type="category" stroke="#64748b" />
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: "#1e293b",
+                    border: "1px solid #475569",
+                    borderRadius: "8px",
+                    color: "#f1f5f9",
+                  }}
                 />
-                <HighlightRow
-                  label="Top industry"
-                  value={derived.topIndustry ? `${derived.topIndustry.industry} (${derived.topIndustry.count})` : "Not enough data yet"}
-                />
-                <HighlightRow
-                  label="Top JD keyword"
-                  value={derived.topJdKeyword ? `${derived.topJdKeyword.keyword} (${derived.topJdKeyword.count})` : "Not enough data yet"}
-                />
-                <HighlightRow
-                  label="Top resume keyword"
-                  value={derived.topResumeKeyword ? `${derived.topResumeKeyword.keyword} (${derived.topResumeKeyword.count})` : "No resume keyword data yet"}
-                />
-              </div>
-              <div className="mt-5 rounded-xl border border-dashed border-slate-200 bg-white p-4">
-                <p className="text-sm font-medium text-slate-900">Recommended next move</p>
-                <p className="mt-1 text-sm leading-6 text-slate-600">
-                  {derived.analysisGap > 0
-                    ? `Review ${derived.analysisGap} analyzed role${derived.analysisGap === 1 ? "" : "s"} that have not been marked applied yet and prioritize the strongest matches first.`
-                    : "Your analyzed roles are well progressed. Keep feeding strong postings into analysis to sharpen trend quality."}
-                </p>
-              </div>
-            </div>
+                <Bar dataKey="value" fill="#8b5cf6" radius={[0, 8, 8, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
           </div>
         </PageSection>
 
         <PageSection
-          title="Focus Areas"
-          description="The titles and industries appearing most often in your search activity."
+          title="Top Industries"
+          description="Click an industry to see more details."
         >
-          <div className="space-y-6">
-            <RankedList
-              title="Top Applied Job Titles"
-              emptyLabel="Applied titles will appear here after you start marking roles as applied."
-              items={data.topJobTitles.map((item) => ({
-                label: item.title,
-                count: item.count,
-                total: Math.max(data.totalApplied, 1),
-              }))}
-            />
-
-            <RankedList
-              title="Top Industries"
-              emptyLabel="Industries will appear here once your analysis history grows."
-              items={data.topIndustries.map((item) => ({
-                label: item.industry,
-                count: item.count,
-                total: Math.max(data.totalAnalyses, 1),
-              }))}
-            />
+          <div className="flex items-center justify-center h-80">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={derived.industryChartData}
+                  cx="50%"
+                  cy="50%"
+                  labelLine={false}
+                  label={({ name, value }) => `${name} (${value})`}
+                  outerRadius={120}
+                  fill="#8884d8"
+                  dataKey="value"
+                  onClick={(entry) =>
+                    setSelectedDrillDown({
+                      type: "industries",
+                      data: data.topIndustries,
+                      title: "Top Industries",
+                    })
+                  }
+                >
+                  {derived.industryChartData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.fill} />
+                  ))}
+                </Pie>
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: "#1e293b",
+                    border: "1px solid #475569",
+                    borderRadius: "8px",
+                    color: "#f1f5f9",
+                  }}
+                />
+              </PieChart>
+            </ResponsiveContainer>
           </div>
         </PageSection>
       </section>
 
-      <section className="grid gap-6 xl:grid-cols-2">
+      {/* Top Job Titles & Breakdown */}
+      <section className="grid gap-6 lg:grid-cols-2">
+        <PageSection
+          title="Top Job Titles"
+          description="Click to explore detailed metrics for each role."
+        >
+          {data.topJobTitles.length === 0 ? (
+            <p className="text-sm text-slate-500">No job titles analyzed yet.</p>
+          ) : (
+            <div className="space-y-3">
+              {data.topJobTitles.slice(0, 8).map((item, index) => (
+                <div
+                  key={item.title}
+                  onClick={() =>
+                    setSelectedDrillDown({
+                      type: "titles",
+                      data: data.topJobTitles,
+                      title: "Top Job Titles",
+                    })
+                  }
+                  className="group cursor-pointer rounded-lg border border-slate-200 bg-white p-4 transition hover:bg-slate-50 hover:border-slate-300"
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <span className="flex h-7 w-7 items-center justify-center rounded-full bg-primary/20 text-sm font-semibold text-primary">
+                        {index + 1}
+                      </span>
+                      <span className="font-medium text-slate-900">{item.title}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-semibold text-slate-700">×{item.count}</span>
+                      <ChevronRight className="h-4 w-4 text-slate-400 transition group-hover:text-slate-600" />
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </PageSection>
+
+        <PageSection
+          title="Performance Metrics"
+          description="Key rates and conversions across your search."
+        >
+          <div className="space-y-4">
+            <RateBar
+              label="Pursue Rate"
+              value={derived.pursueRate}
+              count={data.totalPursued ?? 0}
+              color="bg-sky-500"
+              total={data.totalAnalyses}
+            />
+            <RateBar
+              label="Resume Coverage"
+              value={derived.resumeCoverage}
+              count={data.totalResumesGenerated}
+              color="bg-violet-500"
+              total={data.totalAnalyses}
+            />
+            <RateBar
+              label="Application Rate"
+              value={derived.applicationRate}
+              count={data.totalApplied}
+              color="bg-emerald-500"
+              total={data.totalAnalyses}
+            />
+            <RateBar
+              label="Pursue → Apply"
+              value={derived.pursueToApplyRate}
+              count={data.totalApplied}
+              color="bg-orange-500"
+              total={data.totalPursued ?? 1}
+            />
+            <RateBar
+              label="Average Match"
+              value={data.averageMatchScore}
+              count={null}
+              color={`${derived.matchColor}`}
+              total={100}
+            />
+            {derived.analysisGap > 0 && (
+              <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3">
+                <p className="text-sm font-medium text-amber-900">
+                  ⚠️ {derived.analysisGap} role{derived.analysisGap === 1 ? "" : "s"} awaiting action
+                </p>
+                <p className="mt-1 text-xs text-amber-700">
+                  Review these analyzed roles and mark them as applied or archived.
+                </p>
+              </div>
+            )}
+          </div>
+        </PageSection>
+      </section>
+
+      {/* Keyword Insights */}
+      <section className="grid gap-6 lg:grid-cols-2">
         <KeywordSection
           title="Top JD Keywords"
           subtitle="Terms most common in the roles you analyze."
@@ -248,6 +344,13 @@ function DashboardPage() {
           items={data.topJdKeywords}
           emptyLabel="Analyze a few more jobs to surface hiring language patterns."
           toneClass="bg-primary/10 text-primary"
+          onExplore={() =>
+            setSelectedDrillDown({
+              type: "keywords",
+              data: data.topJdKeywords,
+              title: "Top JD Keywords",
+            })
+          }
         />
 
         <KeywordSection
@@ -257,30 +360,55 @@ function DashboardPage() {
           items={data.topResumeKeywords}
           emptyLabel="Generate tailored resumes to see which strengths are showing up most often."
           toneClass="bg-sky-100 text-sky-700"
+          onExplore={() =>
+            setSelectedDrillDown({
+              type: "keywords",
+              data: data.topResumeKeywords,
+              title: "Top Resume Keywords",
+            })
+          }
         />
       </section>
 
-      <PageActionBar>
-        <div>
-          Last updated: {data.updatedAt?.slice(0, 16).replace("T", " ")} UTC
+      {/* Footer with timestamp */}
+      <div className="rounded-lg border border-slate-200 bg-gradient-to-r from-slate-50 to-white p-4 flex items-center justify-between">
+        <div className="text-sm text-slate-600">
+          📊 Last updated: <span className="font-mono font-medium">{data.updatedAt?.slice(0, 16).replace("T", " ")} UTC</span>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <Link
-            to="/jobs" search={{ analyzedOnly: true }}
-            className="inline-flex items-center rounded-lg border border-slate-200 bg-white px-3 py-2 font-medium text-slate-700 transition hover:bg-slate-100"
-          >
-            View History
-          </Link>
-          <Link
-            to="/analyze"
-            className="inline-flex items-center rounded-lg bg-primary px-3 py-2 font-medium text-primary-foreground transition hover:bg-primary/90"
-          >
-            Analyze a Job
-          </Link>
+        <div className="text-xs text-slate-500">
+          Auto-refresh every 30 seconds
         </div>
-      </PageActionBar>
+      </div>
+
+      {/* Drill-down Modal */}
+      {selectedDrillDown.type && (
+        <DrillDownModal
+          type={selectedDrillDown.type}
+          data={selectedDrillDown.data}
+          title={selectedDrillDown.title}
+          onClose={() => setSelectedDrillDown({ type: null })}
+        />
+      )}
     </div>
   );
+}
+
+function generateColor(seed: string): string {
+  const colors = [
+    "#8b5cf6",
+    "#ec4899",
+    "#f59e0b",
+    "#10b981",
+    "#06b6d4",
+    "#0ea5e9",
+    "#6366f1",
+    "#14b8a6",
+  ];
+  let hash = 0;
+  for (let i = 0; i < seed.length; i++) {
+    hash = seed.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  return colors[Math.abs(hash % colors.length)];
 }
 
 function MetricCard({
@@ -289,12 +417,14 @@ function MetricCard({
   value,
   note,
   accent,
+  color,
 }: {
   icon: ReactNode;
   label: string;
   value: string;
   note: string;
   accent: string;
+  color?: string;
 }) {
   return (
     <div
@@ -316,92 +446,119 @@ function MetricCard({
   );
 }
 
-function RateBar({ label, value, count, color }: { label: string; value: number; count: number | null; color: string }) {
+function RateBar({
+  label,
+  value,
+  count,
+  color,
+  total,
+}: {
+  label: string;
+  value: number;
+  count: number | null;
+  color: string;
+  total?: number;
+}) {
+  const displayValue = total ? Math.round((value / total) * 100) : Math.round(value);
   return (
     <div>
       <div className="mb-1.5 flex items-center justify-between text-sm">
         <span className="text-slate-600">{label}</span>
         <span className="font-semibold text-slate-900">
-          {Math.round(value)}%{count !== null ? <span className="ml-1.5 font-normal text-slate-400">({count})</span> : null}
+          {displayValue}%{count !== null ? <span className="ml-1.5 font-normal text-slate-400">({count})</span> : null}
         </span>
       </div>
       <div className="h-2 rounded-full bg-slate-100">
         <div
-          className={`h-2 rounded-full ${color} transition-all`}
-          style={{ width: `${Math.max(4, Math.min(value, 100))}%` }}
+          className="h-2 rounded-full transition-all"
+          style={{
+            width: `${Math.max(4, Math.min(displayValue, 100))}%`,
+            backgroundColor: color,
+          }}
         />
       </div>
     </div>
   );
 }
 
-function FunnelStep({ label, count, total, color }: { label: string; count: number; total: number; color: string }) {
-  const pct = total > 0 ? Math.round((count / total) * 100) : 0;
-  return (
-    <div className="flex items-center gap-3">
-      <div className="w-36 shrink-0 text-xs text-slate-600 truncate">{label}</div>
-      <div className="flex-1 h-5 rounded-md bg-slate-100 relative overflow-hidden">
-        <div
-          className={`absolute inset-y-0 left-0 rounded-md ${color} opacity-80`}
-          style={{ width: `${Math.max(4, pct)}%` }}
-        />
-      </div>
-      <div className="w-16 shrink-0 text-right text-xs font-semibold text-slate-700">
-        {count} <span className="font-normal text-slate-400">({pct}%)</span>
-      </div>
-    </div>
-  );
-}
-
-function HighlightRow({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex items-start justify-between gap-4 border-b border-slate-200 pb-3 last:border-b-0 last:pb-0">
-      <span className="text-sm text-slate-500">{label}</span>
-      <span className="max-w-[60%] text-right text-sm font-medium text-slate-900">{value}</span>
-    </div>
-  );
-}
-
-function RankedList({
+function DrillDownModal({
+  type,
+  data,
   title,
-  items,
-  emptyLabel,
+  onClose,
 }: {
-  title: string;
-  items: Array<{ label: string; count: number; total: number }>;
-  emptyLabel: string;
+  type: "keywords" | "titles" | "industries";
+  data?: any[];
+  title?: string;
+  onClose: () => void;
 }) {
+  if (!data || data.length === 0) return null;
+
+  const displayData = data.slice(0, 50);
+
   return (
-    <div>
-      <h3 className="text-sm font-semibold text-slate-900">{title}</h3>
-      {items.length === 0 ? (
-        <p className="mt-3 text-sm leading-6 text-slate-500">{emptyLabel}</p>
-      ) : (
-        <div className="mt-4 space-y-4">
-          {items.map((item, index) => {
-            const width = Math.max(10, Math.round((item.count / item.total) * 100));
-            return (
-              <div key={`${title}-${item.label}`} className="space-y-1.5">
-                <div className="flex items-center justify-between gap-3 text-sm">
-                  <div className="flex min-w-0 items-center gap-3">
-                    <span className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-100 text-xs font-semibold text-slate-600">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+      <div className="relative w-full max-w-2xl max-h-[80vh] rounded-2xl bg-white shadow-2xl overflow-hidden">
+        {/* Header */}
+        <div className="sticky top-0 border-b border-slate-200 bg-white px-6 py-4 flex items-center justify-between">
+          <h2 className="text-lg font-semibold text-slate-900">{title}</h2>
+          <button
+            onClick={onClose}
+            className="p-1 hover:bg-slate-100 rounded-lg transition"
+          >
+            <X className="h-5 w-5 text-slate-400" />
+          </button>
+        </div>
+
+        {/* Content */}
+        <div className="overflow-y-auto">
+          <div className="p-6 space-y-2">
+            {displayData.map((item, index) => {
+              const label =
+                type === "keywords"
+                  ? item.keyword
+                  : type === "titles"
+                    ? item.title
+                    : item.industry;
+              const count = item.count;
+
+              return (
+                <div
+                  key={`${label}-${index}`}
+                  className="flex items-center justify-between p-3 rounded-lg hover:bg-slate-50 transition group"
+                >
+                  <div className="flex items-center gap-3 flex-1">
+                    <span className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-100 text-xs font-semibold text-slate-600 group-hover:bg-slate-200">
                       {index + 1}
                     </span>
-                    <span className="truncate font-medium text-slate-900">{item.label}</span>
+                    <span className="text-sm font-medium text-slate-900 flex-1">{label}</span>
                   </div>
-                  <span className="shrink-0 text-slate-500">x{item.count}</span>
+                  <div className="flex items-center gap-3">
+                    <div className="w-20 h-2 rounded-full bg-slate-100 overflow-hidden">
+                      <div
+                        className="h-full bg-primary"
+                        style={{
+                          width: `${Math.max(5, (count / displayData[0].count) * 100)}%`,
+                        }}
+                      />
+                    </div>
+                    <span className="text-sm font-semibold text-slate-600 w-10 text-right">
+                      ×{count}
+                    </span>
+                  </div>
                 </div>
-                <div className="h-2 rounded-full bg-slate-100">
-                  <div
-                    className="h-2 rounded-full bg-slate-900"
-                    style={{ width: `${Math.min(width, 100)}%` }}
-                  />
-                </div>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
         </div>
-      )}
+
+        {/* Footer */}
+        {data.length > 50 && (
+          <div className="border-t border-slate-200 bg-slate-50 px-6 py-3 text-xs text-slate-500 text-center">
+            Showing {displayData.length} of {data.length} items
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -413,6 +570,7 @@ function KeywordSection({
   items,
   emptyLabel,
   toneClass,
+  onExplore,
 }: {
   title: string;
   subtitle: string;
@@ -420,6 +578,7 @@ function KeywordSection({
   items: Array<{ keyword: string; count: number }>;
   emptyLabel: string;
   toneClass: string;
+  onExplore?: () => void;
 }) {
   return (
     <div
@@ -431,9 +590,19 @@ function KeywordSection({
         boxShadow: "0 2px 8px rgba(15,23,42,0.05)",
       }}
     >
-      <div className="flex items-center gap-2 text-slate-900">
-        {icon}
-        <h2 className="text-base font-semibold">{title}</h2>
+      <div className="flex items-center justify-between gap-2 text-slate-900">
+        <div className="flex items-center gap-2">
+          {icon}
+          <h2 className="text-base font-semibold">{title}</h2>
+        </div>
+        {items.length > 0 && onExplore && (
+          <button
+            onClick={onExplore}
+            className="text-xs font-medium text-slate-500 hover:text-slate-700 transition"
+          >
+            Explore →
+          </button>
+        )}
       </div>
       <p className="mt-0.5 text-sm text-slate-500">{subtitle}</p>
 
@@ -444,7 +613,7 @@ function KeywordSection({
           {items.slice(0, 16).map((item) => (
             <span
               key={`${title}-${item.keyword}`}
-              className={`inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-xs font-medium ${toneClass}`}
+              className={`inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-xs font-medium cursor-pointer transition hover:opacity-80 ${toneClass}`}
             >
               {item.keyword}
               <span className="opacity-70">x{item.count}</span>
