@@ -1,4 +1,4 @@
-import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, redirect, useRouter } from "@tanstack/react-router";
 import { useState } from "react";
 import { authClient } from "@/auth/client";
 
@@ -13,7 +13,7 @@ export const Route = createFileRoute("/signup")({
 });
 
 function SignupPage() {
-  const navigate = useNavigate();
+  const router = useRouter();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -35,7 +35,9 @@ function SignupPage() {
       if (result.error) {
         setError(result.error.message ?? "Account creation failed. Please try again.");
       } else {
-        await navigate({ to: "/" });
+        // Ensure root route context rehydrates with the newly created session.
+        await router.invalidate();
+        window.location.href = "/";
       }
     } catch (err) {
       setError("An unexpected error occurred. Please try again.");

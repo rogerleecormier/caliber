@@ -648,7 +648,7 @@ export async function listLinkedinHistory(args: {
   const page = args.page ?? 1;
   const pageSize = args.pageSize ?? 20;
   const offset = (page - 1) * pageSize;
-  const canViewAllUsers = settings.linkedinAllowAllUsersView;
+  const canViewAllUsers = settings.linkedinAllowAllUsersView && args.user.role === "admin";
 
   const q = args.query?.trim();
   // baseWhereClause excludes the status filter so statusCounts always reflect

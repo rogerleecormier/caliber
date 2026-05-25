@@ -32,9 +32,15 @@ function readCookieValue(cookieHeader: string, names: readonly string[]) {
   return null;
 }
 
-async function resolveRole(userId: string, email: string): Promise<"admin" | "user"> {
+async function resolveRole(
+  userId: string,
+  email: string,
+  hintedRole?: string | null,
+): Promise<"admin" | "user"> {
   const env = getCloudflareEnv();
-  if (!env.DB) return "user";
+  if (!env.DB) {
+    return hintedRole === "admin" || hintedRole === "user" ? hintedRole : "user";
+  }
 
   const db = getDb(env.DB);
 
@@ -59,6 +65,7 @@ async function resolveRole(userId: string, email: string): Promise<"admin" | "us
     return legacyUser.role;
   }
 
+  if (hintedRole === "admin" || hintedRole === "user") return hintedRole;
   return "user";
 }
 
@@ -79,10 +86,7 @@ export async function resolveSessionUser(): Promise<SessionUser | null> {
 
     if (session?.user) {
       const { id, email, role } = session.user as { id: string; email: string; role?: string | null };
-      if (role === "admin" || role === "user") {
-        return { id, email, role };
-      }
-      const resolvedRole = await resolveRole(id, email);
+      const resolvedRole = await resolveRole(id, email, role);
       return { id, email, role: resolvedRole };
     }
 
@@ -112,7 +116,7 @@ export async function resolveSessionUser(): Promise<SessionUser | null> {
       const role =
         fallbackRow.role === "admin" || fallbackRow.role === "user"
           ? fallbackRow.role
-          : await resolveRole(fallbackRow.id, fallbackRow.email);
+          : await resolveRole(fallbackRow.id, fallbackRow.email, fallbackRow.role);
 
       return {
         id: fallbackRow.id,
