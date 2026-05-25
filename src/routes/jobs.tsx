@@ -782,18 +782,16 @@ function JobsPage() {
         </PageSection>
       </div>
 
-      {selectedJobForAnalysis && (
-        <AnalysisModal
-          isOpen={analysisModalOpen}
-          jobTitle={selectedJobForAnalysis.title}
-          jobUrl={selectedJobForAnalysis.sourceUrl}
-          onClose={closeAnalysisModal}
-          isFromExistingJob
-          storedAnalysis={storedAnalysis}
-          pipelineJobId={selectedJobForAnalysis.id}
-          onAnalysisComplete={handleAnalysisComplete}
-        />
-      )}
+      <AnalysisModal
+        isOpen={analysisModalOpen}
+        jobTitle={selectedJobForAnalysis?.title}
+        jobUrl={selectedJobForAnalysis?.sourceUrl}
+        onClose={closeAnalysisModal}
+        isFromExistingJob={!!selectedJobForAnalysis}
+        storedAnalysis={storedAnalysis}
+        pipelineJobId={selectedJobForAnalysis?.id}
+        onAnalysisComplete={handleAnalysisComplete}
+      />
 
       <LinkedinSearchDrawer
         open={drawerOpen}
