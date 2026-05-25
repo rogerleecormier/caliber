@@ -52,7 +52,6 @@ type JobSearchInput = {
   page?: number;
   query?: string;
   remote?: boolean;
-  green?: boolean;
   sortBy?: SortOption;
   status?: string;
   analyzedOnly?: boolean;
@@ -62,7 +61,6 @@ type JobSearchParams = {
   page: number;
   query: string;
   remote: boolean;
-  green: boolean;
   sortBy: SortOption;
   status: string;
   analyzedOnly: boolean;
@@ -85,7 +83,6 @@ export const Route = createFileRoute("/jobs")({
     page: Math.max(1, Number(search.page) || 1),
     query: String(search.query ?? ""),
     remote: search.remote === true || search.remote === "true",
-    green: search.green === true || search.green === "true",
     sortBy: (VALID_SORT_OPTIONS.includes(search.sortBy as SortOption)
       ? search.sortBy
       : "posted-date") as SortOption,
@@ -129,7 +126,7 @@ export const Route = createFileRoute("/jobs")({
 type ViewMode = "cards" | "table";
 
 function JobsPage() {
-  const { page, query, remote, green, sortBy, status: activeStatus, analyzedOnly } = Route.useSearch();
+  const { page, query, remote, sortBy, status: activeStatus, analyzedOnly } = Route.useSearch();
   const { hasResume, fullName, savedSearches: loaderSavedSearches, rows, total, statusCounts, canViewAllUsers, cronStartHour } =
     Route.useLoaderData();
   const navigate = Route.useNavigate();
@@ -153,7 +150,7 @@ function JobsPage() {
   const totalPages = Math.ceil(localTotal / PAGE_SIZE);
   const selectedCount = selectedIds.size;
   const allVisibleSelected = jobs.length > 0 && jobs.every((job) => selectedIds.has(job.id));
-  const hasActiveFilters = !!(query || green || remote || activeStatus || analyzedOnly);
+  const hasActiveFilters = !!(query || remote || activeStatus || analyzedOnly);
 
   const pipeline = useMemo(
     () =>
@@ -540,8 +537,9 @@ function JobsPage() {
           </div>
 
           {/* Filters + sort */}
-          <div className="mb-5 flex flex-col gap-3 lg:flex-row lg:items-center">
-            <div className="flex h-9 w-full items-center rounded-md border border-input bg-transparent px-3 text-sm shadow-sm focus-within:ring-1 focus-within:ring-ring lg:flex-1">
+          <div className="mb-5 space-y-3">
+            {/* Search bar - full width */}
+            <div className="flex h-10 w-full items-center rounded-md border border-input bg-transparent px-3 text-sm shadow-sm focus-within:ring-1 focus-within:ring-ring">
               <Search className="h-4 w-4 shrink-0 text-slate-400" />
               <Input
                 value={inputValue}
@@ -550,6 +548,7 @@ function JobsPage() {
                 className="h-auto border-0 bg-transparent px-2 py-0 shadow-none focus-visible:ring-0"
               />
             </div>
+            {/* Filter controls */}
             <div className="flex flex-wrap items-center gap-2">
               <div className="inline-flex items-center rounded-lg border border-slate-200 bg-slate-50 p-1 gap-1">
                 <button
@@ -587,22 +586,10 @@ function JobsPage() {
               >
                 <option value="posted-date">Sort: Posted date</option>
                 <option value="title">Sort: Job title</option>
-                <option value="score">Sort: Score</option>
+                <option value="score">Sort: Match Score</option>
                 <option value="company">Sort: Company</option>
                 <option value="location">Sort: Location</option>
               </select>
-              <button
-                type="button"
-                aria-pressed={green}
-                onClick={() => navigate({ search: (prev) => ({ ...prev, green: !green, page: 1 }) })}
-                className={`inline-flex items-center rounded-full border px-3 py-2 text-sm font-medium transition ${
-                  green
-                    ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                    : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
-                }`}
-              >
-                Green jobs only
-              </button>
               <button
                 type="button"
                 aria-pressed={remote}

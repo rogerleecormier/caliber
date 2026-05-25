@@ -111,6 +111,18 @@ export function JobResultCard({
   const score = getScore(job);
   const [downloadingKey, setDownloadingKey] = useState<string | null>(null);
 
+  const mostRecentDocuments = (() => {
+    if (!job.documents || job.documents.length === 0) return [];
+    const byType = new Map<string, typeof job.documents[0]>();
+    for (const doc of job.documents) {
+      const existing = byType.get(doc.docType);
+      if (!existing || doc.id > existing.id) {
+        byType.set(doc.docType, doc);
+      }
+    }
+    return Array.from(byType.values());
+  })();
+
   async function triggerDownload(r2Key: string, fileName: string) {
     const result = await getDocumentDownload({ data: { r2Key } });
     const blob = new Blob([new Uint8Array(result.data)], { type: result.contentType });
@@ -135,30 +147,29 @@ export function JobResultCard({
 
 
   return (
-    <PrimaryCard
-      title={job.title}
-      description={`${job.company}${job.location ? ' · ' + job.location : ''}`}
-      className={`shadow-sm transition hover:shadow-md ${
-        selected
-          ? "ring-2 ring-primary-300 bg-white/85"
-          : isNew
-            ? "ring-2 ring-indigo-300 bg-indigo-50/30"
-            : "bg-white/85"
-      } ${getScoreBorderColor(score?.masterScore ?? 0)}`}
-    >
-      <div className="space-y-4">
-        <div className="space-y-3">
-          {showSelection ? (
-            <div className="relative -m-2 mb-2">
-              <input
-                type="checkbox"
-                checked={selected}
-                onChange={onSelect}
-                className="absolute right-2 top-2 h-4 w-4 shrink-0 rounded border-slate-300 text-primary-600"
-                aria-label={`Select ${job.title} at ${job.company}`}
-              />
-            </div>
-          ) : null}
+    <div className="relative">
+      {showSelection ? (
+        <input
+          type="checkbox"
+          checked={selected}
+          onChange={onSelect}
+          className="absolute right-3 top-3 h-4 w-4 shrink-0 rounded border-slate-300 text-primary-600 z-10"
+          aria-label={`Select ${job.title} at ${job.company}`}
+        />
+      ) : null}
+      <PrimaryCard
+        title={job.title}
+        description={`${job.company}${job.location ? ' · ' + job.location : ''}`}
+        className={`shadow-sm transition hover:shadow-md ${
+          selected
+            ? "ring-2 ring-primary-300 bg-white/85"
+            : isNew
+              ? "ring-2 ring-indigo-300 bg-indigo-50/30"
+              : "bg-white/85"
+        } ${getScoreBorderColor(score?.masterScore ?? 0)}`}
+      >
+        <div className="space-y-4">
+          <div className="space-y-3">
           <div className="flex flex-wrap items-center gap-2">
             {job.sourceName && (
               <Badge className={`border-0 px-2 py-0 text-[10px] text-white ${
@@ -275,12 +286,12 @@ export function JobResultCard({
               {job.snippet}
             </Body>
           ) : null}
-          {job.documents && job.documents.length > 0 && (
+          {mostRecentDocuments.length > 0 && (
             <div className="flex flex-wrap gap-2 pt-2 border-t border-slate-100">
               <Caption variant="semibold" className="w-full text-[10px] uppercase tracking-wide text-slate-500">
                 Documents
               </Caption>
-              {job.documents.map((doc) => (
+              {mostRecentDocuments.map((doc) => (
                 <button
                   key={doc.id}
                   type="button"
@@ -365,5 +376,6 @@ export function JobResultCard({
 
       </div>
     </PrimaryCard>
+    </div>
   );
 }

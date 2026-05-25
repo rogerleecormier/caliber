@@ -1,5 +1,5 @@
 import { linkedinJobResults, pipelineJobs } from '@/db/schema'
-import { sql } from 'drizzle-orm'
+import { sql, inArray } from 'drizzle-orm'
 import type { DrizzleD1Database } from '@/db/db'
 
 function isUSLocation(location: string | null): boolean {
@@ -26,14 +26,12 @@ export async function cleanupNonUSJobs(db: DrizzleD1Database): Promise<{ deleted
   let deletedPipeline = 0
 
   // Delete in batches to avoid hitting query parameter limits
-  const batchSize = 30
+  const batchSize = 20
 
   if (nonUSLinkedinIds.length > 0) {
     for (let i = 0; i < nonUSLinkedinIds.length; i += batchSize) {
       const batch = nonUSLinkedinIds.slice(i, i + batchSize)
-      await db
-        .delete(linkedinJobResults)
-        .where(sql`id IN (${sql.join(batch, sql`,`)})`)
+      await db.delete(linkedinJobResults).where(inArray(linkedinJobResults.id, batch))
       deletedLinkedin += batch.length
     }
   }
@@ -41,10 +39,20 @@ export async function cleanupNonUSJobs(db: DrizzleD1Database): Promise<{ deleted
   if (nonUSPipelineIds.length > 0) {
     for (let i = 0; i < nonUSPipelineIds.length; i += batchSize) {
       const batch = nonUSPipelineIds.slice(i, i + batchSize)
-      await db
-        .delete(pipelineJobs)
-        .where(sql`id IN (${sql.join(batch, sql`,`)})`)
-      deletedPipeline += batch.length
+      try {
+        await db.delete(pipelineJobs).where(inArray(pipelineJobs.id, batch))
+        deletedPipeline += batch.length
+      } catch (error) {
+        // If batch fails, try deleting one by one
+        for (const id of batch) {
+          try {
+            await db.delete(pipelineJobs).where(inArray(pipelineJobs.id, [id]))
+            deletedPipeline += 1
+          } catch (singleError) {
+            console.error(`Failed to delete pipeline job ${id}:`, singleError)
+          }
+        }
+      }
     }
   }
 
