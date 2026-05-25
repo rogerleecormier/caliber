@@ -1,6 +1,6 @@
 import { AnalysisForm } from "./analysis-form";
 import { AnalysisResult } from "./analysis-result";
-import { X } from "lucide-react";
+import { ExternalLink, X } from "lucide-react";
 import type { AnalysisData } from "./analysis-form";
 
 interface AnalysisModalProps {
@@ -36,13 +36,26 @@ export function AnalysisModal({
             <h2 className="font-semibold text-slate-900">{isViewingStored ? "View Analysis" : "Analyze Job"}</h2>
             {jobTitle && <p className="mt-0.5 text-sm text-slate-600 truncate">{jobTitle}</p>}
           </div>
-          <button
-            onClick={onClose}
-            className="rounded-lg p-1 hover:bg-slate-100"
-            aria-label="Close modal"
-          >
-            <X className="h-5 w-5 text-slate-500" />
-          </button>
+          <div className="flex items-center gap-2">
+            {jobUrl && (
+              <a
+                href={jobUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 rounded-lg bg-orange-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-orange-700 transition-colors"
+              >
+                <ExternalLink className="h-3.5 w-3.5" />
+                Apply
+              </a>
+            )}
+            <button
+              onClick={onClose}
+              className="rounded-lg p-1 hover:bg-slate-100"
+              aria-label="Close modal"
+            >
+              <X className="h-5 w-5 text-slate-500" />
+            </button>
+          </div>
         </div>
         <div className="p-6">
           {isViewingStored && storedAnalysis ? (
