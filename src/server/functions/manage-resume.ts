@@ -108,22 +108,13 @@ export const saveResume = createServerFn({ method: "POST" })
       ...(data.certifications !== undefined && { certifications: JSON.stringify(data.certifications) }),
     };
 
-    const [existing] = await db
-      .select({ id: masterResume.id })
-      .from(masterResume)
-      .where(eq(masterResume.userId, user.id))
-      .limit(1);
-
-    if (existing) {
-      await db
-        .update(masterResume)
-        .set({ ...baseValues, ...structuredValues })
-        .where(eq(masterResume.id, existing.id));
-    } else {
-      await db
-        .insert(masterResume)
-        .values({ ...baseValues, ...structuredValues });
-    }
+    await db
+      .insert(masterResume)
+      .values({ ...baseValues, ...structuredValues })
+      .onConflictDoUpdate({
+        target: [masterResume.userId],
+        set: { ...baseValues, ...structuredValues },
+      });
 
     return { success: true, updatedAt: now };
   });
