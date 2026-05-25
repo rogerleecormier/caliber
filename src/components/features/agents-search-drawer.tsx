@@ -212,6 +212,7 @@ export function AgentsSearchDrawer({
   initialSavedSearches,
   preload,
   cronStartHour,
+  cronFrequency,
   onSearchComplete,
 }: AgentsSearchDrawerProps) {
   const [form, setForm] = useState<FormState>(defaultForm);
