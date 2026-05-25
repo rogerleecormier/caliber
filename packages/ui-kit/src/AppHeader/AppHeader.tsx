@@ -438,7 +438,7 @@ export function AppHeader({
       appScope: "jobs",
     },
     ...(resolvedUser?.role === "admin"
-      ? [
+      ? ([
           { type: "separator", key: "user-separator-admin" },
           {
             type: "link",
@@ -450,7 +450,7 @@ export function AppHeader({
             tone: "primary",
             appScope: "jobs",
           },
-        ]
+        ] as MenuEntry[])
       : []),
     { type: "separator", key: "user-separator-logout" },
     {
