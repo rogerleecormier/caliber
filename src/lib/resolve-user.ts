@@ -32,6 +32,44 @@ function readCookieValue(cookieHeader: string, names: readonly string[]) {
   return null;
 }
 
+/**
+ * Verifies the HMAC-SHA-256 signature better-auth appends to signed cookies
+ * (format: "<token>.<base64-signature>") and returns the raw token on success,
+ * or null if the signature is missing, malformed, or invalid.
+ *
+ * Replicates the algorithm in better-call's signCookieValue / verifySignature.
+ */
+async function extractVerifiedToken(signedValue: string, secret: string): Promise<string | null> {
+  const dotPos = signedValue.lastIndexOf(".");
+  if (dotPos < 1) return null;
+
+  const token = signedValue.slice(0, dotPos);
+  const b64Sig = signedValue.slice(dotPos + 1);
+  if (b64Sig.length !== 44 || !b64Sig.endsWith("=")) return null;
+
+  try {
+    const key = await crypto.subtle.importKey(
+      "raw",
+      new TextEncoder().encode(secret),
+      { name: "HMAC", hash: "SHA-256" },
+      false,
+      ["verify"],
+    );
+    const binStr = atob(b64Sig);
+    const sigBytes = new Uint8Array(binStr.length);
+    for (let i = 0; i < binStr.length; i++) sigBytes[i] = binStr.charCodeAt(i);
+    const valid = await crypto.subtle.verify(
+      { name: "HMAC", hash: "SHA-256" },
+      key,
+      sigBytes,
+      new TextEncoder().encode(token),
+    );
+    return valid ? token : null;
+  } catch {
+    return null;
+  }
+}
+
 async function resolveRole(
   userId: string,
   email: string,
@@ -106,11 +144,16 @@ export async function resolveSessionUser(): Promise<SessionUser | null> {
       }
     }
 
-    // Fallback: read the session token cookie directly against the session table.
-    // Handles both intermittent getSession null returns and getSession exceptions.
-    if (env.DB && request) {
+    // Fallback: verify the signed session cookie directly and look up the session table.
+    // Handles both intermittent getSession null returns and getSession exceptions (e.g.
+    // the AsyncLocalStorage race in better-auth on Cloudflare Workers).
+    const secret = (env as Record<string, unknown>).BETTER_AUTH_SECRET as string | undefined;
+    if (env.DB && request && secret) {
       const cookieHeader = request.headers.get("cookie") ?? "";
-      const sessionToken = readCookieValue(cookieHeader, AUTH_COOKIE_CANDIDATES);
+      const signedValue = readCookieValue(cookieHeader, AUTH_COOKIE_CANDIDATES);
+      if (!signedValue) return null;
+
+      const sessionToken = await extractVerifiedToken(signedValue, secret);
       if (!sessionToken) return null;
 
       const db = getDb(env.DB);
