@@ -17,7 +17,7 @@ export interface HistoryRow {
   jobUrl: string;
   pursue: boolean;
   applied: boolean;
-  applicationStatus: "Applied" | "Interviewed" | "Hired" | null;
+  applicationStatus: "Applied" | "Interviewed" | "Not Hired" | "Hired" | null;
   appliedAt: string | null;
   documents: Array<{ id: number; docType: string; r2Key: string; fileName: string }>;
 }
@@ -27,6 +27,7 @@ export interface HistoryPipelineCounts {
   prepped: number;
   applied: number;
   interviewed: number;
+  notHired: number;
   hired: number;
 }
 
@@ -35,6 +36,7 @@ const emptyPipelineCounts: HistoryPipelineCounts = {
   prepped: 0,
   applied: 0,
   interviewed: 0,
+  notHired: 0,
   hired: 0,
 };
 
@@ -91,6 +93,7 @@ export const getHistory = createServerFn({ method: "GET" })
         lower(
           case
             when ${appStatusExpr} = 'Hired' then 'hired'
+            when ${appStatusExpr} = 'Not Hired' then 'not_hired'
             when ${appStatusExpr} = 'Interviewed' then 'interviewed'
             when ${appStatusExpr} = 'Applied' or ja.applied = 1 then 'applied'
             when coalesce(dc.resumeCount, 0) + coalesce(dc.coverCount, 0) > 0 then 'prepped'
@@ -178,6 +181,7 @@ export const getHistory = createServerFn({ method: "GET" })
         const hasCover = Number(row.coverCount ?? 0) > 0;
         const applicationStatus = "applicationStatus" in row ? row.applicationStatus : null;
         if (applicationStatus === "Hired") counts.hired += 1;
+        else if (applicationStatus === "Not Hired") counts.notHired += 1;
         else if (applicationStatus === "Interviewed") counts.interviewed += 1;
         else if (applicationStatus === "Applied" || row.applied === 1) counts.applied += 1;
         else if (hasResume || hasCover) counts.prepped += 1;
@@ -210,7 +214,7 @@ export const getHistory = createServerFn({ method: "GET" })
             applied: a.applied === 1,
             applicationStatus: (() => {
               const status = a.applicationStatus ?? null;
-              if (status === "Applied" || status === "Interviewed" || status === "Hired") return status;
+              if (status === "Applied" || status === "Interviewed" || status === "Not Hired" || status === "Hired") return status;
               return a.applied === 1 ? "Applied" : null;
             })(),
             appliedAt: a.appliedAt ?? null,

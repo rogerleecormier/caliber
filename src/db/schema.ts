@@ -256,7 +256,7 @@ export const jobAnalyses = sqliteTable('job_analyses', {
   careerAnalysis: text('career_analysis'), // JSON: { trajectory, recommendation, reasoning }
   insights: text('insights'),             // JSON: { workLifeBalance, remoteFlexibility, seniorityLevel, cultureSignals, redFlags }
   applied: integer('applied').default(0), // 1 = applied, 0 = not applied
-  applicationStatus: text('application_status', { enum: ['Applied', 'Interviewed', 'Hired'] }),
+  applicationStatus: text('application_status', { enum: ['Applied', 'Interviewed', 'Not Hired', 'Hired'] }),
   appliedAt: text('applied_at'),
   createdAt: text('created_at'),
 })

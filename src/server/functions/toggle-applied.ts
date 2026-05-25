@@ -6,7 +6,7 @@ import { getCloudflareEnv } from "@/lib/cloudflare";
 import { getDb } from "@/db/db";
 import { jobAnalyses } from "@/db/schema";
 
-export type ApplicationOutcome = "Applied" | "Interviewed" | "Hired" | null;
+export type ApplicationOutcome = "Applied" | "Interviewed" | "Not Hired" | "Hired" | null;
 
 export const toggleApplied = createServerFn({ method: "POST" })
   .inputValidator((data: { id: number; applied: boolean }) => data)
@@ -48,6 +48,7 @@ export const setApplicationOutcome = createServerFn({ method: "POST" })
       data.status !== null &&
       data.status !== "Applied" &&
       data.status !== "Interviewed" &&
+      data.status !== "Not Hired" &&
       data.status !== "Hired"
     ) {
       throw new Error("Invalid application status");
@@ -74,6 +75,7 @@ export const setApplicationOutcome = createServerFn({ method: "POST" })
       applicationStatus:
         updated.applicationStatus === "Applied" ||
         updated.applicationStatus === "Interviewed" ||
+        updated.applicationStatus === "Not Hired" ||
         updated.applicationStatus === "Hired"
           ? updated.applicationStatus
           : null,

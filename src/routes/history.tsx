@@ -54,7 +54,7 @@ export const Route = createFileRoute("/history")({
 });
 
 type Row = HistoryRow;
-type WorkflowStatusKey = "analyzed" | "prepped" | "applied" | "interviewed" | "hired";
+type WorkflowStatusKey = "analyzed" | "prepped" | "applied" | "interviewed" | "notHired" | "hired";
 
 const workflowSteps: Array<{
   key: WorkflowStatusKey;
@@ -90,6 +90,13 @@ const workflowSteps: Array<{
     note: "Conversation started",
     dotClass: "bg-sky-500",
     pillClass: "border-sky-100 bg-sky-50 text-sky-700",
+  },
+  {
+    key: "notHired",
+    label: "Not Hired",
+    note: "Closed out",
+    dotClass: "bg-rose-500",
+    pillClass: "border-rose-100 bg-rose-50 text-rose-700",
   },
   {
     key: "hired",
@@ -459,7 +466,7 @@ function HistoryPage() {
             {total} total
           </span>
         </div>
-        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
+        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-6">
           {workflowSteps.map((step, index) => (
             <div
               key={step.key}
@@ -683,6 +690,7 @@ function HistorySearchBar({
 function getWorkflowStatus(row: Pick<Row, "applied" | "applicationStatus" | "documents">) {
   const hasDocs = row.documents.length > 0;
   if (row.applicationStatus === "Hired") return workflowSteps.find((step) => step.key === "hired")!;
+  if (row.applicationStatus === "Not Hired") return workflowSteps.find((step) => step.key === "notHired")!;
   if (row.applicationStatus === "Interviewed") return workflowSteps.find((step) => step.key === "interviewed")!;
   if (row.applicationStatus === "Applied" || row.applied) return workflowSteps.find((step) => step.key === "applied")!;
   if (hasDocs) return workflowSteps.find((step) => step.key === "prepped")!;
@@ -735,6 +743,7 @@ function ApplicationOutcomeSelect({
         <option value="">Track outcome</option>
         <option value="Applied">Applied</option>
         <option value="Interviewed">Interviewed</option>
+        <option value="Not Hired">Not Hired</option>
         <option value="Hired">Hired</option>
       </select>
       {pending ? (
