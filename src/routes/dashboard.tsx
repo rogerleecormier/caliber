@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { getAnalytics } from "@/server/functions/get-analytics";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -358,7 +358,7 @@ function DashboardPage() {
               Click any stage to filter and view matching jobs in that stage.
             </p>
           </div>
-          <div className="flex-1 min-h-0 mt-4 flex items-center justify-center">
+          <div className="w-full h-[270px] mt-4">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart
                 data={data.pipelineConversions}
@@ -390,7 +390,7 @@ function DashboardPage() {
               Distribution of AI scoring brackets. Click a bracket to view roles.
             </p>
           </div>
-          <div className="flex-1 min-h-0 mt-4 flex items-center justify-center">
+          <div className="w-full h-[270px] mt-4">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={data.matchScoreDistribution} margin={{ top: 20, right: 10, left: -20, bottom: 5 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
@@ -420,7 +420,7 @@ function DashboardPage() {
               Arrangement preference distribution. Click a slice to filter.
             </p>
           </div>
-          <div className="flex-1 min-h-0 mt-2 flex items-center justify-center relative">
+          <div className="w-full h-[270px] mt-2 relative flex items-center justify-center">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
@@ -459,7 +459,7 @@ function DashboardPage() {
               Breakdown of channels jobs were sourced from. Click a bar to filter.
             </p>
           </div>
-          <div className="flex-1 min-h-0 mt-4 flex items-center justify-center">
+          <div className="w-full h-[270px] mt-4">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart
                 data={data.sourceDistribution}
