@@ -233,7 +233,7 @@ export async function syncAtsCompany(
         apiUrl = `https://boards-api.greenhouse.io/v1/boards/${company}/jobs`
         break
       case 'lever':
-        apiUrl = `https://api.lever.co/v0/postings/${company}`
+        apiUrl = `https://api.lever.co/v0/postings/${company}?mode=json`
         break
       case 'workable':
         apiUrl = `https://apply.workable.com/api/v1/widget/accounts/${company}`
@@ -325,13 +325,22 @@ export async function syncAtsCompany(
         // Parse jobs based on source format
         switch (source) {
           case 'greenhouse':
-            jobs = data.jobs || []
+            jobs = data?.jobs || []
+            if (!data?.jobs && data?.error) {
+              log('error', `${company}: Greenhouse API error: ${data.error}`)
+            }
             break
           case 'lever':
-            jobs = data || []
+            jobs = Array.isArray(data) ? data : []
+            if (!Array.isArray(data) && data?.error) {
+              log('error', `${company}: Lever API error: ${data.error}`)
+            }
             break
           case 'workable':
-            jobs = data.jobs || []
+            jobs = data?.jobs || []
+            if (!data?.jobs && data?.error) {
+              log('error', `${company}: Workable API error: ${data.error}`)
+            }
             break
         }
 
