@@ -5,8 +5,10 @@ import {
   Archive,
   BookMarked,
   Briefcase,
+  Grid3x3,
   Loader2,
   Search,
+  Table2,
   Trash2,
   Wand2,
 } from "lucide-react";
@@ -25,6 +27,8 @@ import {
   type LinkedinJobStatus,
 } from "@/components/features/linkedin-result-card";
 import { LinkedinSearchDrawer } from "@/components/features/linkedin-search-drawer";
+import { AnalysisModal } from "@/components/features/analysis-modal";
+import { JobTableView } from "@/components/features/job-table-view";
 import { getResume } from "@/server/functions/manage-resume";
 import {
   archivePipelineJobs,
@@ -122,6 +126,8 @@ export const Route = createFileRoute("/jobs")({
 
 // ─── Page component ───────────────────────────────────────────────────────────
 
+type ViewMode = "cards" | "table";
+
 function JobsPage() {
   const { page, query, remote, green, sortBy, status: activeStatus, analyzedOnly } = Route.useSearch();
   const { hasResume, fullName, savedSearches: loaderSavedSearches, rows, total, statusCounts, canViewAllUsers, cronStartHour } =
@@ -138,6 +144,10 @@ function JobsPage() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [searchWarnings, setSearchWarnings] = useState<string[]>([]);
   const [cronNewCount, setCronNewCount] = useState(0);
+  const [viewMode, setViewMode] = useState<ViewMode>("cards");
+  const [analysisModalOpen, setAnalysisModalOpen] = useState(false);
+  const [selectedJobForAnalysis, setSelectedJobForAnalysis] = useState<HubJob | null>(null);
+  const [analyzedJobIds, setAnalyzedJobIds] = useState<Set<number>>(new Set());
   const didMount = useRef(false);
 
   const totalPages = Math.ceil(localTotal / PAGE_SIZE);
@@ -309,6 +319,20 @@ function JobsPage() {
         analyzedOnly: status === "Discovered" ? false : prev.analyzedOnly,
       }),
     });
+  }
+
+  function openAnalysisModal(job: HubJob) {
+    setSelectedJobForAnalysis(job);
+    setAnalysisModalOpen(true);
+  }
+
+  function closeAnalysisModal() {
+    setAnalysisModalOpen(false);
+    setSelectedJobForAnalysis(null);
+  }
+
+  function markJobAsAnalyzed(jobId: number) {
+    setAnalyzedJobIds((prev) => new Set([...prev, jobId]));
   }
 
   // ─── Render ───────────────────────────────────────────────────────────────
@@ -483,6 +507,32 @@ function JobsPage() {
               />
             </div>
             <div className="flex flex-wrap items-center gap-2">
+              <div className="inline-flex items-center rounded-lg border border-slate-200 bg-slate-50 p-1 gap-1">
+                <button
+                  type="button"
+                  onClick={() => setViewMode("cards")}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                    viewMode === "cards"
+                      ? "bg-white border border-slate-200 text-slate-900 shadow-sm"
+                      : "text-slate-600 hover:text-slate-900"
+                  }`}
+                  title="Card view"
+                >
+                  <Grid3x3 className="h-4 w-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setViewMode("table")}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                    viewMode === "table"
+                      ? "bg-white border border-slate-200 text-slate-900 shadow-sm"
+                      : "text-slate-600 hover:text-slate-900"
+                  }`}
+                  title="Table view"
+                >
+                  <Table2 className="h-4 w-4" />
+                </button>
+              </div>
               <select
                 value={sortBy}
                 onChange={(e: ChangeEvent<HTMLSelectElement>) =>
@@ -604,22 +654,51 @@ function JobsPage() {
             </PageActionBar>
           )}
 
-          {/* Job cards */}
-          <div className="grid gap-4 grid-cols-1 lg:grid-cols-2">
-            {jobs.map((job) => (
-              <LinkedinResultCard
-                key={job.id ?? job.sourceUrl}
-                job={{ ...job, resultSource: "history" }}
-                isNew={!!job.isNew}
-                selected={job.id ? selectedIds.has(job.id) : false}
-                showSelection={!!job.id}
-                onSelect={job.id ? () => toggleSelected(job.id!) : undefined}
-                statusOptions={JOB_STATUSES}
-                onStatusChange={job.id ? (status) => handleStatusChange(job.id!, status) : undefined}
-                statusPending={job.id ? pendingStatusId === job.id : false}
-              />
-            ))}
-          </div>
+          {/* Job cards or table */}
+          {viewMode === "cards" ? (
+            <div className="grid gap-4 grid-cols-1 lg:grid-cols-2">
+              {jobs.map((job) => (
+                <LinkedinResultCard
+                  key={job.id ?? job.sourceUrl}
+                  job={{ ...job, resultSource: "history" }}
+                  isNew={!!job.isNew}
+                  selected={job.id ? selectedIds.has(job.id) : false}
+                  showSelection={!!job.id}
+                  onSelect={job.id ? () => toggleSelected(job.id!) : undefined}
+                  statusOptions={JOB_STATUSES}
+                  onStatusChange={job.id ? (status) => handleStatusChange(job.id!, status) : undefined}
+                  statusPending={job.id ? pendingStatusId === job.id : false}
+                  isAnalyzed={job.id ? analyzedJobIds.has(job.id) : false}
+                  onAnalyzeClick={job.id ? () => openAnalysisModal(job) : undefined}
+                />
+              ))}
+            </div>
+          ) : (
+            <JobTableView
+              jobs={jobs.map((job) => ({ ...job, resultSource: "history" }))}
+              selectedIds={selectedIds}
+              onSelect={(id) => toggleSelected(id)}
+              onSelectAll={(checked) => {
+                if (checked) {
+                  const newSelected = new Set(selectedIds);
+                  for (const job of jobs) {
+                    if (job.id) newSelected.add(job.id);
+                  }
+                  setSelectedIds(newSelected);
+                } else {
+                  setSelectedIds(new Set());
+                }
+              }}
+              onStatusChange={(id, status) => handleStatusChange(id, status)}
+              statusOptions={JOB_STATUSES}
+              statusPending={pendingStatusId}
+              onAnalyze={(jobUrl) => {
+                const job = jobs.find((j) => j.sourceUrl === jobUrl);
+                if (job) openAnalysisModal(job);
+              }}
+              analyzedJobIds={analyzedJobIds}
+            />
+          )}
 
           {jobs.length === 0 && (
             <div className="mt-6 flex flex-col items-center gap-4 py-12 text-center">
@@ -649,6 +728,20 @@ function JobsPage() {
           />
         </PageSection>
       </div>
+
+      {selectedJobForAnalysis && (
+        <AnalysisModal
+          isOpen={analysisModalOpen}
+          jobTitle={selectedJobForAnalysis.title}
+          jobUrl={selectedJobForAnalysis.sourceUrl}
+          onClose={closeAnalysisModal}
+          onAnalysisComplete={() => {
+            if (selectedJobForAnalysis.id) {
+              markJobAsAnalyzed(selectedJobForAnalysis.id);
+            }
+          }}
+        />
+      )}
 
       <LinkedinSearchDrawer
         open={drawerOpen}

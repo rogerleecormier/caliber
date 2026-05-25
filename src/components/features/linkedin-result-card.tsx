@@ -70,6 +70,8 @@ interface LinkedinResultCardProps {
   statusOptions?: LinkedinJobStatus[];
   onStatusChange?: (status: LinkedinJobStatus) => void | Promise<void>;
   statusPending?: boolean;
+  isAnalyzed?: boolean;
+  onAnalyzeClick?: () => void;
 }
 
 function getScore(job: LinkedinResultCardJob) {
@@ -110,6 +112,8 @@ export function LinkedinResultCard({
   statusOptions,
   onStatusChange,
   statusPending = false,
+  isAnalyzed = false,
+  onAnalyzeClick,
 }: LinkedinResultCardProps) {
   const score = getScore(job);
   const [outreach, setOutreach] = useState("");
@@ -331,14 +335,29 @@ export function LinkedinResultCard({
         <div className="flex flex-col gap-3 border-t border-slate-100 pt-3">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex w-full flex-wrap items-center gap-1.5 sm:w-auto">
-              <Link
-                to="/analyze"
-                search={{ url: job.sourceUrl }}
-                className="inline-flex h-8 items-center gap-1 whitespace-nowrap rounded-lg border border-amber-200 bg-amber-50 px-2.5 text-xs font-semibold text-amber-700 transition hover:bg-amber-100"
-              >
-                <Sparkles className="h-3.5 w-3.5" />
-                Analyze
-              </Link>
+              {onAnalyzeClick ? (
+                <button
+                  type="button"
+                  onClick={onAnalyzeClick}
+                  className={`inline-flex h-8 items-center gap-1 whitespace-nowrap rounded-lg px-2.5 text-xs font-semibold transition ${
+                    isAnalyzed
+                      ? "border border-indigo-200 bg-indigo-50 text-indigo-700 hover:bg-indigo-100"
+                      : "border border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100"
+                  }`}
+                >
+                  <Sparkles className="h-3.5 w-3.5" />
+                  {isAnalyzed ? "View Analysis" : "Analyze"}
+                </button>
+              ) : (
+                <Link
+                  to="/analyze"
+                  search={{ url: job.sourceUrl }}
+                  className="inline-flex h-8 items-center gap-1 whitespace-nowrap rounded-lg border border-amber-200 bg-amber-50 px-2.5 text-xs font-semibold text-amber-700 transition hover:bg-amber-100"
+                >
+                  <Sparkles className="h-3.5 w-3.5" />
+                  Analyze
+                </Link>
+              )}
               <Button
                 type="button"
                 variant="outline"
