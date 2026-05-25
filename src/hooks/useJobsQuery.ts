@@ -24,10 +24,12 @@ interface UseJobsQueryOptions {
   searchParams: JobSearchParams;
 }
 
+type JobsData = Awaited<ReturnType<typeof getPipelineJobHistory>>;
+
 export function useJobsQuery({ searchParams }: UseJobsQueryOptions) {
   const queryClient = useQueryClient();
 
-  const query = useQuery({
+  const query = useQuery<JobsData>({
     queryKey: jobsQueryKeys.list(searchParams),
     queryFn: async () => {
       const result = await getPipelineJobHistory({
@@ -49,8 +51,8 @@ export function useJobsQuery({ searchParams }: UseJobsQueryOptions) {
     });
   };
 
-  const updateJobsOptimistically = (updater: (jobs: typeof query.data) => typeof query.data) => {
-    queryClient.setQueryData(jobsQueryKeys.list(searchParams), (old) => {
+  const updateJobsOptimistically = (updater: (data: JobsData) => JobsData) => {
+    queryClient.setQueryData<JobsData>(jobsQueryKeys.list(searchParams), (old) => {
       if (!old) return old;
       return updater(old);
     });

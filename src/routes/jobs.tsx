@@ -58,7 +58,7 @@ type JobSearchInput = {
   analyzedOnly?: boolean | string;
 };
 
-type JobSearchParams = {
+export type JobSearchParams = {
   page: number;
   query: string;
   remote: boolean;
