@@ -389,20 +389,14 @@ function JobsPage() {
             : "Deploy background agents to search LinkedIn, Greenhouse, Lever, and Workable on your schedule — surfacing only top-tier matches."
         }
         actions={
-          <div className="flex flex-wrap items-center gap-2">
-            <button
-              type="button"
-              onClick={openFreshDrawer}
-              className="inline-flex items-center gap-2 rounded-lg bg-slate-900 border border-slate-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800 hover:text-amber-400"
+          <div className="flex flex-wrap items-center justify-end gap-2.5">
+            <Link
+              to="/dashboard"
+              className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white/80 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-white hover:border-slate-300"
             >
-              <BookMarked className="h-4 w-4" />
-              Agent HQ
-              {loaderSavedSearches.length > 0 && (
-                <span className="rounded-full bg-amber-600 px-1.5 py-0.5 text-[10px] font-bold text-white leading-none">
-                  {loaderSavedSearches.length}
-                </span>
-              )}
-            </button>
+              <BarChart3 className="h-4 w-4" />
+              Insights
+            </Link>
             <button
               type="button"
               onClick={() => {
@@ -413,7 +407,20 @@ function JobsPage() {
               className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 border border-indigo-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700"
             >
               <Search className="h-4 w-4" />
-              Analyze a Job
+              Analyze
+            </button>
+            <button
+              type="button"
+              onClick={openFreshDrawer}
+              className="inline-flex items-center gap-2 rounded-lg bg-amber-600 border border-amber-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-amber-700"
+            >
+              <BookMarked className="h-4 w-4" />
+              Agents
+              {loaderSavedSearches.length > 0 && (
+                <span className="rounded-full bg-white/30 px-1.5 py-0.5 text-[10px] font-bold text-white leading-none">
+                  {loaderSavedSearches.length}
+                </span>
+              )}
             </button>
           </div>
         }
