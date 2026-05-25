@@ -243,7 +243,7 @@ export async function runLinkedinSearch(
   params: LinkedInSearchParams,
   options: RunLinkedinSearchOptions = {},
 ): Promise<{ jobs: LinkedInScrapedJob[]; warnings: string[]; searchUrl: string }> {
-  const { broadenDiscovery = false, presets = defaultSearchPresets, activeSavedSearchId = null, sources = ["linkedin", "greenhouse", "lever", "workable"] } = options;
+  const { broadenDiscovery = false, presets = defaultSearchPresets, activeSavedSearchId = null, sources = ["linkedin", "adzuna"] } = options;
 
   let semanticTitleVariants: string[] = [];
   if (broadenDiscovery && presets.includes("ai-semantic-expansion")) {

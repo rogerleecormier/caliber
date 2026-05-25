@@ -49,7 +49,7 @@ export interface LinkedInScrapedJob {
   company: string;
   location: string;
   sourceUrl: string;
-  sourceName: "LinkedIn";
+  sourceName: "LinkedIn" | "Adzuna" | "Greenhouse" | "Lever" | "Workable" | string;
   postDateText: string | null;
   firstSeenAt?: string | null;
   createdAt?: string | null;

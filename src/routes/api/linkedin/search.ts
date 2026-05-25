@@ -20,7 +20,7 @@ import {
   type LinkedInSearchParams,
 } from "../../../lib/linkedin-search";
 import { canAccessLinkedInSearch } from "../../../lib/private-features";
-import { searchAtsJobs } from "../../../lib/ats-search";
+import { searchAdzunaJobs } from "../../../lib/adzuna-search";
 import { logSearchEvent, logSearchEvents } from "../../../lib/pipeline-persistence";
 import { withRetry } from "../../../lib/sync-queue";
 
@@ -370,7 +370,7 @@ export const Route = createFileRoute("/api/linkedin/search")({
         let stage = "initializing";
         let userId: string | null = null;
         let savedSearchId: number | null = null;
-        let sources: string[] = ["linkedin", "greenhouse", "lever", "workable"];
+        let sources: string[] = ["linkedin", "adzuna"];
         try {
           const user = await resolveSessionUser();
           if (!user?.id) {
@@ -398,7 +398,7 @@ export const Route = createFileRoute("/api/linkedin/search")({
           const body = (await request.json()) as Partial<LinkedInSearchParams> & { sources?: string[] };
           const params = normalizeLinkedInSearchParams(body);
           savedSearchId = typeof (body as any).savedSearchId === "number" ? (body as any).savedSearchId : null;
-          sources = body.sources || ["linkedin", "greenhouse", "lever", "workable"];
+          sources = body.sources || ["linkedin", "adzuna"];
 
           if (!params.keywords) {
             return json({ success: false, error: "Keywords are required." }, { status: 400 });
@@ -518,38 +518,34 @@ export const Route = createFileRoute("/api/linkedin/search")({
             warnings.push(...collectedData.warnings);
           }
 
-          stage = "searching-ats-platforms";
-          const db = getDb(env.DB);
-          const hasAtsSources = sources.some(s => s !== "linkedin");
-          if (hasAtsSources) {
+          stage = "searching-adzuna-platform";
+          let adzunaJobs: LinkedInScrapedJob[] = [];
+          if (sources.includes("adzuna")) {
             await logSearchEvent({
               userId: user.id,
               savedSearchId,
-              eventType: "ats_search_started",
-              platform: sources.filter((s) => s !== "linkedin").join(", "),
-              message: `Searching local ATS cache for keywords: "${params.keywords}"`,
+              eventType: "adzuna_search_started",
+              platform: "Adzuna",
+              message: `Searching Adzuna live for keywords: "${params.keywords}"`,
               level: "info",
             });
-          }
-          const atsJobs = await searchAtsJobs(db, sources, params);
-          if (hasAtsSources) {
+            adzunaJobs = await searchAdzunaJobs(env, params);
             await logSearchEvent({
               userId: user.id,
               savedSearchId,
-              eventType: "ats_search_completed",
-              platform: sources.filter((s) => s !== "linkedin").join(", "),
-              message: `ATS search completed: found ${atsJobs.length} matching jobs in cache`,
+              eventType: "adzuna_search_completed",
+              platform: "Adzuna",
+              message: `Adzuna live search completed: found ${adzunaJobs.length} matching jobs`,
               level: "info",
               metadata: {
                 keywords: params.keywords,
                 location: params.location || "Any Location",
-                count: atsJobs.length,
-                atsSources: sources.filter((s) => s !== "linkedin").join(", "),
+                count: adzunaJobs.length,
               },
             });
           }
           
-          let jobs = [...linkedinJobs, ...atsJobs];
+          let jobs = [...linkedinJobs, ...adzunaJobs];
 
           if (jobs.length === 0) {
             await logSearchEvent({

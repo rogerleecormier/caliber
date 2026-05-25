@@ -92,7 +92,7 @@ const defaultForm: FormState = {
   page: 1,
   pagesToScan: 1,
   limit: 10,
-  sources: ["linkedin", "greenhouse", "lever", "workable"],
+  sources: ["linkedin", "adzuna"],
   geoId: "",
   distance: "",
   f_SAL: "",
@@ -283,7 +283,7 @@ export function AgentsSearchDrawer({
     setActiveSavedSearchId(preload.id);
     setForm({
       ...criteriaToForm(preload.criteria),
-      sources: preload.sources ?? ["linkedin", "greenhouse", "lever", "workable"],
+      sources: preload.sources ?? ["linkedin", "adzuna"],
     });
     setSaveName(preload.name);
   }, [preload]);
@@ -355,6 +355,7 @@ export function AgentsSearchDrawer({
         broadenDiscovery,
         presets: selectedPresets,
         activeSavedSearchId,
+        sources: form.sources,
       });
       searchStatusContext.setJobsFound(searchId, result.jobs.length);
       searchStatusContext.updateSearch(searchId, "completed", `Found ${result.jobs.length} job${result.jobs.length !== 1 ? "s" : ""}`);
@@ -431,7 +432,7 @@ export function AgentsSearchDrawer({
     }
 
     try {
-      const result = await runLinkedinSearch(saved.criteria, { activeSavedSearchId: saved.id });
+      const result = await runLinkedinSearch(saved.criteria, { activeSavedSearchId: saved.id, sources: saved.sources });
       try {
         await setSearchAgentRunning({ data: { id: saved.id, isRunning: false } });
       } catch (e) {
@@ -624,9 +625,7 @@ export function AgentsSearchDrawer({
                 <div className="flex flex-col gap-2 pt-1">
                     {[
                       { id: "linkedin", label: "LinkedIn" },
-                      { id: "greenhouse", label: "Greenhouse" },
-                      { id: "lever", label: "Lever" },
-                      { id: "workable", label: "Workable" }
+                      { id: "adzuna", label: "Adzuna (Live Search)" }
                     ].map((src) => (
                       <label key={src.id} className="flex cursor-pointer items-center gap-2.5 text-sm text-slate-600 hover:text-slate-900">
                         <input
