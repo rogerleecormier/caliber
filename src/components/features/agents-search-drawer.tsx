@@ -24,6 +24,7 @@ import {
   defaultSearchPresets,
   runLinkedinSearch,
 } from "@/lib/run-linkedin-search";
+import { useSearchStatusContext } from "@/hooks/useSearchStatus";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -215,6 +216,7 @@ export function AgentsSearchDrawer({
   cronFrequency,
   onSearchComplete,
 }: AgentsSearchDrawerProps) {
+  const searchStatusContext = useSearchStatusContext();
   const [form, setForm] = useState<FormState>(defaultForm);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -295,6 +297,9 @@ export function AgentsSearchDrawer({
     setLoading(true);
     setError(null);
 
+    const searchId = `search-${Date.now()}`;
+    searchStatusContext.startSearch(searchId, `Searching for "${form.keywords}"...`);
+
     try {
       const params: LinkedInSearchParams = {
         keywords: form.keywords,
@@ -316,10 +321,15 @@ export function AgentsSearchDrawer({
         presets: selectedPresets,
         activeSavedSearchId,
       });
+      searchStatusContext.setJobsFound(searchId, result.jobs.length);
+      searchStatusContext.updateSearch(searchId, "completed", `Found ${result.jobs.length} job${result.jobs.length !== 1 ? "s" : ""}`);
       onSearchComplete(result.jobs, { warnings: result.warnings, searchUrl: result.searchUrl });
       onOpenChange(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "LinkedIn search failed.");
+      const message = err instanceof Error ? err.message : "LinkedIn search failed.";
+      setError(message);
+      searchStatusContext.addError(searchId, message);
+      searchStatusContext.updateSearch(searchId, "error", "Search failed");
     } finally {
       setLoading(false);
     }
@@ -372,6 +382,9 @@ export function AgentsSearchDrawer({
   async function handleRunSavedSearch(saved: SavedLinkedinSearchRow) {
     setRunningSearchId(saved.id);
     setError(null);
+    const searchId = `search-${Date.now()}`;
+    searchStatusContext.startSearch(searchId, `Running agent: "${saved.name}"...`);
+
     try {
       await setSearchAgentRunning({ data: { id: saved.id, isRunning: true } });
     } catch (e) {
@@ -385,6 +398,8 @@ export function AgentsSearchDrawer({
       } catch (e) {
         console.error("Failed to release running lock:", e);
       }
+      searchStatusContext.setJobsFound(searchId, result.jobs.length);
+      searchStatusContext.updateSearch(searchId, "completed", `Found ${result.jobs.length} job${result.jobs.length !== 1 ? "s" : ""}`);
       const next = await getSavedLinkedinSearches();
       setSavedSearches(next);
       onSearchComplete(result.jobs, { warnings: result.warnings, searchUrl: result.searchUrl });
@@ -395,7 +410,10 @@ export function AgentsSearchDrawer({
       } catch (e) {
         console.error("Failed to release running lock on error:", e);
       }
-      setError(err instanceof Error ? err.message : "Search failed.");
+      const message = err instanceof Error ? err.message : "Search failed.";
+      setError(message);
+      searchStatusContext.addError(searchId, message);
+      searchStatusContext.updateSearch(searchId, "error", "Search failed");
     } finally {
       setRunningSearchId(null);
     }

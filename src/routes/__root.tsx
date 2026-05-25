@@ -2,6 +2,8 @@ import { HeadContent, Scripts, createRootRoute } from "@tanstack/react-router";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { TooltipProvider } from "@caliber/ui-kit";
 import Header from "../components/Header";
+import { SearchStatusIndicator } from "../components/SearchStatusIndicator";
+import { SearchStatusProvider } from "../hooks/useSearchStatus";
 import { getSessionUser } from "@/server/functions/auth";
 import type { SessionUser } from "@/lib/cloudflare";
 
@@ -50,10 +52,13 @@ function RootDocument({ children }: { children: React.ReactNode }) {
       </head>
       <body>
         <QueryClientProvider client={queryClient}>
-          <TooltipProvider>
-            <Header user={user} />
-            <main className="spx-app-frame pb-28 md:pb-0">{children}</main>
-          </TooltipProvider>
+          <SearchStatusProvider>
+            <TooltipProvider>
+              <Header user={user} />
+              <main className="spx-app-frame pb-28 md:pb-0">{children}</main>
+              <SearchStatusIndicator />
+            </TooltipProvider>
+          </SearchStatusProvider>
         </QueryClientProvider>
         <Scripts />
       </body>
