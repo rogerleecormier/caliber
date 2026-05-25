@@ -4,23 +4,17 @@ import { useState } from "react";
 import {
   Badge,
   Body,
-  Button,
   Caption,
   PrimaryCard,
 } from "@caliber/ui-kit";
 import {
-  Copy,
   ExternalLink,
   FileText,
   Loader2,
   Mail,
-  MessageSquareText,
   Sparkles,
 } from "lucide-react";
 import { getScoreBorderColor } from "@/lib/scoreUtils";
-import {
-  generateLinkedinOutreach,
-} from "@/server/functions/linkedin-searches";
 import { getDocumentDownload } from "@/server/functions/get-history";
 
 export type JobStatus = "Discovered" | "Analyzed" | "Prepped" | "Applied" | "Interviewed" | "Hired" | "Not Hired" | "Archived";
@@ -115,10 +109,6 @@ export function JobResultCard({
   onAnalyzeClick,
 }: JobResultCardProps) {
   const score = getScore(job);
-  const [outreach, setOutreach] = useState("");
-  const [outreachLoading, setOutreachLoading] = useState(false);
-  const [outreachCopied, setOutreachCopied] = useState(false);
-  const [outreachError, setOutreachError] = useState<string | null>(null);
   const [downloadingKey, setDownloadingKey] = useState<string | null>(null);
 
   async function triggerDownload(r2Key: string, fileName: string) {
@@ -143,25 +133,6 @@ export function JobResultCard({
     }
   }
 
-  async function handleGenerateOutreach() {
-    setOutreachLoading(true);
-    setOutreachError(null);
-    setOutreachCopied(false);
-    try {
-      const result = await generateLinkedinOutreach({ data: job });
-      setOutreach(result.message);
-    } catch (error) {
-      setOutreachError(error instanceof Error ? error.message : "Unable to generate outreach.");
-    } finally {
-      setOutreachLoading(false);
-    }
-  }
-
-  async function copyOutreach() {
-    if (!outreach) return;
-    await navigator.clipboard.writeText(outreach);
-    setOutreachCopied(true);
-  }
 
   return (
     <PrimaryCard
@@ -362,21 +333,6 @@ export function JobResultCard({
                   Analyze
                 </Link>
               )}
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={handleGenerateOutreach}
-                disabled={outreachLoading}
-                className="h-8 whitespace-nowrap border-slate-200 px-2.5 text-slate-700 hover:text-amber-700 hover:border-amber-200 hover:bg-amber-50"
-              >
-                {outreachLoading ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                ) : (
-                  <MessageSquareText className="h-3.5 w-3.5" />
-                )}
-                Outreach
-              </Button>
               <a
                 href={job.sourceUrl}
                 target="_blank"
@@ -407,37 +363,6 @@ export function JobResultCard({
           </div>
         </div>
 
-        {outreachError ? (
-          <Body size="sm" className="text-red-600">{outreachError}</Body>
-        ) : null}
-        {outreach ? (
-          <div className="grid gap-2 rounded-lg border border-slate-200 bg-slate-50 p-3 sm:grid-cols-[1fr_auto] sm:items-start">
-            <div>
-              <Caption variant="semibold" className="mb-1 block text-[10px] uppercase tracking-wide text-slate-500">
-                Outreach blurb
-              </Caption>
-              <Body size="sm" className="text-slate-700">
-                {outreach}
-              </Body>
-            </div>
-            <div className="flex justify-end gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={handleGenerateOutreach}
-                disabled={outreachLoading}
-              >
-                {outreachLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <MessageSquareText className="h-3.5 w-3.5" />}
-                Refresh
-              </Button>
-              <Button type="button" variant="outline" size="sm" onClick={copyOutreach}>
-                <Copy className="h-3.5 w-3.5" />
-                {outreachCopied ? "Copied" : "Copy"}
-              </Button>
-            </div>
-          </div>
-        ) : null}
       </div>
     </PrimaryCard>
   );
