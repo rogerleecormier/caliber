@@ -108,13 +108,40 @@ export const saveResume = createServerFn({ method: "POST" })
       ...(data.certifications !== undefined && { certifications: JSON.stringify(data.certifications) }),
     };
 
-    await db
-      .insert(masterResume)
-      .values({ ...baseValues, ...structuredValues })
-      .onConflictDoUpdate({
-        target: [masterResume.userId],
-        set: { ...baseValues, ...structuredValues },
-      });
+    try {
+      await db
+        .insert(masterResume)
+        .values({ ...baseValues, ...structuredValues })
+        .onConflictDoUpdate({
+          target: [masterResume.userId],
+          set: { ...baseValues, ...structuredValues },
+        });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      const missingConflictTarget =
+        message.includes("ON CONFLICT") ||
+        message.includes("does not match any PRIMARY KEY") ||
+        message.includes("unique");
+
+      if (!missingConflictTarget) throw error;
+
+      const [existing] = await db
+        .select({ id: masterResume.id })
+        .from(masterResume)
+        .where(eq(masterResume.userId, user.id))
+        .limit(1);
+
+      if (existing) {
+        await db
+          .update(masterResume)
+          .set({ ...baseValues, ...structuredValues })
+          .where(eq(masterResume.id, existing.id));
+      } else {
+        await db
+          .insert(masterResume)
+          .values({ ...baseValues, ...structuredValues });
+      }
+    }
 
     return { success: true, updatedAt: now };
   });
