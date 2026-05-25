@@ -1,7 +1,9 @@
-import { createFileRoute, useRouter } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { getSearchLogs } from "@/server/functions/get-search-logs";
 import { requireLoginRedirect } from "@/lib/auth-redirect";
-import { useState, useEffect, useDeferredValue } from "react";
+import { useState, useDeferredValue, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { formatDistanceToNow, parseISO } from "date-fns";
 import {
   FileText,
   Search,
@@ -12,9 +14,9 @@ import {
   AlertTriangle,
   XCircle,
   Terminal,
-  Calendar,
   Layers,
   ChevronDown,
+  Clock,
 } from "lucide-react";
 import {
   PageHero,
@@ -44,19 +46,6 @@ export const Route = createFileRoute("/logs")({
     level: typeof search.level === "string" ? search.level : "",
     agentName: typeof search.agentName === "string" ? search.agentName : "",
   }),
-  loaderDeps: ({ search }: { search: LogsSearchParams }) => search,
-  loader: async ({ deps }: { deps: LogsSearchParams }) => {
-    return getSearchLogs({
-      data: {
-        page: deps.page,
-        pageSize: PAGE_SIZE,
-        eventType: deps.eventType || undefined,
-        platform: deps.platform || undefined,
-        level: deps.level || undefined,
-        agentName: deps.agentName || undefined,
-      },
-    });
-  },
   component: LogsPage,
   pendingComponent: LogsLoading,
 });
@@ -148,12 +137,8 @@ function MetricCard({
 }
 
 function LogsPage() {
-  const { rows, total, summary } = Route.useLoaderData();
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
-  const router = useRouter();
-  const [refreshing, setRefreshing] = useState(false);
-
   const [localAgentName, setLocalAgentName] = useState(search.agentName);
   const deferredAgentName = useDeferredValue(localAgentName);
 
@@ -163,16 +148,31 @@ function LogsPage() {
     }
   }, [deferredAgentName, navigate, search.agentName]);
 
+  const { data, isPending, refetch } = useQuery({
+    queryKey: ["logs", search.page, search.eventType, search.platform, search.level, search.agentName],
+    queryFn: () =>
+      getSearchLogs({
+        data: {
+          page: search.page,
+          pageSize: PAGE_SIZE,
+          eventType: search.eventType || undefined,
+          platform: search.platform || undefined,
+          level: search.level || undefined,
+          agentName: search.agentName || undefined,
+        },
+      }),
+    refetchInterval: 5000,
+    staleTime: 2000,
+  });
+
+  const rows = data?.rows ?? [];
+  const total = data?.total ?? 0;
+  const summary = data?.summary ?? { totalSearches: 0, totalJobsFound: 0, totalJobsSkipped: 0, totalErrors: 0 };
   const totalPages = Math.ceil(total / PAGE_SIZE);
 
-  async function handleRefresh() {
-    setRefreshing(true);
-    try {
-      await router.invalidate();
-    } finally {
-      setRefreshing(false);
-    }
-  }
+  const handleRefresh = () => {
+    refetch();
+  };
 
   function handleFilterChange(key: keyof LogsSearchParams, value: string) {
     navigate({ search: (prev) => ({ ...prev, [key]: value, page: 1 }) });
@@ -220,11 +220,11 @@ function LogsPage() {
           <div className="flex items-center gap-2">
             <button
               onClick={handleRefresh}
-              disabled={refreshing}
+              disabled={isPending}
               className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white/80 px-3 py-2 text-sm font-semibold text-slate-700 transition hover:bg-white disabled:opacity-50"
             >
-              <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
-              {refreshing ? "Refreshing..." : "Refresh"}
+              <RefreshCw className={`h-4 w-4 ${isPending ? "animate-spin" : ""}`} />
+              {isPending ? "Refreshing..." : "Refresh"}
             </button>
             <button
               onClick={handleExportCsv}
@@ -387,28 +387,67 @@ function LogsPage() {
                       </div>
                     </div>
                     <div className="flex items-center justify-between pl-11 md:pl-0 md:text-right shrink-0">
-                      <div className="flex items-center gap-1 text-[11px] font-medium text-slate-400">
-                        <Calendar className="h-3.5 w-3.5" />
-                        <span>{row.createdAt.replace("T", " ").slice(0, 19)}</span>
+                      <div className="flex flex-col items-start md:items-end gap-1">
+                        <div className="flex items-center gap-1 text-[11px] font-medium text-slate-400">
+                          <Clock className="h-3.5 w-3.5" />
+                          <span>{formatDistanceToNow(parseISO(row.createdAt), { addSuffix: true })}</span>
+                        </div>
+                        <div className="text-[10px] text-slate-300">
+                          {new Date(row.createdAt).toLocaleString("en-US", {
+                            month: "short",
+                            day: "numeric",
+                            year: "numeric",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                            second: "2-digit",
+                          })}
+                        </div>
                       </div>
                     </div>
                   </div>
 
-                  {/* Metadata block */}
+                  {/* Details block - analysis data */}
                   {row.metadata && Object.keys(row.metadata).length > 0 && (
                     <div className="mt-3 pl-11">
                       <details className="group rounded-xl border border-slate-200/60 bg-white overflow-hidden">
                         <summary className="flex cursor-pointer list-none items-center justify-between gap-2 px-3 py-2 text-xs font-semibold text-slate-500 hover:bg-slate-50 transition">
                           <span className="flex items-center gap-1.5">
                             <Terminal className="h-3.5 w-3.5 text-indigo-500" />
-                            Expand Metadata Parameters
+                            Event Details & Metadata
                           </span>
                           <ChevronDown className="h-3.5 w-3.5 text-slate-400 transition group-open:rotate-180" />
                         </summary>
-                        <div className="border-t border-slate-200/60 p-3 bg-slate-950">
-                          <pre className="text-[10px] leading-relaxed overflow-x-auto text-emerald-400 font-mono select-all">
-                            {JSON.stringify(row.metadata, null, 2)}
-                          </pre>
+                        <div className="border-t border-slate-200/60 p-4 bg-slate-50 space-y-4">
+                          {/* Structured metadata display */}
+                          <div className="grid gap-3 sm:grid-cols-2">
+                            {Object.entries(row.metadata as Record<string, unknown>).map(([key, value]) => {
+                              if (typeof value === "object") return null;
+                              return (
+                                <div key={key} className="rounded-lg bg-white border border-slate-100 p-2">
+                                  <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">
+                                    {key.replace(/_/g, " ")}
+                                  </p>
+                                  <p className="text-sm font-medium text-slate-900 break-words">
+                                    {String(value)}
+                                  </p>
+                                </div>
+                              );
+                            })}
+                          </div>
+
+                          {/* Raw JSON for complex objects */}
+                          {Object.values(row.metadata as Record<string, unknown>).some(
+                            (v) => typeof v === "object"
+                          ) && (
+                            <div className="rounded-lg border border-slate-200 bg-slate-950 overflow-hidden">
+                              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 px-3 pt-2">
+                                Full Payload
+                              </p>
+                              <pre className="text-[10px] leading-relaxed overflow-x-auto text-emerald-400 font-mono select-all p-3">
+                                {JSON.stringify(row.metadata, null, 2)}
+                              </pre>
+                            </div>
+                          )}
                         </div>
                       </details>
                     </div>

@@ -274,40 +274,40 @@ export function AnalysisResult({ analysis }: AnalysisResultProps) {
       {analysis.insights && (
         <SectionCard icon={<BarChart3 className="h-3.5 w-3.5 text-indigo-600" />} title="Role Insights" eyebrow="Culture & environment">
           <div className="space-y-4">
-            {/* Quick facts */}
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+            {/* Quick facts - detailed layout */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {analysis.insights.workLifeBalance && analysis.insights.workLifeBalance !== "unknown" && (
-                <div className={`rounded-xl border p-3 ${
+                <div className={`rounded-xl border p-4 ${
                   analysis.insights.workLifeBalance === "excellent" || analysis.insights.workLifeBalance === "good"
                     ? "bg-emerald-50 border-emerald-100" : analysis.insights.workLifeBalance === "demanding"
                     ? "bg-red-50 border-red-100" : "bg-amber-50 border-amber-100"
                 }`}>
-                  <p className="text-[9px] font-bold uppercase tracking-widest text-slate-400 mb-1">Work-Life</p>
-                  <p className={`text-sm font-bold capitalize ${
+                  <p className="text-[9px] font-bold uppercase tracking-widest text-slate-400 mb-2">Work-Life Balance</p>
+                  <p className={`text-lg font-bold capitalize ${
                     analysis.insights.workLifeBalance === "excellent" || analysis.insights.workLifeBalance === "good"
                       ? "text-emerald-800" : analysis.insights.workLifeBalance === "demanding" ? "text-red-800" : "text-amber-800"
-                  }`}>{analysis.insights.workLifeBalance}</p>
+                  }`}>{analysis.insights.workLifeBalance.replace(/_/g, " ")}</p>
                 </div>
               )}
               {analysis.insights.remoteFlexibility && analysis.insights.remoteFlexibility !== "unknown" && (
-                <div className="rounded-xl border bg-sky-50 border-sky-100 p-3">
-                  <div className="flex items-center gap-1 mb-1">
-                    <MapPin className="h-3 w-3 text-sky-500" />
-                    <p className="text-[9px] font-bold uppercase tracking-widest text-slate-400">Location</p>
+                <div className="rounded-xl border bg-sky-50 border-sky-100 p-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <MapPin className="h-4 w-4 text-sky-600" />
+                    <p className="text-[9px] font-bold uppercase tracking-widest text-slate-400">Location / Remote</p>
                   </div>
-                  <p className="text-sm font-bold text-sky-800">
+                  <p className="text-lg font-bold text-sky-800">
                     {analysis.insights.remoteFlexibility === "fully_remote" ? "Fully Remote"
                       : analysis.insights.remoteFlexibility === "hybrid" ? "Hybrid" : "On-site"}
                   </p>
                 </div>
               )}
               {analysis.insights.seniorityLevel && analysis.insights.seniorityLevel !== "unknown" && (
-                <div className="rounded-xl border bg-violet-50 border-violet-100 p-3">
-                  <div className="flex items-center gap-1 mb-1">
-                    <TrendingUp className="h-3 w-3 text-violet-500" />
-                    <p className="text-[9px] font-bold uppercase tracking-widest text-slate-400">Seniority</p>
+                <div className="rounded-xl border bg-violet-50 border-violet-100 p-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <TrendingUp className="h-4 w-4 text-violet-600" />
+                    <p className="text-[9px] font-bold uppercase tracking-widest text-slate-400">Seniority Level</p>
                   </div>
-                  <p className="text-sm font-bold text-violet-800 capitalize">{analysis.insights.seniorityLevel}</p>
+                  <p className="text-lg font-bold text-violet-800 capitalize">{analysis.insights.seniorityLevel.replace(/_/g, " ")}</p>
                 </div>
               )}
             </div>
