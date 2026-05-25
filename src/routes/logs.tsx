@@ -362,7 +362,7 @@ function LogsPage() {
                       <div className={`mt-0.5 rounded-lg border p-1.5 shrink-0 bg-white shadow-sm border-slate-100`}>
                         <Icon className={`h-4 w-4 ${row.level === 'error' ? 'text-red-500' : row.level === 'warning' ? 'text-amber-500' : row.level === 'success' ? 'text-emerald-500' : 'text-slate-500'}`} />
                       </div>
-                      <div className="space-y-1">
+                      <div className="space-y-1 flex-1">
                         <div className="flex flex-wrap items-center gap-2">
                           <span className={`rounded-md border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${row.level === 'error' ? 'bg-red-50 text-red-700 border-red-100' : row.level === 'warning' ? 'bg-amber-50 text-amber-700 border-amber-100' : row.level === 'success' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : 'bg-slate-50 text-slate-700 border-slate-200'}`}>
                             {row.level}
@@ -380,10 +380,32 @@ function LogsPage() {
                               Agent: {row.agentName}
                             </span>
                           )}
+                          {row.metadata && typeof row.metadata.matchScore === 'number' && (
+                            <span className="rounded-md border border-indigo-200 bg-indigo-50 px-2 py-0.5 text-[10px] font-semibold text-indigo-700">
+                              Match: {row.metadata.matchScore}%
+                            </span>
+                          )}
+                          {row.metadata && row.metadata.pursue === true && (
+                            <span className="rounded-md border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700">
+                              ✓ Pursue
+                            </span>
+                          )}
+                          {row.metadata && row.metadata.pursue === false && (
+                            <span className="rounded-md border border-slate-200 bg-slate-50 px-2 py-0.5 text-[10px] font-semibold text-slate-600">
+                              Skip
+                            </span>
+                          )}
                         </div>
                         <p className="text-sm font-semibold text-slate-900 leading-normal">
                           {row.message}
                         </p>
+                        {row.metadata && (row.metadata.jobTitle || row.metadata.company) && (
+                          <p className="text-xs text-slate-500 leading-normal">
+                            {row.metadata.jobTitle && <span>{row.metadata.jobTitle}</span>}
+                            {row.metadata.jobTitle && row.metadata.company && <span> at </span>}
+                            {row.metadata.company && <span>{row.metadata.company}</span>}
+                          </p>
+                        )}
                       </div>
                     </div>
                     <div className="flex items-center justify-between pl-11 md:pl-0 md:text-right shrink-0">
