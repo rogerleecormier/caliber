@@ -5,7 +5,7 @@ import type { CloudflareEnv } from "@/lib/cloudflare";
 import { getDb } from "@/db/db";
 import * as schema from "@/db/schema";
 
-export function getAuthInstance(env: CloudflareEnv) {
+export function getAuthInstance(env: Partial<CloudflareEnv> & Record<string, any>) {
   if (!env.DB) {
     throw new Error("Database binding unavailable");
   }

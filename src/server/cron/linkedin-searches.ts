@@ -13,7 +13,7 @@ import {
 } from "@/lib/linkedin-persistence";
 import { and, eq, lte, or, inArray, like } from "drizzle-orm";
 import { searchAtsJobs } from "@/lib/ats-search";
-import { logSearchEvent } from "@/lib/pipeline-persistence";
+import { logSearchEvent, logSearchEvents } from "@/lib/pipeline-persistence";
 
 type BrowserPage = any;
 
@@ -316,7 +316,33 @@ export async function runLinkedinSearchMaintenance(env: CloudflareEnv) {
         }
 
         // Query local Greenhouse/Lever/Workable cache if enabled
+        const hasAtsSources = sourcesList.some(s => s !== 'linkedin');
+        if (hasAtsSources) {
+          await logSearchEvent({
+            userId: search.userId,
+            savedSearchId: search.id,
+            eventType: "ats_search_started",
+            platform: sourcesList.filter(s => s !== "linkedin").join(", "),
+            agentName: search.name,
+            message: `Cron agent "${search.name}" checking local ATS cache...`,
+            level: "info",
+          });
+        }
+
         const atsJobs = await searchAtsJobs(db, sourcesList, criteria);
+
+        if (hasAtsSources) {
+          await logSearchEvent({
+            userId: search.userId,
+            savedSearchId: search.id,
+            eventType: "ats_search_completed",
+            platform: sourcesList.filter(s => s !== "linkedin").join(", "),
+            agentName: search.name,
+            message: `Cron agent "${search.name}" completed ATS check: found ${atsJobs.length} jobs in cache`,
+            level: "info",
+            metadata: { count: atsJobs.length },
+          });
+        }
 
         // Combine candidates from LinkedIn and ATS cache
         let jobs = [...linkedinJobs, ...atsJobs];
@@ -331,7 +357,8 @@ export async function runLinkedinSearchMaintenance(env: CloudflareEnv) {
         });
 
         const initialCount = jobs.length;
-        jobs = dedupeJobsBySemanticKey(
+        const skippedJobs: typeof jobs = [];
+        const uniqueNewJobs = dedupeJobsBySemanticKey(
           jobs.filter((job) => {
             const exactMatch = existingJobsByUrl.get(canonicalizeLinkedinJobUrl(job.sourceUrl, job.id));
             const semanticKey = buildLinkedinJobSemanticKey({
@@ -340,10 +367,35 @@ export async function runLinkedinSearchMaintenance(env: CloudflareEnv) {
               location: job.location,
             });
             const semanticMatch = semanticExistingJobs.get(semanticKey);
-            return !exactMatch && !semanticMatch;
+            const isDup = exactMatch || semanticMatch;
+            if (isDup) {
+              skippedJobs.push(job);
+            }
+            return !isDup;
           }),
         );
+        jobs = uniqueNewJobs;
         const reusedCount = initialCount - jobs.length;
+
+        if (skippedJobs.length > 0) {
+          const duplicateLogs = skippedJobs.map((job) => ({
+            userId: search.userId,
+            savedSearchId: search.id,
+            eventType: "job_skipped_duplicate",
+            platform: job.sourceName,
+            agentName: search.name,
+            message: `Skipped duplicate: "${job.title}" at ${job.company} already exists`,
+            level: "info",
+            metadata: {
+              jobId: job.id,
+              jobTitle: job.title,
+              company: job.company,
+              location: job.location,
+              sourceUrl: job.sourceUrl,
+            },
+          }));
+          await logSearchEvents(duplicateLogs);
+        }
 
         if (jobs.length === 0) {
           await upsertLinkedinJobResults({
@@ -419,6 +471,29 @@ export async function runLinkedinSearchMaintenance(env: CloudflareEnv) {
           criteria,
           jobs: scoredJobs,
         });
+
+        if (scoredJobs.length > 0) {
+          const foundLogs = scoredJobs.map((job) => ({
+            userId: search.userId,
+            savedSearchId: search.id,
+            eventType: "job_found",
+            platform: job.sourceName,
+            agentName: search.name,
+            message: `New job surfaced: "${job.title}" at ${job.company} (${job.location})`,
+            level: "success",
+            metadata: {
+              jobId: job.id,
+              jobTitle: job.title,
+              company: job.company,
+              location: job.location,
+              matchScore: job.score?.masterScore ?? null,
+              pursue: job.score ? job.score.masterScore >= 80 : null,
+              salary: job.salary,
+              sourceUrl: job.sourceUrl,
+            },
+          }));
+          await logSearchEvents(foundLogs);
+        }
 
         await logSearchEvent({
           userId: search.userId,

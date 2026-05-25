@@ -21,7 +21,7 @@ import {
 } from "../../../lib/linkedin-search";
 import { canAccessLinkedInSearch } from "../../../lib/private-features";
 import { searchAtsJobs } from "../../../lib/ats-search";
-import { logSearchEvent } from "../../../lib/pipeline-persistence";
+import { logSearchEvent, logSearchEvents } from "../../../lib/pipeline-persistence";
 
 type BrowserPage = Awaited<ReturnType<typeof import("@cloudflare/puppeteer")["default"]["launch"]>> extends {
   newPage: () => Promise<infer T>;
@@ -332,7 +332,7 @@ async function collectLinkedinJobsAcrossPages(args: {
   };
 }
 
-async function getResumeProfile(userId: number): Promise<string | null> {
+async function getResumeProfile(userId: string): Promise<string | null> {
   const env = getCloudflareEnv();
   if (!env.DB) return null;
   const db = getDb(env.DB);
@@ -367,11 +367,15 @@ export const Route = createFileRoute("/api/linkedin/search")({
     handlers: {
       POST: async ({ request, context }) => {
         let stage = "initializing";
+        let userId: string | null = null;
+        let savedSearchId: number | null = null;
+        let sources: string[] = ["linkedin", "greenhouse", "lever", "workable"];
         try {
           const user = await resolveSessionUser();
           if (!user?.id) {
             return json({ success: false, error: "Authentication required" }, { status: 401 });
           }
+          userId = user.id;
           if (!canAccessLinkedInSearch(user)) {
             return json({ success: false, error: "Not found" }, { status: 404 });
           }
@@ -392,8 +396,8 @@ export const Route = createFileRoute("/api/linkedin/search")({
           stage = "reading-request";
           const body = (await request.json()) as Partial<LinkedInSearchParams> & { sources?: string[] };
           const params = normalizeLinkedInSearchParams(body);
-          const savedSearchId = typeof (body as any).savedSearchId === "number" ? (body as any).savedSearchId : null;
-          const sources = body.sources || ["linkedin", "greenhouse", "lever", "workable"];
+          savedSearchId = typeof (body as any).savedSearchId === "number" ? (body as any).savedSearchId : null;
+          sources = body.sources || ["linkedin", "greenhouse", "lever", "workable"];
 
           if (!params.keywords) {
             return json({ success: false, error: "Keywords are required." }, { status: 400 });
@@ -474,7 +478,29 @@ export const Route = createFileRoute("/api/linkedin/search")({
 
           stage = "searching-ats-platforms";
           const db = getDb(env.DB);
+          const hasAtsSources = sources.some(s => s !== "linkedin");
+          if (hasAtsSources) {
+            await logSearchEvent({
+              userId: user.id,
+              savedSearchId,
+              eventType: "ats_search_started",
+              platform: sources.filter((s) => s !== "linkedin").join(", "),
+              message: `Searching local ATS cache for keywords: "${params.keywords}"`,
+              level: "info",
+            });
+          }
           const atsJobs = await searchAtsJobs(db, sources, params);
+          if (hasAtsSources) {
+            await logSearchEvent({
+              userId: user.id,
+              savedSearchId,
+              eventType: "ats_search_completed",
+              platform: sources.filter((s) => s !== "linkedin").join(", "),
+              message: `ATS search completed: found ${atsJobs.length} matching jobs in cache`,
+              level: "info",
+              metadata: { count: atsJobs.length },
+            });
+          }
           
           let jobs = [...linkedinJobs, ...atsJobs];
 
@@ -525,6 +551,26 @@ export const Route = createFileRoute("/api/linkedin/search")({
           let historicalJobs = Array.from(matchedRows.values());
           let reusedCount = historicalJobs.length;
           let newJobs = unmatchedJobs;
+
+          if (historicalJobs.length > 0) {
+            const duplicateLogs = historicalJobs.map((job) => ({
+              userId: user.id,
+              savedSearchId,
+              eventType: "job_skipped_duplicate",
+              platform: job.sourceName,
+              message: `Skipped duplicate: "${job.title}" at ${job.company} already exists`,
+              level: "info" as const,
+              metadata: {
+                jobId: job.id,
+                jobTitle: job.title,
+                company: job.company,
+                location: job.location,
+                matchScore: job.score?.masterScore ?? null,
+                sourceUrl: job.sourceUrl,
+              },
+            }));
+            await logSearchEvents(duplicateLogs);
+          }
 
           if (newJobs.length === 0) {
             historicalJobs.sort((a, b) => (b.score?.masterScore || 0) - (a.score?.masterScore || 0));
@@ -581,6 +627,28 @@ export const Route = createFileRoute("/api/linkedin/search")({
             jobs: scoredJobs,
           });
 
+          if (scoredJobs.length > 0) {
+            const foundLogs = scoredJobs.map((job) => ({
+              userId: user.id,
+              savedSearchId,
+              eventType: "job_found",
+              platform: job.sourceName,
+              message: `New job surfaced: "${job.title}" at ${job.company} (${job.location})`,
+              level: "success" as const,
+              metadata: {
+                jobId: job.id,
+                jobTitle: job.title,
+                company: job.company,
+                location: job.location,
+                matchScore: job.score?.masterScore ?? null,
+                pursue: job.score ? job.score.masterScore >= 80 : null,
+                salary: job.salary,
+                sourceUrl: job.sourceUrl,
+              },
+            }));
+            await logSearchEvents(foundLogs);
+          }
+
           await logSearchEvent({
             userId: user.id,
             savedSearchId,
@@ -610,14 +678,16 @@ export const Route = createFileRoute("/api/linkedin/search")({
           });
         } catch (error) {
           console.error(`[linkedin-search] error during ${stage}:`, error);
-          await logSearchEvent({
-            userId: user.id,
-            savedSearchId,
-            eventType: "error",
-            platform: sources.join(", "),
-            message: `Manual search failed during ${stage}: ${error instanceof Error ? error.message : String(error)}`,
-            level: "error",
-          });
+          if (userId) {
+            await logSearchEvent({
+              userId,
+              savedSearchId,
+              eventType: "error",
+              platform: sources.join(", "),
+              message: `Manual search failed during ${stage}: ${error instanceof Error ? error.message : String(error)}`,
+              level: "error",
+            });
+          }
           return json(
             {
               success: false,

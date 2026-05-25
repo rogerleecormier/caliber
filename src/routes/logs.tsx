@@ -86,6 +86,9 @@ const PLATFORM_LABELS: Record<string, string> = {
   greenhouse: "Greenhouse",
   lever: "Lever",
   workable: "Workable",
+  remoteok: "RemoteOK",
+  himalayas: "Himalayas",
+  jobicy: "Jobicy",
   manual: "Manual",
 };
 
@@ -102,6 +105,8 @@ const EVENT_TYPE_LABELS: Record<string, string> = {
   analysis_error: "Analysis Error",
   cron_triggered: "Cron Triggered",
   manual_search: "Manual Search",
+  job_sync: "Job Ingestion Sync",
+  discovery_sync: "Company Discovery Sync",
   error: "System Error",
 };
 
@@ -431,42 +436,108 @@ function LogsPage() {
                   {/* Details block - analysis data */}
                   {row.metadata && Object.keys(row.metadata).length > 0 && (
                     <div className="mt-3 pl-11">
-                      <details className="group rounded-xl border border-slate-200/60 bg-white overflow-hidden">
-                        <summary className="flex cursor-pointer list-none items-center justify-between gap-2 px-3 py-2 text-xs font-semibold text-slate-500 hover:bg-slate-50 transition">
+                      <details className="group rounded-xl border border-slate-200/60 bg-white overflow-hidden shadow-sm">
+                        <summary className="flex cursor-pointer list-none items-center justify-between gap-2 px-3 py-2 text-xs font-semibold text-slate-500 hover:bg-slate-50 transition select-none">
                           <span className="flex items-center gap-1.5">
                             <Terminal className="h-3.5 w-3.5 text-indigo-500" />
                             Event Details & Metadata
                           </span>
                           <ChevronDown className="h-3.5 w-3.5 text-slate-400 transition group-open:rotate-180" />
                         </summary>
-                        <div className="border-t border-slate-200/60 p-4 bg-slate-50 space-y-4">
+                        <div className="border-t border-slate-200/60 p-4 bg-slate-50/50 space-y-4">
                           {/* Structured metadata display */}
-                          <div className="grid gap-3 sm:grid-cols-2">
-                            {Object.entries(row.metadata as Record<string, unknown>).map(([key, value]) => {
-                              if (typeof value === "object") return null;
-                              return (
-                                <div key={key} className="rounded-lg bg-white border border-slate-100 p-2">
-                                  <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">
-                                    {key.replace(/_/g, " ")}
-                                  </p>
-                                  <p className="text-sm font-medium text-slate-900 break-words">
-                                    {String(value)}
-                                  </p>
-                                </div>
-                              );
-                            })}
-                          </div>
+                          {Object.entries(row.metadata as Record<string, unknown>).some(([key, value]) => key !== "workerLogs" && key !== "stats" && typeof value !== "object") && (
+                            <div className="grid gap-3 sm:grid-cols-2">
+                              {Object.entries(row.metadata as Record<string, unknown>).map(([key, value]) => {
+                                if (key === "workerLogs" || key === "stats") return null;
+                                if (typeof value === "object") return null;
+                                return (
+                                  <div key={key} className="rounded-lg bg-white border border-slate-100 p-2">
+                                    <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">
+                                      {key.replace(/_/g, " ")}
+                                    </p>
+                                    <p className="text-sm font-semibold text-slate-900 break-words leading-tight">
+                                      {String(value)}
+                                    </p>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
+
+                          {/* Stats dashboard display */}
+                          {row.metadata.stats && typeof row.metadata.stats === 'object' && (
+                            <div className="space-y-1.5">
+                              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                                Run Statistics
+                              </p>
+                              <div className="grid gap-3 grid-cols-2 sm:grid-cols-4">
+                                {Object.entries(row.metadata.stats as Record<string, unknown>).map(([key, value]) => {
+                                  if (typeof value === "object" || value === null) return null;
+                                  return (
+                                    <div key={key} className="rounded-lg bg-white border border-slate-150 p-2.5 shadow-sm">
+                                      <p className="text-[9px] font-bold uppercase tracking-wider text-slate-400 mb-1">
+                                        {key.replace(/([A-Z])/g, " $1").trim()}
+                                      </p>
+                                      <p className="text-sm font-bold text-slate-900 leading-none">
+                                        {String(value)}
+                                      </p>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Beautiful Interactive Terminal for Ingestion Console Logs */}
+                          {Array.isArray(row.metadata.workerLogs) && row.metadata.workerLogs.length > 0 && (
+                            <div className="rounded-xl border border-slate-800 bg-slate-950 overflow-hidden shadow-md">
+                              <div className="flex items-center justify-between bg-slate-900 px-4 py-2 border-b border-slate-800">
+                                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5 font-mono">
+                                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse inline-block" />
+                                  Ingestion Sync Worker Console Log
+                                </span>
+                                <span className="text-[9px] text-slate-500 font-mono">
+                                  {row.metadata.workerLogs.length} entries
+                                </span>
+                              </div>
+                              <div className="text-[11px] leading-relaxed overflow-y-auto max-h-72 text-emerald-400 font-mono p-4 space-y-1 select-text scrollbar-thin scrollbar-thumb-slate-800">
+                                {[...row.metadata.workerLogs].reverse().map((entry: any, i: number) => {
+                                  const textTone = entry.type === 'error' ? 'text-red-400 font-semibold' :
+                                                   entry.type === 'warning' ? 'text-yellow-400 font-semibold' :
+                                                   entry.type === 'success' ? 'text-emerald-300 font-semibold' :
+                                                   'text-slate-300';
+                                  return (
+                                    <div key={i} className={`${textTone} flex items-start gap-2 hover:bg-slate-900/50 py-0.5 rounded px-1 transition-colors`}>
+                                      <span className="text-slate-500 shrink-0 select-none">
+                                        [{new Date(entry.timestamp).toLocaleTimeString()}]
+                                      </span>
+                                      <span className="break-all whitespace-pre-wrap">{entry.message}</span>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          )}
 
                           {/* Raw JSON for complex objects */}
-                          {Object.values(row.metadata as Record<string, unknown>).some(
-                            (v) => typeof v === "object"
+                          {Object.entries(row.metadata as Record<string, unknown>).some(
+                            ([k, v]) => k !== "workerLogs" && k !== "stats" && typeof v === "object"
                           ) && (
                             <div className="rounded-lg border border-slate-200 bg-slate-950 overflow-hidden">
                               <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 px-3 pt-2">
                                 Full Payload
                               </p>
                               <pre className="text-[10px] leading-relaxed overflow-x-auto text-emerald-400 font-mono select-all p-3">
-                                {JSON.stringify(row.metadata, null, 2)}
+                                {JSON.stringify(
+                                  Object.fromEntries(
+                                    Object.entries(row.metadata as Record<string, unknown>).filter(
+                                      ([k]) => k !== "workerLogs"
+                                    )
+                                  ),
+                                  null,
+                                  2
+                                )}
                               </pre>
                             </div>
                           )}

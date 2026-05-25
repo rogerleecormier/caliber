@@ -1,5 +1,5 @@
 import { getDb, schema } from '@/db/db';
-import { and, inArray, like, or } from 'drizzle-orm';
+import { and, inArray, like } from 'drizzle-orm';
 import type { LinkedInScrapedJob, LinkedInSearchParams } from '@/lib/linkedin-search';
 
 /**
@@ -25,10 +25,7 @@ export async function searchAtsJobs(
     .where(
       and(
         inArray(schema.jobs.sourceName, activeAtsSources),
-        or(
-          like(schema.jobs.title, `%${criteria.keywords}%`),
-          like(schema.jobs.descriptionRaw, `%${criteria.keywords}%`)
-        )
+        like(schema.jobs.title, `%${criteria.keywords}%`)
       )
     );
 

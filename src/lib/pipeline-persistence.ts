@@ -647,6 +647,42 @@ export async function logSearchEvent(args: {
   }
 }
 
+export async function logSearchEvents(
+  logs: Array<{
+    userId: string;
+    savedSearchId?: number | null;
+    eventType: string;
+    platform?: string;
+    agentName?: string;
+    message: string;
+    metadata?: Record<string, unknown>;
+    level?: 'info' | 'success' | 'warning' | 'error';
+  }>
+) {
+  const env = getCloudflareEnv();
+  if (!env.DB || logs.length === 0) return;
+  const db = getDb(env.DB);
+  const now = new Date().toISOString();
+  try {
+    const values = logs.map((args) => ({
+      userId: args.userId,
+      savedSearchId: args.savedSearchId ?? null,
+      eventType: args.eventType,
+      platform: args.platform ?? null,
+      agentName: args.agentName ?? null,
+      message: args.message,
+      metadata: args.metadata ?? null,
+      level: args.level ?? 'info',
+      createdAt: now,
+    }));
+
+    // In SQLite/D1, we can perform a single multi-row insert using values(...)
+    await db.insert(searchLogs).values(values);
+  } catch (e) {
+    console.error('[logSearchEvents] Failed to write search logs:', e);
+  }
+}
+
 // ─── Backward-compat helper ───────────────────────────────────────────────────
 
 /** Map a stored pipeline job to a LinkedInScrapedJob shape for UI compat */
