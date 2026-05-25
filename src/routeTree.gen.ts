@@ -38,6 +38,7 @@ import { Route as ApiAiRecommendRouteImport } from './routes/api/ai/recommend'
 import { Route as ApiAiMatchRouteImport } from './routes/api/ai/match'
 import { Route as ApiAiInsightsRouteImport } from './routes/api/ai/insights'
 import { Route as ApiAiGenerateResumeRouteImport } from './routes/api/ai/generate-resume'
+import { Route as ApiAdminCleanupNonUsJobsRouteImport } from './routes/api/admin/cleanup-non-us-jobs'
 import { Route as ApiV3JobsPruneRouteImport } from './routes/api/v3/jobs/prune'
 import { Route as ApiAuthSignUpEmailRouteImport } from './routes/api/auth/sign-up/email'
 import { Route as ApiAuthSignInEmailRouteImport } from './routes/api/auth/sign-in/email'
@@ -187,6 +188,12 @@ const ApiAiGenerateResumeRoute = ApiAiGenerateResumeRouteImport.update({
   path: '/api/ai/generate-resume',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiAdminCleanupNonUsJobsRoute =
+  ApiAdminCleanupNonUsJobsRouteImport.update({
+    id: '/api/admin/cleanup-non-us-jobs',
+    path: '/api/admin/cleanup-non-us-jobs',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiV3JobsPruneRoute = ApiV3JobsPruneRouteImport.update({
   id: '/prune',
   path: '/prune',
@@ -218,6 +225,7 @@ export interface FileRoutesByFullPath {
   '/signup': typeof SignupRoute
   '/sync': typeof SyncRoute
   '/api/test': typeof ApiTestRoute
+  '/api/admin/cleanup-non-us-jobs': typeof ApiAdminCleanupNonUsJobsRoute
   '/api/ai/generate-resume': typeof ApiAiGenerateResumeRoute
   '/api/ai/insights': typeof ApiAiInsightsRoute
   '/api/ai/match': typeof ApiAiMatchRoute
@@ -252,6 +260,7 @@ export interface FileRoutesByTo {
   '/signup': typeof SignupRoute
   '/sync': typeof SyncRoute
   '/api/test': typeof ApiTestRoute
+  '/api/admin/cleanup-non-us-jobs': typeof ApiAdminCleanupNonUsJobsRoute
   '/api/ai/generate-resume': typeof ApiAiGenerateResumeRoute
   '/api/ai/insights': typeof ApiAiInsightsRoute
   '/api/ai/match': typeof ApiAiMatchRoute
@@ -287,6 +296,7 @@ export interface FileRoutesById {
   '/signup': typeof SignupRoute
   '/sync': typeof SyncRoute
   '/api/test': typeof ApiTestRoute
+  '/api/admin/cleanup-non-us-jobs': typeof ApiAdminCleanupNonUsJobsRoute
   '/api/ai/generate-resume': typeof ApiAiGenerateResumeRoute
   '/api/ai/insights': typeof ApiAiInsightsRoute
   '/api/ai/match': typeof ApiAiMatchRoute
@@ -323,6 +333,7 @@ export interface FileRouteTypes {
     | '/signup'
     | '/sync'
     | '/api/test'
+    | '/api/admin/cleanup-non-us-jobs'
     | '/api/ai/generate-resume'
     | '/api/ai/insights'
     | '/api/ai/match'
@@ -357,6 +368,7 @@ export interface FileRouteTypes {
     | '/signup'
     | '/sync'
     | '/api/test'
+    | '/api/admin/cleanup-non-us-jobs'
     | '/api/ai/generate-resume'
     | '/api/ai/insights'
     | '/api/ai/match'
@@ -391,6 +403,7 @@ export interface FileRouteTypes {
     | '/signup'
     | '/sync'
     | '/api/test'
+    | '/api/admin/cleanup-non-us-jobs'
     | '/api/ai/generate-resume'
     | '/api/ai/insights'
     | '/api/ai/match'
@@ -426,6 +439,7 @@ export interface RootRouteChildren {
   SignupRoute: typeof SignupRoute
   SyncRoute: typeof SyncRoute
   ApiTestRoute: typeof ApiTestRoute
+  ApiAdminCleanupNonUsJobsRoute: typeof ApiAdminCleanupNonUsJobsRoute
   ApiAiGenerateResumeRoute: typeof ApiAiGenerateResumeRoute
   ApiAiInsightsRoute: typeof ApiAiInsightsRoute
   ApiAiMatchRoute: typeof ApiAiMatchRoute
@@ -650,6 +664,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiAiGenerateResumeRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/admin/cleanup-non-us-jobs': {
+      id: '/api/admin/cleanup-non-us-jobs'
+      path: '/api/admin/cleanup-non-us-jobs'
+      fullPath: '/api/admin/cleanup-non-us-jobs'
+      preLoaderRoute: typeof ApiAdminCleanupNonUsJobsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/v3/jobs/prune': {
       id: '/api/v3/jobs/prune'
       path: '/prune'
@@ -701,6 +722,7 @@ const rootRouteChildren: RootRouteChildren = {
   SignupRoute: SignupRoute,
   SyncRoute: SyncRoute,
   ApiTestRoute: ApiTestRoute,
+  ApiAdminCleanupNonUsJobsRoute: ApiAdminCleanupNonUsJobsRoute,
   ApiAiGenerateResumeRoute: ApiAiGenerateResumeRoute,
   ApiAiInsightsRoute: ApiAiInsightsRoute,
   ApiAiMatchRoute: ApiAiMatchRoute,
