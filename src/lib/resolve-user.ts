@@ -3,10 +3,64 @@ import type { SessionUser } from "@/lib/cloudflare";
 import { getAuthInstance } from "@/server/auth";
 import { getRequest } from "@tanstack/react-start/server";
 import { getDb } from "@/db/db";
-import { user, users } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { session as authSession, user, users } from "@/db/schema";
+import { and, eq, gt } from "drizzle-orm";
 
 export type { SessionUser };
+
+const AUTH_COOKIE_CANDIDATES = [
+  "better-auth.session_token",
+  "__Secure-better-auth.session_token",
+  "better-auth.session-token",
+  "__Secure-better-auth.session-token",
+] as const;
+
+function readCookieValue(cookieHeader: string, names: readonly string[]) {
+  const cookies = cookieHeader.split(";");
+  for (const name of names) {
+    const prefix = `${name}=`;
+    const found = cookies.find((part) => part.trimStart().startsWith(prefix));
+    if (!found) continue;
+    const rawValue = found.trim().slice(prefix.length);
+    if (!rawValue) continue;
+    try {
+      return decodeURIComponent(rawValue);
+    } catch {
+      return rawValue;
+    }
+  }
+  return null;
+}
+
+async function resolveRole(userId: string, email: string): Promise<"admin" | "user"> {
+  const env = getCloudflareEnv();
+  if (!env.DB) return "user";
+
+  const db = getDb(env.DB);
+
+  const [authUser] = await db
+    .select({ role: user.role })
+    .from(user)
+    .where(eq(user.id, userId))
+    .limit(1);
+
+  if (authUser?.role === "admin" || authUser?.role === "user") {
+    return authUser.role;
+  }
+
+  const normalizedEmail = email.trim().toLowerCase();
+  const [legacyUser] = await db
+    .select({ role: users.role })
+    .from(users)
+    .where(eq(users.email, normalizedEmail))
+    .limit(1);
+
+  if (legacyUser?.role === "admin" || legacyUser?.role === "user") {
+    return legacyUser.role;
+  }
+
+  return "user";
+}
 
 /**
  * Resolves the authenticated user from the better-auth session in the current request.
@@ -23,42 +77,51 @@ export async function resolveSessionUser(): Promise<SessionUser | null> {
       headers: request.headers,
     });
 
-    if (!session?.user) return null;
-
-    const { id, email, role } = session.user as { id: string; email: string; role?: string | null };
-
-    if (role === "admin" || role === "user") {
-      return { id, email, role };
+    if (session?.user) {
+      const { id, email, role } = session.user as { id: string; email: string; role?: string | null };
+      if (role === "admin" || role === "user") {
+        return { id, email, role };
+      }
+      const resolvedRole = await resolveRole(id, email);
+      return { id, email, role: resolvedRole };
     }
 
-    // Migration fallback: if better-auth session payload omits role,
-    // recover it from canonical and legacy user tables.
+    // Fallback for intermittent getSession null results during client navigation:
+    // use the session token cookie directly against the auth session table.
     if (env.DB) {
+      const cookieHeader = request.headers.get("cookie") ?? "";
+      const sessionToken = readCookieValue(cookieHeader, AUTH_COOKIE_CANDIDATES);
+      if (!sessionToken) return null;
+
       const db = getDb(env.DB);
+      const now = Math.floor(Date.now() / 1000);
 
-      const [authUser] = await db
-        .select({ role: user.role })
-        .from(user)
-        .where(eq(user.id, id))
+      const [fallbackRow] = await db
+        .select({
+          id: user.id,
+          email: user.email,
+          role: user.role,
+        })
+        .from(authSession)
+        .innerJoin(user, eq(authSession.userId, user.id))
+        .where(and(eq(authSession.token, sessionToken), gt(authSession.expiresAt, now)))
         .limit(1);
 
-      if (authUser?.role === "admin" || authUser?.role === "user") {
-        return { id, email, role: authUser.role };
-      }
+      if (!fallbackRow) return null;
 
-      const normalizedEmail = email.trim().toLowerCase();
-      const [legacyUser] = await db
-        .select({ role: users.role })
-        .from(users)
-        .where(eq(users.email, normalizedEmail))
-        .limit(1);
+      const role =
+        fallbackRow.role === "admin" || fallbackRow.role === "user"
+          ? fallbackRow.role
+          : await resolveRole(fallbackRow.id, fallbackRow.email);
 
-      if (legacyUser?.role === "admin" || legacyUser?.role === "user") {
-        return { id, email, role: legacyUser.role };
-      }
+      return {
+        id: fallbackRow.id,
+        email: fallbackRow.email,
+        role,
+      };
     }
 
-    return { id, email, role: "user" };
+    return null;
   } catch (error) {
     console.error("[resolveSessionUser] error:", error);
     return null;
