@@ -80,7 +80,7 @@ export function SearchStatusIndicator() {
 
   return (
     <div
-      className={`fixed bottom-6 right-6 max-w-sm rounded-lg border shadow-lg transition-all ${getStatusColor()}`}
+      className={`fixed bottom-6 right-6 max-w-sm rounded-lg border shadow-lg transition-all z-50 ${getStatusColor()}`}
     >
       <div className={`flex items-start justify-between gap-3 p-4 ${getStatusTextColor()}`}>
         <div className="flex items-start gap-3">
