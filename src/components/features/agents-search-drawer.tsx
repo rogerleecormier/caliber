@@ -41,7 +41,6 @@ type FormState = {
   page: number;
   pagesToScan: number;
   limit: number;
-  runIntervalHours: number;
   sources: string[];
 };
 
@@ -49,11 +48,10 @@ export type DrawerPreload = {
   id: number;
   name: string;
   criteria: LinkedInSearchParams;
-  runIntervalHours?: number;
   sources?: string[];
 } | null;
 
-export interface LinkedinSearchDrawerProps {
+export interface AgentsSearchDrawerProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   hasResume: boolean;
@@ -61,6 +59,7 @@ export interface LinkedinSearchDrawerProps {
   initialSavedSearches: SavedLinkedinSearchRow[];
   preload?: DrawerPreload;
   cronStartHour?: number | null;
+  cronFrequency?: string | null;
   onSearchComplete: (
     jobs: LinkedInScrapedJob[],
     meta: { warnings: string[]; searchUrl: string },
@@ -83,7 +82,6 @@ const defaultForm: FormState = {
   page: 1,
   pagesToScan: 1,
   limit: 10,
-  runIntervalHours: 24,
   sources: ["linkedin", "greenhouse", "lever", "workable"],
 };
 
@@ -162,7 +160,7 @@ function formatSortSummary(value: FormState["sortBy"]) {
   return value === "recent" ? "Most recent" : "Most relevant";
 }
 
-function criteriaToForm(criteria: LinkedInSearchParams): Omit<FormState, "runIntervalHours" | "sources"> {
+function criteriaToForm(criteria: LinkedInSearchParams): Omit<FormState, "sources"> {
   return {
     keywords: criteria.keywords || "",
     location: criteria.location || "",
@@ -206,7 +204,7 @@ function formatCronLocalTime(utcHour: number): string {
   return d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
 }
 
-export function LinkedinSearchDrawer({
+export function AgentsSearchDrawer({
   open,
   onOpenChange,
   hasResume,
@@ -215,7 +213,7 @@ export function LinkedinSearchDrawer({
   preload,
   cronStartHour,
   onSearchComplete,
-}: LinkedinSearchDrawerProps) {
+}: AgentsSearchDrawerProps) {
   const [form, setForm] = useState<FormState>(defaultForm);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -251,7 +249,6 @@ export function LinkedinSearchDrawer({
     setActiveSavedSearchId(preload.id);
     setForm({
       ...criteriaToForm(preload.criteria),
-      runIntervalHours: preload.runIntervalHours ?? 24,
       sources: preload.sources ?? ["linkedin", "greenhouse", "lever", "workable"],
     });
     setSaveName(preload.name);
@@ -358,7 +355,6 @@ export function LinkedinSearchDrawer({
           name,
           criteria,
           isActive: existing ? existing.isActive : false,
-          runIntervalHours: form.runIntervalHours,
           sources: form.sources,
         }
       });
@@ -423,7 +419,6 @@ export function LinkedinSearchDrawer({
     setActiveSavedSearchId(saved.id);
     setForm({
       ...criteriaToForm(saved.criteria),
-      runIntervalHours: saved.runIntervalHours,
       sources: saved.sources,
     });
     setSaveName(saved.name);
@@ -435,10 +430,10 @@ export function LinkedinSearchDrawer({
         {/* sticky header */}
         <div className="shrink-0 border-b border-slate-200 px-6 py-4 pr-14">
           <SheetTitle className="text-base font-semibold text-slate-900">
-            Caliber Settings
+            Search Agents
           </SheetTitle>
           <p className="mt-0.5 text-xs text-slate-500">
-            Configure your high-precision job search agent parameters and active sources.
+            Define your job search criteria. Active agents run on the cron schedule from admin settings.
           </p>
         </div>
 
@@ -498,34 +493,12 @@ export function LinkedinSearchDrawer({
             <div className="rounded-xl border border-amber-200 bg-amber-500/5 p-4 space-y-4">
               <p className="text-sm font-semibold text-amber-900 flex items-center gap-1.5">
                 <span className="h-2 w-2 rounded-full bg-amber-500 animate-pulse" />
-                Agent Configuration
+                Search Sources
               </p>
               
-              <div className="grid gap-3 sm:grid-cols-2">
-                <div className="space-y-1.5">
-                  <FieldLabelWithInfo
-                    htmlFor="drawer-run-interval"
-                    label="Search Frequency"
-                    tooltip="How often this agent should search for new listings in the background."
-                  />
-                  <select
-                    id="drawer-run-interval"
-                    value={form.runIntervalHours}
-                    onChange={(e) => update("runIntervalHours", Number(e.target.value))}
-                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-amber-500"
-                  >
-                    <option value={1}>Every 1 hour</option>
-                    <option value={2}>Every 2 hours</option>
-                    <option value={4}>Every 4 hours</option>
-                    <option value={8}>Every 8 hours</option>
-                    <option value={12}>Every 12 hours</option>
-                    <option value={24}>Every 24 hours (Daily)</option>
-                  </select>
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="text-sm font-medium text-slate-700">Target Sources</label>
-                  <div className="flex flex-col gap-2 pt-1">
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium text-slate-700">Target Sources</label>
+                <div className="flex flex-col gap-2 pt-1">
                     {[
                       { id: "linkedin", label: "LinkedIn" },
                       { id: "greenhouse", label: "Greenhouse" },
@@ -547,7 +520,6 @@ export function LinkedinSearchDrawer({
                         {src.label}
                       </label>
                     ))}
-                  </div>
                 </div>
               </div>
             </div>
@@ -864,9 +836,6 @@ export function LinkedinSearchDrawer({
                       {saved.criteria.pagesToScan || 1}
                     </p>
                     <p className="text-[11px] text-slate-500 mt-1 flex flex-wrap gap-1">
-                      <span className="rounded bg-slate-100 px-1.5 py-0.5 font-medium text-slate-600">
-                        {saved.runIntervalHours}h interval
-                      </span>
                       {saved.sources.map(s => (
                         <span key={s} className="rounded bg-amber-50 border border-amber-100 px-1.5 py-0.5 font-medium text-amber-700 capitalize">
                           {s}
@@ -881,8 +850,10 @@ export function LinkedinSearchDrawer({
                         onChange={(e) => handleToggleSavedSearchCron(saved.id, e.target.checked)}
                       />
                       Active in cron
-                      {saved.isActive && cronStartHour != null && (
-                        <span className="text-slate-400">· {formatCronLocalTime(cronStartHour)}</span>
+                      {saved.isActive && cronStartHour != null && cronFrequency && (
+                        <span className="text-slate-400">
+                          · {cronFrequency.replace(/_/g, " ")} from {formatCronLocalTime(cronStartHour)}
+                        </span>
                       )}
                     </label>
                     <div className="mt-2 flex items-center gap-2">

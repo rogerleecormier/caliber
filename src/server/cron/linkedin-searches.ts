@@ -17,15 +17,37 @@ import { logSearchEvent } from "@/lib/pipeline-persistence";
 
 type BrowserPage = any;
 
-function shouldRunFrequency(
-  lastRunAt: string | null,
-  intervalHours: number,
+function shouldRunAtScheduledTime(
+  cronFrequency: string,
+  startHour: number,
   varianceMinutes: number,
-) {
-  if (!lastRunAt) return true;
-  const varianceMs = Math.floor(Math.random() * varianceMinutes * 60 * 1000);
-  const thresholdMs = intervalHours * 60 * 60 * 1000 - varianceMs;
-  return Date.now() - new Date(lastRunAt).getTime() >= thresholdMs;
+): boolean {
+  const frequencyMap: Record<string, number> = {
+    "hourly": 1,
+    "every_2_hours": 2,
+    "every_4_hours": 4,
+    "every_8_hours": 8,
+    "every_12_hours": 12,
+    "daily": 24,
+  };
+
+  const cronFrequencyHours = frequencyMap[cronFrequency] || 24;
+  const now = new Date();
+  const currentHour = now.getUTCHours();
+  const currentMinutes = now.getUTCMinutes();
+  const variance = Math.floor(Math.random() * varianceMinutes);
+
+  // Calculate all scheduled run hours based on frequency
+  const scheduledHours: number[] = [];
+  for (let h = 0; h < 24; h += cronFrequencyHours) {
+    scheduledHours.push((startHour + h) % 24);
+  }
+
+  // Check if current hour matches any scheduled hour
+  if (!scheduledHours.includes(currentHour)) return false;
+
+  // Allow execution for the first variance minutes of the scheduled hour
+  return currentMinutes < variance;
 }
 
 async function extractSearchCards(page: BrowserPage, limit: number): Promise<LinkedInScrapedJob[]> {
@@ -226,11 +248,11 @@ export async function runLinkedinSearchMaintenance(env: CloudflareEnv) {
   // 2. Load active searches
   const searches = await db.select().from(linkedinSavedSearches).where(eq(linkedinSavedSearches.isActive, 1));
 
-  // Filter due searches based on their custom runIntervalHours (default to 24 if null/undefined)
-  const dueSearches = searches.filter((search) => 
-    shouldRunFrequency(
-      search.lastRunAt ?? null, 
-      (search as any).runIntervalHours ?? 24, 
+  // Filter searches based on admin cron schedule (time-of-day based, not interval-based)
+  const dueSearches = searches.filter(() =>
+    shouldRunAtScheduledTime(
+      settings.linkedinSearchCronFrequency,
+      settings.linkedinCronStartHour,
       settings.linkedinCronVarianceMinutes
     )
   );

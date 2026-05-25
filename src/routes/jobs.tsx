@@ -25,7 +25,7 @@ import {
   JobResultCard,
   type JobStatus,
 } from "@/components/features/job-result-card";
-import { LinkedinSearchDrawer } from "@/components/features/linkedin-search-drawer";
+import { AgentsSearchDrawer } from "@/components/features/agents-search-drawer";
 import { AnalysisModal } from "@/components/features/analysis-modal";
 import type { AnalysisData } from "@/components/features/analysis-form";
 import { JobTableView } from "@/components/features/job-table-view";
@@ -51,10 +51,10 @@ type SortOption = "posted-date" | "title" | "score" | "company" | "location";
 type JobSearchInput = {
   page?: number;
   query?: string;
-  remote?: boolean;
+  remote?: boolean | string;
   sortBy?: SortOption;
   status?: string;
-  analyzedOnly?: boolean;
+  analyzedOnly?: boolean | string;
 };
 
 type JobSearchParams = {
@@ -116,6 +116,7 @@ export const Route = createFileRoute("/jobs")({
       statusCounts: history.statusCounts,
       canViewAllUsers: history.canViewAllUsers,
       cronStartHour: cronInfo.cronStartHour,
+      cronFrequency: cronInfo.cronFrequency,
     };
   },
   component: JobsPage,
@@ -127,7 +128,7 @@ type ViewMode = "cards" | "table";
 
 function JobsPage() {
   const { page, query, remote, sortBy, status: activeStatus, analyzedOnly } = Route.useSearch();
-  const { hasResume, fullName, savedSearches: loaderSavedSearches, rows, total, statusCounts, canViewAllUsers, cronStartHour } =
+  const { hasResume, fullName, savedSearches: loaderSavedSearches, rows, total, statusCounts, canViewAllUsers, cronStartHour, cronFrequency } =
     Route.useLoaderData();
   const navigate = Route.useNavigate();
   const router = useRouter();
@@ -175,7 +176,7 @@ function JobsPage() {
         return jobsCopy.sort((a, b) => (a.location || "").localeCompare(b.location || ""));
       case "posted-date":
       default:
-        return jobsCopy.sort((a, b) => new Date(b.postDate || 0).getTime() - new Date(a.postDate || 0).getTime());
+        return jobsCopy.sort((a, b) => new Date(b.firstSeenAt || 0).getTime() - new Date(a.firstSeenAt || 0).getTime());
     }
   }, [jobs, sortBy]);
 
@@ -369,7 +370,7 @@ function JobsPage() {
     setAnalysisModalOpen(true);
   }
 
-  function handleAnalysisComplete(analysis: AnalysisData) {
+  function handleAnalysisComplete(_analysis: AnalysisData) {
     if (selectedJobForAnalysis && selectedJobForAnalysis.id) {
       setJobs((prev) =>
         prev.map((job) =>
@@ -788,7 +789,7 @@ function JobsPage() {
         onAnalysisComplete={handleAnalysisComplete}
       />
 
-      <LinkedinSearchDrawer
+      <AgentsSearchDrawer
         open={drawerOpen}
         onOpenChange={setDrawerOpen}
         hasResume={hasResume}
@@ -796,6 +797,7 @@ function JobsPage() {
         initialSavedSearches={loaderSavedSearches}
         preload={null}
         cronStartHour={cronStartHour}
+        cronFrequency={cronFrequency}
         onSearchComplete={handleSearchComplete}
       />
     </div>
