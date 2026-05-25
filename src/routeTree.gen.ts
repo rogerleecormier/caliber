@@ -19,13 +19,10 @@ import { Route as LinkedinJobsRouteImport } from './routes/linkedin-jobs'
 import { Route as JobsRouteImport } from './routes/jobs'
 import { Route as HistoryRouteImport } from './routes/history'
 import { Route as DashboardRouteImport } from './routes/dashboard'
-import { Route as AnalyzeRouteImport } from './routes/analyze'
 import { Route as AdminSetupRouteImport } from './routes/admin-setup'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as AnalyzeIndexRouteImport } from './routes/analyze.index'
 import { Route as ApiTestRouteImport } from './routes/api/test'
-import { Route as AnalyzeIdRouteImport } from './routes/analyze.$id'
 import { Route as ApiV3StatsRouteImport } from './routes/api/v3/stats'
 import { Route as ApiV3LogsRouteImport } from './routes/api/v3/logs'
 import { Route as ApiV3JobsRouteImport } from './routes/api/v3/jobs'
@@ -95,11 +92,6 @@ const DashboardRoute = DashboardRouteImport.update({
   path: '/dashboard',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AnalyzeRoute = AnalyzeRouteImport.update({
-  id: '/analyze',
-  path: '/analyze',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const AdminSetupRoute = AdminSetupRouteImport.update({
   id: '/admin-setup',
   path: '/admin-setup',
@@ -115,20 +107,10 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AnalyzeIndexRoute = AnalyzeIndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => AnalyzeRoute,
-} as any)
 const ApiTestRoute = ApiTestRouteImport.update({
   id: '/api/test',
   path: '/api/test',
   getParentRoute: () => rootRouteImport,
-} as any)
-const AnalyzeIdRoute = AnalyzeIdRouteImport.update({
-  id: '/$id',
-  path: '/$id',
-  getParentRoute: () => AnalyzeRoute,
 } as any)
 const ApiV3StatsRoute = ApiV3StatsRouteImport.update({
   id: '/api/v3/stats',
@@ -225,7 +207,6 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
   '/admin-setup': typeof AdminSetupRoute
-  '/analyze': typeof AnalyzeRouteWithChildren
   '/dashboard': typeof DashboardRoute
   '/history': typeof HistoryRoute
   '/jobs': typeof JobsRoute
@@ -236,9 +217,7 @@ export interface FileRoutesByFullPath {
   '/profile': typeof ProfileRoute
   '/signup': typeof SignupRoute
   '/sync': typeof SyncRoute
-  '/analyze/$id': typeof AnalyzeIdRoute
   '/api/test': typeof ApiTestRoute
-  '/analyze/': typeof AnalyzeIndexRoute
   '/api/ai/generate-resume': typeof ApiAiGenerateResumeRoute
   '/api/ai/insights': typeof ApiAiInsightsRoute
   '/api/ai/match': typeof ApiAiMatchRoute
@@ -272,9 +251,7 @@ export interface FileRoutesByTo {
   '/profile': typeof ProfileRoute
   '/signup': typeof SignupRoute
   '/sync': typeof SyncRoute
-  '/analyze/$id': typeof AnalyzeIdRoute
   '/api/test': typeof ApiTestRoute
-  '/analyze': typeof AnalyzeIndexRoute
   '/api/ai/generate-resume': typeof ApiAiGenerateResumeRoute
   '/api/ai/insights': typeof ApiAiInsightsRoute
   '/api/ai/match': typeof ApiAiMatchRoute
@@ -299,7 +276,6 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
   '/admin-setup': typeof AdminSetupRoute
-  '/analyze': typeof AnalyzeRouteWithChildren
   '/dashboard': typeof DashboardRoute
   '/history': typeof HistoryRoute
   '/jobs': typeof JobsRoute
@@ -310,9 +286,7 @@ export interface FileRoutesById {
   '/profile': typeof ProfileRoute
   '/signup': typeof SignupRoute
   '/sync': typeof SyncRoute
-  '/analyze/$id': typeof AnalyzeIdRoute
   '/api/test': typeof ApiTestRoute
-  '/analyze/': typeof AnalyzeIndexRoute
   '/api/ai/generate-resume': typeof ApiAiGenerateResumeRoute
   '/api/ai/insights': typeof ApiAiInsightsRoute
   '/api/ai/match': typeof ApiAiMatchRoute
@@ -338,7 +312,6 @@ export interface FileRouteTypes {
     | '/'
     | '/admin'
     | '/admin-setup'
-    | '/analyze'
     | '/dashboard'
     | '/history'
     | '/jobs'
@@ -349,9 +322,7 @@ export interface FileRouteTypes {
     | '/profile'
     | '/signup'
     | '/sync'
-    | '/analyze/$id'
     | '/api/test'
-    | '/analyze/'
     | '/api/ai/generate-resume'
     | '/api/ai/insights'
     | '/api/ai/match'
@@ -385,9 +356,7 @@ export interface FileRouteTypes {
     | '/profile'
     | '/signup'
     | '/sync'
-    | '/analyze/$id'
     | '/api/test'
-    | '/analyze'
     | '/api/ai/generate-resume'
     | '/api/ai/insights'
     | '/api/ai/match'
@@ -411,7 +380,6 @@ export interface FileRouteTypes {
     | '/'
     | '/admin'
     | '/admin-setup'
-    | '/analyze'
     | '/dashboard'
     | '/history'
     | '/jobs'
@@ -422,9 +390,7 @@ export interface FileRouteTypes {
     | '/profile'
     | '/signup'
     | '/sync'
-    | '/analyze/$id'
     | '/api/test'
-    | '/analyze/'
     | '/api/ai/generate-resume'
     | '/api/ai/insights'
     | '/api/ai/match'
@@ -449,7 +415,6 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AdminRoute: typeof AdminRoute
   AdminSetupRoute: typeof AdminSetupRoute
-  AnalyzeRoute: typeof AnalyzeRouteWithChildren
   DashboardRoute: typeof DashboardRoute
   HistoryRoute: typeof HistoryRoute
   JobsRoute: typeof JobsRoute
@@ -552,13 +517,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/analyze': {
-      id: '/analyze'
-      path: '/analyze'
-      fullPath: '/analyze'
-      preLoaderRoute: typeof AnalyzeRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/admin-setup': {
       id: '/admin-setup'
       path: '/admin-setup'
@@ -580,26 +538,12 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/analyze/': {
-      id: '/analyze/'
-      path: '/'
-      fullPath: '/analyze/'
-      preLoaderRoute: typeof AnalyzeIndexRouteImport
-      parentRoute: typeof AnalyzeRoute
-    }
     '/api/test': {
       id: '/api/test'
       path: '/api/test'
       fullPath: '/api/test'
       preLoaderRoute: typeof ApiTestRouteImport
       parentRoute: typeof rootRouteImport
-    }
-    '/analyze/$id': {
-      id: '/analyze/$id'
-      path: '/$id'
-      fullPath: '/analyze/$id'
-      preLoaderRoute: typeof AnalyzeIdRouteImport
-      parentRoute: typeof AnalyzeRoute
     }
     '/api/v3/stats': {
       id: '/api/v3/stats'
@@ -730,19 +674,6 @@ declare module '@tanstack/react-router' {
   }
 }
 
-interface AnalyzeRouteChildren {
-  AnalyzeIdRoute: typeof AnalyzeIdRoute
-  AnalyzeIndexRoute: typeof AnalyzeIndexRoute
-}
-
-const AnalyzeRouteChildren: AnalyzeRouteChildren = {
-  AnalyzeIdRoute: AnalyzeIdRoute,
-  AnalyzeIndexRoute: AnalyzeIndexRoute,
-}
-
-const AnalyzeRouteWithChildren =
-  AnalyzeRoute._addFileChildren(AnalyzeRouteChildren)
-
 interface ApiV3JobsRouteChildren {
   ApiV3JobsPruneRoute: typeof ApiV3JobsPruneRoute
 }
@@ -759,7 +690,6 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRoute: AdminRoute,
   AdminSetupRoute: AdminSetupRoute,
-  AnalyzeRoute: AnalyzeRouteWithChildren,
   DashboardRoute: DashboardRoute,
   HistoryRoute: HistoryRoute,
   JobsRoute: JobsRoute,

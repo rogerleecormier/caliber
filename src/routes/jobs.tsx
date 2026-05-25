@@ -398,6 +398,18 @@ function JobsPage() {
             </button>
             <button
               type="button"
+              onClick={() => {
+                setSelectedJobForAnalysis(null);
+                setStoredAnalysis(null);
+                setAnalysisModalOpen(true);
+              }}
+              className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 border border-indigo-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700"
+            >
+              <Search className="h-4 w-4" />
+              Analyze a Job
+            </button>
+            <button
+              type="button"
               onClick={openFreshDrawer}
               className="inline-flex items-center gap-2 rounded-lg bg-slate-900 border border-slate-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800 hover:text-amber-400"
             >

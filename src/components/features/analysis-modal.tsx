@@ -5,8 +5,8 @@ import type { AnalysisData } from "./analysis-form";
 
 interface AnalysisModalProps {
   isOpen: boolean;
-  jobTitle: string;
-  jobUrl: string;
+  jobTitle?: string;
+  jobUrl?: string;
   onClose: () => void;
   isFromExistingJob?: boolean;
   storedAnalysis?: AnalysisData | null;
@@ -30,7 +30,7 @@ export function AnalysisModal({
         <div className="sticky top-0 flex items-center justify-between border-b border-slate-200 bg-white px-6 py-4">
           <div>
             <h2 className="font-semibold text-slate-900">{isViewingStored ? "View Analysis" : "Analyze Job"}</h2>
-            <p className="mt-0.5 text-sm text-slate-600 truncate">{jobTitle}</p>
+            {jobTitle && <p className="mt-0.5 text-sm text-slate-600 truncate">{jobTitle}</p>}
           </div>
           <button
             onClick={onClose}
