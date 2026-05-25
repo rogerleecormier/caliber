@@ -1,18 +1,17 @@
-import { createFileRoute, useRouter } from "@tanstack/react-router";
+import { createFileRoute, useRouter, Link } from "@tanstack/react-router";
 import type { ChangeEvent } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Archive,
   BookMarked,
   Briefcase,
+  BarChart3,
   Grid3x3,
   Loader2,
   Search,
   Table2,
   Trash2,
-  Wand2,
 } from "lucide-react";
-import { Link } from "@tanstack/react-router";
 import {
   Button,
   Input,
@@ -391,20 +390,13 @@ function JobsPage() {
         }
         actions={
           <div className="flex flex-wrap items-center gap-2">
-            <Link
-              to="/profile"
-              className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white/80 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-white"
-            >
-              <Wand2 className="h-4 w-4" />
-              Manage Resume
-            </Link>
             <button
               type="button"
               onClick={openFreshDrawer}
-              className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white/80 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-white"
+              className="inline-flex items-center gap-2 rounded-lg bg-slate-900 border border-slate-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800 hover:text-amber-400"
             >
               <BookMarked className="h-4 w-4" />
-              Active Agents
+              Agent HQ
               {loaderSavedSearches.length > 0 && (
                 <span className="rounded-full bg-amber-600 px-1.5 py-0.5 text-[10px] font-bold text-white leading-none">
                   {loaderSavedSearches.length}
@@ -422,14 +414,6 @@ function JobsPage() {
             >
               <Search className="h-4 w-4" />
               Analyze a Job
-            </button>
-            <button
-              type="button"
-              onClick={openFreshDrawer}
-              className="inline-flex items-center gap-2 rounded-lg bg-slate-900 border border-slate-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800 hover:text-amber-400"
-            >
-              <Search className="h-4 w-4" />
-              Configure Agents
             </button>
           </div>
         }
