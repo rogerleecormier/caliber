@@ -2,7 +2,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { getCloudflareEnv } from "@/lib/cloudflare";
 import { getDb } from "@/db/db";
-import { analyticsSummary, jobAnalyses } from "@/db/schema";
+import { analyticsSummary, pipelineJobs } from "@/db/schema";
 import { eq, and, sql } from "drizzle-orm";
 import { resolveSessionUser } from "@/lib/resolve-user";
 
@@ -57,9 +57,9 @@ export const getAnalytics = createServerFn({ method: "GET" })
 
       // Always compute totalPursued live — the aggregated column may be stale
       const [pursuedResult] = await db
-        .select({ count: sql<number>`sum(case when ${jobAnalyses.pursue} = 1 then 1 else 0 end)` })
-        .from(jobAnalyses)
-        .where(eq(jobAnalyses.userId, user.id));
+        .select({ count: sql<number>`sum(case when ${pipelineJobs.pursue} = 1 then 1 else 0 end)` })
+        .from(pipelineJobs)
+        .where(eq(pipelineJobs.userId, user.id));
       const totalPursued = Number(pursuedResult?.count ?? 0);
 
       return {

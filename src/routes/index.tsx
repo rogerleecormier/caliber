@@ -398,6 +398,7 @@ function JobsHome() {
         <div className="flex flex-wrap items-center justify-center gap-3">
           <Link
             to="/jobs"
+            search={{ analyzedOnly: false }}
             className="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-6 py-3 text-sm font-semibold text-white hover:text-amber-400 border border-slate-700 shadow-sm transition hover:bg-slate-800"
           >
             <Zap className="h-4 w-4 text-amber-400" />
@@ -617,7 +618,8 @@ function JobsHome() {
                 icon: <Zap size={16} className="text-amber-600" />,
                 title: "Generate documents & apply",
                 body: "Generate a custom tailored ATS resume and cover letter with one click from any job card, then download the PDFs and submit your application.",
-                to: "/history",
+                to: "/jobs",
+                search: { analyzedOnly: true },
                 cta: "View History",
               },
             ].map((s) => (
@@ -633,7 +635,8 @@ function JobsHome() {
                       <p className="text-sm text-slate-500 leading-relaxed">{s.body}</p>
                     </div>
                     <Link
-                      to={s.to}
+                      to={s.to as any}
+                      search={s.search as any}
                       className="shrink-0 inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-100 whitespace-nowrap"
                     >
                       {s.cta} <ArrowRight size={11} />
@@ -670,6 +673,7 @@ function JobsHome() {
           <div className="flex flex-wrap items-center justify-center gap-3">
             <Link
               to="/jobs"
+              search={{ analyzedOnly: false }}
               className="inline-flex items-center gap-2 rounded-xl bg-slate-900 border border-slate-700 text-white hover:text-amber-400 px-6 py-3 text-sm font-semibold shadow-sm transition hover:bg-slate-800"
             >
               <Zap className="h-4 w-4 text-amber-400" />

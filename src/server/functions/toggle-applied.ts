@@ -4,9 +4,10 @@ import { resolveSessionUser } from "@/lib/resolve-user";
 import { eq, and } from "drizzle-orm";
 import { getCloudflareEnv } from "@/lib/cloudflare";
 import { getDb } from "@/db/db";
-import { jobAnalyses } from "@/db/schema";
+import { pipelineJobs } from "@/db/schema";
+import { type PipelineStatus, PIPELINE_STATUSES, normalizePipelineStatus } from "@/lib/pipeline-constants";
 
-export type ApplicationOutcome = "Applied" | "Interviewed" | "Not Hired" | "Hired" | null;
+export type ApplicationOutcome = PipelineStatus | null;
 
 export const toggleApplied = createServerFn({ method: "POST" })
   .inputValidator((data: { id: number; applied: boolean }) => data)
@@ -18,25 +19,26 @@ export const toggleApplied = createServerFn({ method: "POST" })
     if (!user) throw new Error("Not authenticated");
 
     const db = getDb(env.DB);
-    const now = data.applied ? new Date().toISOString() : null;
+    const newStatus: PipelineStatus = data.applied ? 'Applied' : 'Analyzed';
 
     const [updated] = await db
-      .update(jobAnalyses)
-      .set({ applied: data.applied ? 1 : 0, appliedAt: now })
-      .where(and(eq(jobAnalyses.id, data.id), eq(jobAnalyses.userId, user.id)))
+      .update(pipelineJobs)
+      .set({ status: newStatus, updatedAt: new Date().toISOString() })
+      .where(and(eq(pipelineJobs.id, data.id), eq(pipelineJobs.userId, user.id)))
       .returning();
 
     if (!updated) throw new Error("Not found or not authorized");
 
+    const status = normalizePipelineStatus(updated.status);
     return {
       id: updated.id,
-      applied: updated.applied === 1,
-      appliedAt: updated.appliedAt ?? null,
+      applied: ['Applied', 'Interviewed', 'Hired'].includes(status),
+      appliedAt: null,
     };
   });
 
 export const setApplicationOutcome = createServerFn({ method: "POST" })
-  .inputValidator((data: { id: number; status: ApplicationOutcome }) => data)
+  .inputValidator((data: { id: number; status: PipelineStatus | null }) => data)
   .handler(async ({ data }) => {
     const env = getCloudflareEnv();
     if (!env.DB) throw new Error("Database not available");
@@ -44,41 +46,29 @@ export const setApplicationOutcome = createServerFn({ method: "POST" })
     const user = await resolveSessionUser();
     if (!user) throw new Error("Not authenticated");
 
-    if (
-      data.status !== null &&
-      data.status !== "Applied" &&
-      data.status !== "Interviewed" &&
-      data.status !== "Not Hired" &&
-      data.status !== "Hired"
-    ) {
-      throw new Error("Invalid application status");
+    if (data.status !== null && !PIPELINE_STATUSES.includes(data.status)) {
+      throw new Error("Invalid pipeline status");
     }
 
     const db = getDb(env.DB);
-    const now = data.status ? new Date().toISOString() : null;
+    const newStatus: PipelineStatus = data.status ?? 'Analyzed';
 
     const [updated] = await db
-      .update(jobAnalyses)
+      .update(pipelineJobs)
       .set({
-        applicationStatus: data.status,
-        applied: data.status ? 1 : 0,
-        appliedAt: now,
+        status: newStatus,
+        updatedAt: new Date().toISOString(),
       })
-      .where(and(eq(jobAnalyses.id, data.id), eq(jobAnalyses.userId, user.id)))
+      .where(and(eq(pipelineJobs.id, data.id), eq(pipelineJobs.userId, user.id)))
       .returning();
 
     if (!updated) throw new Error("Not found or not authorized");
 
+    const status = normalizePipelineStatus(updated.status);
     return {
       id: updated.id,
-      applied: updated.applied === 1,
-      applicationStatus:
-        updated.applicationStatus === "Applied" ||
-        updated.applicationStatus === "Interviewed" ||
-        updated.applicationStatus === "Not Hired" ||
-        updated.applicationStatus === "Hired"
-          ? updated.applicationStatus
-          : null,
-      appliedAt: updated.appliedAt ?? null,
+      applied: ['Applied', 'Interviewed', 'Hired'].includes(status),
+      applicationStatus: status,
+      appliedAt: null,
     };
   });

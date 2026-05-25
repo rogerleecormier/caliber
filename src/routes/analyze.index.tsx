@@ -31,8 +31,8 @@ function AnalyzePage() {
         description="Paste a job URL or description to get AI-powered match scoring, gap analysis, and positioning guidance."
         actions={
           <Link
-            to="/history"
-            search={{ page: 1 }}
+            to="/jobs"
+            search={{ analyzedOnly: true }}
             className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white/70 px-3 py-2 text-sm font-medium text-slate-600 transition hover:bg-white hover:text-slate-900"
           >
             View History

@@ -30,6 +30,7 @@ export interface RunLinkedinSearchOptions {
   broadenDiscovery?: boolean;
   presets?: SearchPreset[];
   activeSavedSearchId?: number | null;
+  sources?: string[];
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -234,7 +235,7 @@ export async function runLinkedinSearch(
   params: LinkedInSearchParams,
   options: RunLinkedinSearchOptions = {},
 ): Promise<{ jobs: LinkedInScrapedJob[]; warnings: string[]; searchUrl: string }> {
-  const { broadenDiscovery = false, presets = defaultSearchPresets, activeSavedSearchId = null } = options;
+  const { broadenDiscovery = false, presets = defaultSearchPresets, activeSavedSearchId = null, sources = ["linkedin", "greenhouse", "lever", "workable"] } = options;
 
   let semanticTitleVariants: string[] = [];
   if (broadenDiscovery && presets.includes("ai-semantic-expansion")) {
@@ -264,6 +265,7 @@ export async function runLinkedinSearch(
       body: JSON.stringify({
         ...variant.params,
         savedSearchId: index === 0 ? activeSavedSearchId : null,
+        sources,
       }),
     });
 

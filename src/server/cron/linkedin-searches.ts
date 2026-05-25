@@ -1,5 +1,5 @@
 import { getDb, schema } from "@/db/db";
-import { linkedinSavedSearches, linkedinJobResults, masterResume } from "@/db/schema";
+import { linkedinSavedSearches, pipelineJobs, masterResume } from "@/db/schema";
 import type { CloudflareEnv } from "@/lib/cloudflare";
 import { getLinkedinSettings, pruneDuplicateLinkedinJobResults, pruneExpiredLinkedinJobResults } from "@/lib/linkedin-persistence";
 import { buildLinkedInSearchUrl, buildLinkedInSearchUrlForPage, normalizeLinkedInSearchParams, type LinkedInScrapedJob, type LinkedInSearchParams } from "@/lib/linkedin-search";
@@ -12,6 +12,8 @@ import {
   upsertLinkedinJobResults,
 } from "@/lib/linkedin-persistence";
 import { and, eq, lte, or, inArray, like } from "drizzle-orm";
+import { searchAtsJobs } from "@/lib/ats-search";
+import { logSearchEvent } from "@/lib/pipeline-persistence";
 
 type BrowserPage = any;
 
@@ -207,8 +209,13 @@ export async function runLinkedinSearchMaintenance(env: CloudflareEnv) {
     // Prune general jobs cache table
     const jobsDeletedResult = await db.delete(schema.jobs).where(lte(schema.jobs.createdAt, cutoffDate));
     
-    // Prune agent job results (linkedinJobResults)
-    const agentJobsDeletedResult = await db.delete(linkedinJobResults).where(lte(linkedinJobResults.createdAt, cutoffIso));
+    // Prune agent job results (pipelineJobs) - only prune Discovered status
+    const agentJobsDeletedResult = await db.delete(pipelineJobs).where(
+      and(
+        lte(pipelineJobs.createdAt, cutoffIso),
+        eq(pipelineJobs.status, 'Discovered')
+      )
+    );
     
     prunedCount = (jobsDeletedResult as any)?.rowsAffected || 0;
     console.log(`[Pruning] Deleted old cache and agent jobs.`);
@@ -257,16 +264,26 @@ export async function runLinkedinSearchMaintenance(env: CloudflareEnv) {
         await env.KV.put(lockKey, "true", { expirationTtl: 300 });
       }
 
+      let sourcesList: string[] = ['linkedin'];
       try {
-        let sourcesList: string[] = ['linkedin'];
-        try {
-          if ((search as any).sources) {
-            sourcesList = JSON.parse((search as any).sources) as string[];
-          }
-        } catch {
-          sourcesList = ['linkedin'];
+        if ((search as any).sources) {
+          sourcesList = JSON.parse((search as any).sources) as string[];
         }
+      } catch {
+        sourcesList = ['linkedin'];
+      }
 
+      await logSearchEvent({
+        userId: search.userId,
+        savedSearchId: search.id,
+        eventType: "cron_triggered",
+        platform: sourcesList.join(", "),
+        agentName: search.name,
+        message: `Cron agent "${search.name}" triggered background search.`,
+        level: "info",
+      });
+
+      try {
         const criteria = normalizeLinkedInSearchParams(JSON.parse(search.criteria) as LinkedInSearchParams);
         const searchUrl = buildLinkedInSearchUrl(criteria);
 
@@ -277,41 +294,7 @@ export async function runLinkedinSearchMaintenance(env: CloudflareEnv) {
         }
 
         // Query local Greenhouse/Lever/Workable cache if enabled
-        const activeAtsSources: string[] = [];
-        if (sourcesList.includes('greenhouse')) activeAtsSources.push('Greenhouse');
-        if (sourcesList.includes('lever')) activeAtsSources.push('Lever');
-        if (sourcesList.includes('workable')) activeAtsSources.push('Workable');
-
-        const atsJobs: LinkedInScrapedJob[] = [];
-        if (activeAtsSources.length > 0) {
-          const matchedAtsJobs = await db.select()
-            .from(schema.jobs)
-            .where(
-              and(
-                inArray(schema.jobs.sourceName, activeAtsSources),
-                or(
-                  like(schema.jobs.title, `%${criteria.keywords}%`),
-                  like(schema.jobs.descriptionRaw, `%${criteria.keywords}%`)
-                )
-              )
-            );
-
-          for (const job of matchedAtsJobs) {
-            atsJobs.push({
-              id: `ats-${job.id}`,
-              title: job.title,
-              company: job.company || 'Unknown',
-              location: 'Remote',
-              sourceUrl: job.sourceUrl,
-              sourceName: job.sourceName as any,
-              postDateText: job.postDate ? new Date(job.postDate).toLocaleDateString() : null,
-              workplaceType: 'remote',
-              salary: job.payRange || null,
-              snippet: job.descriptionRaw ? job.descriptionRaw.substring(0, 300) : null,
-              description: job.descriptionRaw || null,
-            });
-          }
-        }
+        const atsJobs = await searchAtsJobs(db, sourcesList, criteria);
 
         // Combine candidates from LinkedIn and ATS cache
         let jobs = [...linkedinJobs, ...atsJobs];
@@ -325,6 +308,7 @@ export async function runLinkedinSearchMaintenance(env: CloudflareEnv) {
           jobs,
         });
 
+        const initialCount = jobs.length;
         jobs = dedupeJobsBySemanticKey(
           jobs.filter((job) => {
             const exactMatch = existingJobsByUrl.get(canonicalizeLinkedinJobUrl(job.sourceUrl, job.id));
@@ -337,6 +321,7 @@ export async function runLinkedinSearchMaintenance(env: CloudflareEnv) {
             return !exactMatch && !semanticMatch;
           }),
         );
+        const reusedCount = initialCount - jobs.length;
 
         if (jobs.length === 0) {
           await upsertLinkedinJobResults({
@@ -345,6 +330,17 @@ export async function runLinkedinSearchMaintenance(env: CloudflareEnv) {
             searchUrl,
             criteria,
             jobs: [],
+          });
+
+          await logSearchEvent({
+            userId: search.userId,
+            savedSearchId: search.id,
+            eventType: "search_completed",
+            platform: sourcesList.join(", "),
+            agentName: search.name,
+            message: `Cron agent "${search.name}" completed: 0 new jobs found (${reusedCount} reused/skipped)`,
+            level: "info",
+            metadata: { agentName: search.name, total: initialCount, newJobs: 0, reused: reusedCount },
           });
           continue;
         }
@@ -367,7 +363,18 @@ export async function runLinkedinSearchMaintenance(env: CloudflareEnv) {
         }
 
         const profile = await buildProfile(db, search.userId);
-        if (!profile) continue;
+        if (!profile) {
+          await logSearchEvent({
+            userId: search.userId,
+            savedSearchId: search.id,
+            eventType: "error",
+            platform: sourcesList.join(", "),
+            agentName: search.name,
+            message: `Cron agent "${search.name}" skipped: Master resume not found for scoring.`,
+            level: "warning",
+          });
+          continue;
+        }
 
         const scoredJobs = await Promise.all(
           jobs.map(async (job) => {
@@ -389,6 +396,28 @@ export async function runLinkedinSearchMaintenance(env: CloudflareEnv) {
           searchUrl,
           criteria,
           jobs: scoredJobs,
+        });
+
+        await logSearchEvent({
+          userId: search.userId,
+          savedSearchId: search.id,
+          eventType: "search_completed",
+          platform: sourcesList.join(", "),
+          agentName: search.name,
+          message: `Cron agent "${search.name}" completed: found ${initialCount} jobs (${scoredJobs.length} new scored, ${reusedCount} reused/skipped)`,
+          level: "success",
+          metadata: { agentName: search.name, total: initialCount, newJobs: scoredJobs.length, reused: reusedCount },
+        });
+      } catch (err) {
+        console.error(`Cron agent ${search.name} error:`, err);
+        await logSearchEvent({
+          userId: search.userId,
+          savedSearchId: search.id,
+          eventType: "error",
+          platform: sourcesList.join(", "),
+          agentName: search.name,
+          message: `Cron agent "${search.name}" failed: ${err instanceof Error ? err.message : String(err)}`,
+          level: "error",
         });
       } finally {
         if (env.KV) {

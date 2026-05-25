@@ -2,10 +2,10 @@ import { and, asc, desc, eq, gte, inArray, like, lte, or, sql } from "drizzle-or
 import { getDb } from "@/db/db";
 import {
   appSettings,
-  linkedinJobResults,
+  pipelineJobs,
   linkedinSavedSearches,
   type AppSettings,
-  type LinkedinJobResult,
+  type PipelineJob as LinkedinJobResult,
 } from "@/db/schema";
 import { getCloudflareEnv } from "@/lib/cloudflare";
 import type { SessionUser } from "@/lib/cloudflare";
@@ -255,8 +255,8 @@ export async function upsertLinkedinJobResults(args: {
     const canonicalSourceUrl = canonicalizeLinkedinJobUrl(job.sourceUrl, job.id);
     const [existing] = await db
       .select()
-      .from(linkedinJobResults)
-      .where(and(eq(linkedinJobResults.userId, args.userId), eq(linkedinJobResults.canonicalSourceUrl, canonicalSourceUrl)))
+      .from(pipelineJobs)
+      .where(and(eq(pipelineJobs.userId, args.userId), eq(pipelineJobs.canonicalSourceUrl, canonicalSourceUrl)))
       .limit(1);
 
     if (existing) {
@@ -264,13 +264,13 @@ export async function upsertLinkedinJobResults(args: {
       const shouldRefreshLastSeenAt = existing.lastSeenAt !== now;
       if (shouldBackfillWorkplaceType || shouldRefreshLastSeenAt) {
         await db
-          .update(linkedinJobResults)
+          .update(pipelineJobs)
           .set({
             workplaceType: shouldBackfillWorkplaceType ? job.workplaceType : existing.workplaceType,
             lastSeenAt: now,
             updatedAt: now,
           })
-          .where(eq(linkedinJobResults.id, existing.id));
+          .where(eq(pipelineJobs.id, existing.id));
       }
       continue;
     }
@@ -301,14 +301,14 @@ export async function upsertLinkedinJobResults(args: {
       outlookReason: job.score?.outlookReason ?? null,
       isUnicorn: job.score?.isUnicorn ? 1 : 0,
       unicornReason: job.score?.unicornReason ?? null,
-      status: "Analyzed" as const,
+      status: "Discovered" as const,
       firstSeenAt: now,
       lastSeenAt: now,
       createdAt: now,
       updatedAt: now,
     };
 
-    await db.insert(linkedinJobResults).values(values);
+    await db.insert(pipelineJobs).values(values);
   }
 
   if (args.savedSearchId) {
@@ -341,11 +341,11 @@ export async function findExistingLinkedinJobs(args: {
   for (const canonicalUrlBatch of chunkValues(canonicalUrls, SQLITE_URL_LOOKUP_BATCH_SIZE)) {
     const batchRows = await db
       .select()
-      .from(linkedinJobResults)
+      .from(pipelineJobs)
       .where(
         and(
-          eq(linkedinJobResults.userId, args.userId),
-          inArray(linkedinJobResults.canonicalSourceUrl, canonicalUrlBatch),
+          eq(pipelineJobs.userId, args.userId),
+          inArray(pipelineJobs.canonicalSourceUrl, canonicalUrlBatch),
         ),
       );
     rows.push(...batchRows);
@@ -374,12 +374,12 @@ export async function findSemanticallyMatchingExistingLinkedinJobs(args: {
 
     const batchRows = await db
       .select()
-      .from(linkedinJobResults)
+      .from(pipelineJobs)
       .where(
         and(
-          eq(linkedinJobResults.userId, args.userId),
-          inArray(linkedinJobResults.title, candidateTitles),
-          inArray(linkedinJobResults.location, candidateLocations),
+          eq(pipelineJobs.userId, args.userId),
+          inArray(pipelineJobs.title, candidateTitles),
+          inArray(pipelineJobs.location, candidateLocations),
         ),
       );
     rows.push(...batchRows);
@@ -522,12 +522,12 @@ export async function deleteLinkedinSavedSearch(id: number, userId: string) {
   const db = getDb(env.DB);
 
   await db
-    .update(linkedinJobResults)
+    .update(pipelineJobs)
     .set({
       savedSearchId: null,
       updatedAt: new Date().toISOString(),
     })
-    .where(and(eq(linkedinJobResults.savedSearchId, id), eq(linkedinJobResults.userId, userId)));
+    .where(and(eq(pipelineJobs.savedSearchId, id), eq(pipelineJobs.userId, userId)));
 
   await db.delete(linkedinSavedSearches).where(and(eq(linkedinSavedSearches.id, id), eq(linkedinSavedSearches.userId, userId)));
 }
@@ -555,20 +555,20 @@ export async function updateLinkedinJobStatus(args: {
   assertLinkedinJobStatus(args.status);
   const db = getDb(env.DB);
   const whereClause = and(
-    eq(linkedinJobResults.id, args.id),
-    args.user.role === "admin" ? undefined : eq(linkedinJobResults.userId, args.user.id),
+    eq(pipelineJobs.id, args.id),
+    args.user.role === "admin" ? undefined : eq(pipelineJobs.userId, args.user.id),
   );
 
   const [existing] = await db
-    .select({ id: linkedinJobResults.id })
-    .from(linkedinJobResults)
+    .select({ id: pipelineJobs.id })
+    .from(pipelineJobs)
     .where(whereClause)
     .limit(1);
 
   if (!existing) throw new Error("LinkedIn job not found");
 
   await db
-    .update(linkedinJobResults)
+    .update(pipelineJobs)
     .set({ status: args.status, updatedAt: new Date().toISOString() })
     .where(whereClause);
 
@@ -592,17 +592,17 @@ export async function bulkUpdateLinkedinJobStatus(args: {
 
   for (const idBatch of chunkValues(ids, SQLITE_DELETE_BATCH_SIZE)) {
     const whereClause = and(
-      inArray(linkedinJobResults.id, idBatch),
-      args.user.role === "admin" ? undefined : eq(linkedinJobResults.userId, args.user.id),
+      inArray(pipelineJobs.id, idBatch),
+      args.user.role === "admin" ? undefined : eq(pipelineJobs.userId, args.user.id),
     );
     const rows = await db
-      .select({ id: linkedinJobResults.id })
-      .from(linkedinJobResults)
+      .select({ id: pipelineJobs.id })
+      .from(pipelineJobs)
       .where(whereClause);
     if (rows.length === 0) continue;
 
     await db
-      .update(linkedinJobResults)
+      .update(pipelineJobs)
       .set({ status: args.status, updatedAt: now })
       .where(whereClause);
     updated += rows.length;
@@ -625,16 +625,16 @@ export async function bulkDeleteLinkedinJobs(args: {
 
   for (const idBatch of chunkValues(ids, SQLITE_DELETE_BATCH_SIZE)) {
     const whereClause = and(
-      inArray(linkedinJobResults.id, idBatch),
-      args.user.role === "admin" ? undefined : eq(linkedinJobResults.userId, args.user.id),
+      inArray(pipelineJobs.id, idBatch),
+      args.user.role === "admin" ? undefined : eq(pipelineJobs.userId, args.user.id),
     );
     const rows = await db
-      .select({ id: linkedinJobResults.id })
-      .from(linkedinJobResults)
+      .select({ id: pipelineJobs.id })
+      .from(pipelineJobs)
       .where(whereClause);
     if (rows.length === 0) continue;
 
-    await db.delete(linkedinJobResults).where(whereClause);
+    await db.delete(pipelineJobs).where(whereClause);
     deleted += rows.length;
   }
 
@@ -664,73 +664,73 @@ export async function listLinkedinHistory(args: {
   // baseWhereClause excludes the status filter so statusCounts always reflect
   // the full pipeline distribution for the current search/filter context.
   const baseWhereClause = and(
-    canViewAllUsers ? undefined : eq(linkedinJobResults.userId, args.user.id),
-    q ? or(like(linkedinJobResults.title, `%${q}%`), like(linkedinJobResults.company, `%${q}%`)) : undefined,
+    canViewAllUsers ? undefined : eq(pipelineJobs.userId, args.user.id),
+    q ? or(like(pipelineJobs.title, `%${q}%`), like(pipelineJobs.company, `%${q}%`)) : undefined,
     args.remote
       ? or(
-          like(linkedinJobResults.workplaceType, "%remote%"),
-          like(linkedinJobResults.location, "%remote%"),
-          like(linkedinJobResults.snippet, "%remote%"),
-          like(linkedinJobResults.title, "%remote%"),
+          like(pipelineJobs.workplaceType, "%remote%"),
+          like(pipelineJobs.location, "%remote%"),
+          like(pipelineJobs.snippet, "%remote%"),
+          like(pipelineJobs.title, "%remote%"),
         )
       : undefined,
-    args.green ? gte(linkedinJobResults.masterScore, 80) : undefined,
+    args.green ? gte(pipelineJobs.masterScore, 80) : undefined,
   );
   const whereClause = args.status
-    ? and(baseWhereClause, eq(linkedinJobResults.status, args.status))
+    ? and(baseWhereClause, eq(pipelineJobs.status, args.status))
     : baseWhereClause;
 
   const orderBy = (() => {
     switch (args.sortBy) {
       case "title":
-        return [asc(linkedinJobResults.title)];
+        return [asc(pipelineJobs.title)];
       case "score":
-        return [desc(linkedinJobResults.masterScore), asc(linkedinJobResults.title)];
+        return [desc(pipelineJobs.masterScore), asc(pipelineJobs.title)];
       case "company":
-        return [asc(linkedinJobResults.company), asc(linkedinJobResults.title)];
+        return [asc(pipelineJobs.company), asc(pipelineJobs.title)];
       case "location":
-        return [asc(linkedinJobResults.location), asc(linkedinJobResults.title)];
+        return [asc(pipelineJobs.location), asc(pipelineJobs.title)];
       default:
-        return [desc(linkedinJobResults.lastSeenAt), desc(linkedinJobResults.masterScore)];
+        return [desc(pipelineJobs.lastSeenAt), desc(pipelineJobs.masterScore)];
     }
   })();
 
   const rows = await db
     .select({
-      id: linkedinJobResults.id,
-      userId: linkedinJobResults.userId,
-      savedSearchId: linkedinJobResults.savedSearchId,
-      externalJobId: linkedinJobResults.externalJobId,
-      title: linkedinJobResults.title,
-      company: linkedinJobResults.company,
-      location: linkedinJobResults.location,
-      sourceUrl: linkedinJobResults.sourceUrl,
-      canonicalSourceUrl: linkedinJobResults.canonicalSourceUrl,
-      sourceName: linkedinJobResults.sourceName,
-      searchUrl: linkedinJobResults.searchUrl,
-      criteria: linkedinJobResults.criteria,
-      salary: linkedinJobResults.salary,
-      snippet: linkedinJobResults.snippet,
-      description: linkedinJobResults.description,
-      postDateText: linkedinJobResults.postDateText,
-      workplaceType: linkedinJobResults.workplaceType,
-      atsScore: linkedinJobResults.atsScore,
-      careerScore: linkedinJobResults.careerScore,
-      outlookScore: linkedinJobResults.outlookScore,
-      masterScore: linkedinJobResults.masterScore,
-      atsReason: linkedinJobResults.atsReason,
-      careerReason: linkedinJobResults.careerReason,
-      outlookReason: linkedinJobResults.outlookReason,
-      isUnicorn: linkedinJobResults.isUnicorn,
-      unicornReason: linkedinJobResults.unicornReason,
-      status: linkedinJobResults.status,
-      firstSeenAt: linkedinJobResults.firstSeenAt,
-      lastSeenAt: linkedinJobResults.lastSeenAt,
-      createdAt: linkedinJobResults.createdAt,
-      updatedAt: linkedinJobResults.updatedAt,
-      ownerEmail: sql<string | null>`${sql.raw(canViewAllUsers ? "(select email from users where users.id = linkedin_job_results.user_id)" : "null")}`,
+      id: pipelineJobs.id,
+      userId: pipelineJobs.userId,
+      savedSearchId: pipelineJobs.savedSearchId,
+      externalJobId: pipelineJobs.externalJobId,
+      title: pipelineJobs.title,
+      company: pipelineJobs.company,
+      location: pipelineJobs.location,
+      sourceUrl: pipelineJobs.sourceUrl,
+      canonicalSourceUrl: pipelineJobs.canonicalSourceUrl,
+      sourceName: pipelineJobs.sourceName,
+      searchUrl: pipelineJobs.searchUrl,
+      criteria: pipelineJobs.criteria,
+      salary: pipelineJobs.salary,
+      snippet: pipelineJobs.snippet,
+      description: pipelineJobs.description,
+      postDateText: pipelineJobs.postDateText,
+      workplaceType: pipelineJobs.workplaceType,
+      atsScore: pipelineJobs.atsScore,
+      careerScore: pipelineJobs.careerScore,
+      outlookScore: pipelineJobs.outlookScore,
+      masterScore: pipelineJobs.masterScore,
+      atsReason: pipelineJobs.atsReason,
+      careerReason: pipelineJobs.careerReason,
+      outlookReason: pipelineJobs.outlookReason,
+      isUnicorn: pipelineJobs.isUnicorn,
+      unicornReason: pipelineJobs.unicornReason,
+      status: pipelineJobs.status,
+      firstSeenAt: pipelineJobs.firstSeenAt,
+      lastSeenAt: pipelineJobs.lastSeenAt,
+      createdAt: pipelineJobs.createdAt,
+      updatedAt: pipelineJobs.updatedAt,
+      ownerEmail: sql<string | null>`${sql.raw(canViewAllUsers ? "(select email from users where users.id = pipeline_jobs.user_id)" : "null")}`,
     })
-    .from(linkedinJobResults)
+    .from(pipelineJobs)
     .where(whereClause)
     .orderBy(...orderBy)
     .limit(pageSize)
@@ -738,17 +738,17 @@ export async function listLinkedinHistory(args: {
 
   const [countRow] = await db
     .select({ count: sql<number>`count(*)` })
-    .from(linkedinJobResults)
+    .from(pipelineJobs)
     .where(whereClause);
 
   const statusRows = await db
     .select({
-      status: linkedinJobResults.status,
+      status: pipelineJobs.status,
       count: sql<number>`count(*)`,
     })
-    .from(linkedinJobResults)
+    .from(pipelineJobs)
     .where(baseWhereClause)
-    .groupBy(linkedinJobResults.status);
+    .groupBy(pipelineJobs.status);
 
   const normalizedRows = rows.map((row) => ({
     ...row,
@@ -781,13 +781,13 @@ export async function pruneExpiredLinkedinJobResults() {
 
   const cutoff = new Date(Date.now() - settings.linkedinRetentionDays * 24 * 60 * 60 * 1000).toISOString();
   const rows = await db
-    .select({ id: linkedinJobResults.id })
-    .from(linkedinJobResults)
-    .where(lte(linkedinJobResults.lastSeenAt, cutoff));
+    .select({ id: pipelineJobs.id })
+    .from(pipelineJobs)
+    .where(lte(pipelineJobs.lastSeenAt, cutoff));
 
   if (rows.length === 0) return 0;
 
-  await db.delete(linkedinJobResults).where(lte(linkedinJobResults.lastSeenAt, cutoff));
+  await db.delete(pipelineJobs).where(lte(pipelineJobs.lastSeenAt, cutoff));
   return rows.length;
 }
 
@@ -798,11 +798,11 @@ export async function pruneDuplicateLinkedinJobResults() {
   const db = getDb(env.DB);
   const rows = await db
     .select()
-    .from(linkedinJobResults)
+    .from(pipelineJobs)
     .orderBy(
-      desc(linkedinJobResults.lastSeenAt),
-      desc(linkedinJobResults.masterScore),
-      desc(linkedinJobResults.createdAt),
+      desc(pipelineJobs.lastSeenAt),
+      desc(pipelineJobs.masterScore),
+      desc(pipelineJobs.createdAt),
     );
 
   const duplicateIds: number[] = [];
@@ -822,18 +822,18 @@ export async function pruneDuplicateLinkedinJobResults() {
 
   if (duplicateIds.length > 0) {
     for (const batch of chunkValues(duplicateIds, SQLITE_DELETE_BATCH_SIZE)) {
-      await db.delete(linkedinJobResults).where(inArray(linkedinJobResults.id, batch));
+      await db.delete(pipelineJobs).where(inArray(pipelineJobs.id, batch));
     }
   }
 
   for (const [id, canonicalSourceUrl] of canonicalByKeeperId.entries()) {
     await db
-      .update(linkedinJobResults)
+      .update(pipelineJobs)
       .set({
         canonicalSourceUrl,
         updatedAt: new Date().toISOString(),
       })
-      .where(eq(linkedinJobResults.id, id));
+      .where(eq(pipelineJobs.id, id));
   }
   return duplicateIds.length;
 }
@@ -845,11 +845,11 @@ export async function pruneSemanticDuplicateLinkedinJobResults() {
   const db = getDb(env.DB);
   const rows = await db
     .select()
-    .from(linkedinJobResults)
+    .from(pipelineJobs)
     .orderBy(
-      desc(linkedinJobResults.masterScore),
-      desc(linkedinJobResults.lastSeenAt),
-      desc(linkedinJobResults.createdAt),
+      desc(pipelineJobs.masterScore),
+      desc(pipelineJobs.lastSeenAt),
+      desc(pipelineJobs.createdAt),
     );
 
   const bestBySemanticKey = new Map<string, number>();
@@ -873,7 +873,7 @@ export async function pruneSemanticDuplicateLinkedinJobResults() {
   if (duplicateIds.length === 0) return 0;
 
   for (const batch of chunkValues(duplicateIds, SQLITE_DELETE_BATCH_SIZE)) {
-    await db.delete(linkedinJobResults).where(inArray(linkedinJobResults.id, batch));
+    await db.delete(pipelineJobs).where(inArray(pipelineJobs.id, batch));
   }
 
   return duplicateIds.length;

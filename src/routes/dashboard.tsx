@@ -111,7 +111,7 @@ function DashboardPage() {
               {syncing ? "Syncing..." : "Resync"}
             </button>
             <Link
-              to="/history" search={{ page: 1 }}
+              to="/jobs" search={{ analyzedOnly: true }}
               className="inline-flex items-center rounded-lg border border-slate-200 bg-white/80 px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-white"
             >
               View History
@@ -283,7 +283,7 @@ function DashboardPage() {
         </div>
         <div className="flex flex-wrap gap-2">
           <Link
-            to="/history" search={{ page: 1 }}
+            to="/jobs" search={{ analyzedOnly: true }}
             className="inline-flex items-center rounded-lg border border-slate-200 bg-white px-3 py-2 font-medium text-slate-700 transition hover:bg-slate-100"
           >
             View History

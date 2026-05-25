@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as SyncRouteImport } from './routes/sync'
 import { Route as SignupRouteImport } from './routes/signup'
 import { Route as ProfileRouteImport } from './routes/profile'
+import { Route as LogsRouteImport } from './routes/logs'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as LinkedinSearchRouteImport } from './routes/linkedin-search'
 import { Route as LinkedinJobsRouteImport } from './routes/linkedin-jobs'
@@ -57,6 +58,11 @@ const SignupRoute = SignupRouteImport.update({
 const ProfileRoute = ProfileRouteImport.update({
   id: '/profile',
   path: '/profile',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LogsRoute = LogsRouteImport.update({
+  id: '/logs',
+  path: '/logs',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LoginRoute = LoginRouteImport.update({
@@ -226,6 +232,7 @@ export interface FileRoutesByFullPath {
   '/linkedin-jobs': typeof LinkedinJobsRoute
   '/linkedin-search': typeof LinkedinSearchRoute
   '/login': typeof LoginRoute
+  '/logs': typeof LogsRoute
   '/profile': typeof ProfileRoute
   '/signup': typeof SignupRoute
   '/sync': typeof SyncRoute
@@ -261,6 +268,7 @@ export interface FileRoutesByTo {
   '/linkedin-jobs': typeof LinkedinJobsRoute
   '/linkedin-search': typeof LinkedinSearchRoute
   '/login': typeof LoginRoute
+  '/logs': typeof LogsRoute
   '/profile': typeof ProfileRoute
   '/signup': typeof SignupRoute
   '/sync': typeof SyncRoute
@@ -298,6 +306,7 @@ export interface FileRoutesById {
   '/linkedin-jobs': typeof LinkedinJobsRoute
   '/linkedin-search': typeof LinkedinSearchRoute
   '/login': typeof LoginRoute
+  '/logs': typeof LogsRoute
   '/profile': typeof ProfileRoute
   '/signup': typeof SignupRoute
   '/sync': typeof SyncRoute
@@ -336,6 +345,7 @@ export interface FileRouteTypes {
     | '/linkedin-jobs'
     | '/linkedin-search'
     | '/login'
+    | '/logs'
     | '/profile'
     | '/signup'
     | '/sync'
@@ -371,6 +381,7 @@ export interface FileRouteTypes {
     | '/linkedin-jobs'
     | '/linkedin-search'
     | '/login'
+    | '/logs'
     | '/profile'
     | '/signup'
     | '/sync'
@@ -407,6 +418,7 @@ export interface FileRouteTypes {
     | '/linkedin-jobs'
     | '/linkedin-search'
     | '/login'
+    | '/logs'
     | '/profile'
     | '/signup'
     | '/sync'
@@ -444,6 +456,7 @@ export interface RootRouteChildren {
   LinkedinJobsRoute: typeof LinkedinJobsRoute
   LinkedinSearchRoute: typeof LinkedinSearchRoute
   LoginRoute: typeof LoginRoute
+  LogsRoute: typeof LogsRoute
   ProfileRoute: typeof ProfileRoute
   SignupRoute: typeof SignupRoute
   SyncRoute: typeof SyncRoute
@@ -488,6 +501,13 @@ declare module '@tanstack/react-router' {
       path: '/profile'
       fullPath: '/profile'
       preLoaderRoute: typeof ProfileRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/logs': {
+      id: '/logs'
+      path: '/logs'
+      fullPath: '/logs'
+      preLoaderRoute: typeof LogsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/login': {
@@ -746,6 +766,7 @@ const rootRouteChildren: RootRouteChildren = {
   LinkedinJobsRoute: LinkedinJobsRoute,
   LinkedinSearchRoute: LinkedinSearchRoute,
   LoginRoute: LoginRoute,
+  LogsRoute: LogsRoute,
   ProfileRoute: ProfileRoute,
   SignupRoute: SignupRoute,
   SyncRoute: SyncRoute,

@@ -21,8 +21,8 @@ function AnalysisDetailPage() {
   return (
     <div className="spx-page spx-stack">
       <Link
-        to="/history"
-        search={{ page: 1 }}
+        to="/jobs"
+        search={{ analyzedOnly: true }}
         className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
       >
         <ArrowLeft className="h-4 w-4" />

@@ -20,6 +20,8 @@ import {
   type LinkedInSearchParams,
 } from "../../../lib/linkedin-search";
 import { canAccessLinkedInSearch } from "../../../lib/private-features";
+import { searchAtsJobs } from "../../../lib/ats-search";
+import { logSearchEvent } from "../../../lib/pipeline-persistence";
 
 type BrowserPage = Awaited<ReturnType<typeof import("@cloudflare/puppeteer")["default"]["launch"]>> extends {
   newPage: () => Promise<infer T>;
@@ -388,17 +390,36 @@ export const Route = createFileRoute("/api/linkedin/search")({
           }
 
           stage = "reading-request";
-          const body = (await request.json()) as Partial<LinkedInSearchParams>;
+          const body = (await request.json()) as Partial<LinkedInSearchParams> & { sources?: string[] };
           const params = normalizeLinkedInSearchParams(body);
           const savedSearchId = typeof (body as any).savedSearchId === "number" ? (body as any).savedSearchId : null;
+          const sources = body.sources || ["linkedin", "greenhouse", "lever", "workable"];
 
           if (!params.keywords) {
             return json({ success: false, error: "Keywords are required." }, { status: 400 });
           }
 
+          stage = "logging-start";
+          await logSearchEvent({
+            userId: user.id,
+            savedSearchId,
+            eventType: "search_started",
+            platform: sources.join(", "),
+            message: `Manual search started with keywords: "${params.keywords}"`,
+            level: "info",
+          });
+
           stage = "loading-resume";
           const profile = await getResumeProfile(user.id);
           if (!profile) {
+            await logSearchEvent({
+              userId: user.id,
+              savedSearchId,
+              eventType: "error",
+              platform: sources.join(", "),
+              message: "Manual search failed: Upload a master resume first.",
+              level: "error",
+            });
             return json(
               {
                 success: false,
@@ -411,129 +432,123 @@ export const Route = createFileRoute("/api/linkedin/search")({
           stage = "loading-ai";
           const ai = await getAIFromContext(context);
           if (!ai) {
+            await logSearchEvent({
+              userId: user.id,
+              savedSearchId,
+              eventType: "error",
+              platform: sources.join(", "),
+              message: "Manual search failed: AI service unavailable.",
+              level: "error",
+            });
             return json({ success: false, error: "AI service is unavailable." }, { status: 503 });
           }
 
           stage = "building-search-url";
           const searchUrl = buildLinkedInSearchUrl(params);
-          let jobs: LinkedInScrapedJob[] | null = null;
-          let historicalJobs: LinkedInScrapedJob[] = [];
-          let reusedCount = 0;
+          let linkedinJobs: LinkedInScrapedJob[] = [];
           const warnings: string[] = [];
-          stage = "launching-browser";
-          const puppeteer = await import("@cloudflare/puppeteer");
-          const browser = await puppeteer.default.launch(env.BROWSER);
 
-          try {
-            stage = "loading-linkedin-search-page";
-            const collected = await collectLinkedinJobsAcrossPages({
-              browser,
-              kv: env.KV,
-              params,
-            });
-            jobs = collected.jobs;
-            warnings.push(...collected.warnings);
+          if (sources.includes("linkedin")) {
+            stage = "launching-browser";
+            const puppeteer = await import("@cloudflare/puppeteer");
+            const browser = await puppeteer.default.launch(env.BROWSER);
 
-            if (!jobs || jobs.length === 0) {
-              return json({
-                success: true,
-                data: {
-                  searchUrl,
-                  jobs: [],
-                  total: 0,
-                  warnings: [
-                    ...warnings,
-                    "LinkedIn returned no parsable jobs for this query. Try fewer filters or run it on deployed Cloudflare infrastructure.",
-                  ],
-                },
+            try {
+              stage = "loading-linkedin-search-page";
+              const collected = await collectLinkedinJobsAcrossPages({
+                browser,
+                kv: env.KV,
+                params,
               });
-            }
+              linkedinJobs = collected.jobs;
+              warnings.push(...collected.warnings);
 
-            stage = "checking-existing-jobs";
-            const existingJobsByUrl = await findExistingLinkedinJobs({
-              userId: user.id,
-              jobs: jobs.map((job) => ({ id: job.id, sourceUrl: job.sourceUrl })),
-            });
-            const matchedRows = new Map<string, ReturnType<typeof mapStoredLinkedinJobToScrapedJob>>();
-            const unmatchedJobs: LinkedInScrapedJob[] = [];
-
-            for (const job of jobs) {
-              const canonicalUrl = canonicalizeLinkedinJobUrl(job.sourceUrl, job.id);
-              const matchedRow = existingJobsByUrl.get(canonicalUrl);
-
-              if (matchedRow) {
-                matchedRows.set(canonicalUrl, mapStoredLinkedinJobToScrapedJob(matchedRow));
-              } else {
-                unmatchedJobs.push(job);
+              if (linkedinJobs.length > 0) {
+                stage = "enriching-job-descriptions";
+                await enrichJobDescriptions(browser, env.KV, linkedinJobs);
               }
+            } finally {
+              await browser.close();
             }
+          }
 
-            historicalJobs = Array.from(matchedRows.values());
-            reusedCount = historicalJobs.length;
-            jobs = unmatchedJobs;
+          stage = "searching-ats-platforms";
+          const db = getDb(env.DB);
+          const atsJobs = await searchAtsJobs(db, sources, params);
+          
+          let jobs = [...linkedinJobs, ...atsJobs];
 
-            if (jobs.length === 0) {
-              historicalJobs.sort((a, b) => (b.score?.masterScore || 0) - (a.score?.masterScore || 0));
-              return json({
-                success: true,
-                data: {
-                  searchUrl,
-                  jobs: historicalJobs,
-                  total: historicalJobs.length,
-                  warnings: [
-                    ...warnings,
-                    `Reused ${existingJobsByUrl.size} previously saved LinkedIn job${existingJobsByUrl.size === 1 ? "" : "s"} without rescoring.`,
-                  ],
-                },
-              });
-            }
+          if (jobs.length === 0) {
+            await logSearchEvent({
+              userId: user.id,
+              savedSearchId,
+              eventType: "search_completed",
+              platform: sources.join(", "),
+              message: "Manual search completed: 0 jobs found.",
+              level: "info",
+              metadata: { keywords: params.keywords },
+            });
 
-            stage = "enriching-job-descriptions";
-            await enrichJobDescriptions(browser, env.KV, jobs);
-          } finally {
-            await browser.close();
+            return json({
+              success: true,
+              data: {
+                searchUrl,
+                jobs: [],
+                total: 0,
+                warnings: [
+                  ...warnings,
+                  "No jobs were found matching this query across the selected sources.",
+                ],
+              },
+            });
           }
 
           stage = "checking-existing-jobs";
-          let newJobs = jobs;
-          if (historicalJobs.length === 0 && jobs.length > 0) {
-            const existingJobsByUrl = await findExistingLinkedinJobs({
-              userId: user.id,
-              jobs: jobs.map((job) => ({ id: job.id, sourceUrl: job.sourceUrl })),
-            });
-            const matchedRows = new Map<string, ReturnType<typeof mapStoredLinkedinJobToScrapedJob>>();
-            const unmatchedJobs: LinkedInScrapedJob[] = [];
+          const existingJobsByUrl = await findExistingLinkedinJobs({
+            userId: user.id,
+            jobs: jobs.map((job) => ({ id: job.id, sourceUrl: job.sourceUrl })),
+          });
+          const matchedRows = new Map<string, ReturnType<typeof mapStoredLinkedinJobToScrapedJob>>();
+          const unmatchedJobs: LinkedInScrapedJob[] = [];
 
-            for (const job of jobs) {
-              const canonicalUrl = canonicalizeLinkedinJobUrl(job.sourceUrl, job.id);
-              const matchedRow = existingJobsByUrl.get(canonicalUrl);
+          for (const job of jobs) {
+            const canonicalUrl = canonicalizeLinkedinJobUrl(job.sourceUrl, job.id);
+            const matchedRow = existingJobsByUrl.get(canonicalUrl);
 
-              if (matchedRow) {
-                matchedRows.set(canonicalUrl, mapStoredLinkedinJobToScrapedJob(matchedRow));
-              } else {
-                unmatchedJobs.push(job);
-              }
+            if (matchedRow) {
+              matchedRows.set(canonicalUrl, mapStoredLinkedinJobToScrapedJob(matchedRow));
+            } else {
+              unmatchedJobs.push(job);
             }
-
-            historicalJobs = Array.from(matchedRows.values());
-            reusedCount = historicalJobs.length;
-            newJobs = unmatchedJobs;
           }
+
+          let historicalJobs = Array.from(matchedRows.values());
+          let reusedCount = historicalJobs.length;
+          let newJobs = unmatchedJobs;
 
           if (newJobs.length === 0) {
             historicalJobs.sort((a, b) => (b.score?.masterScore || 0) - (a.score?.masterScore || 0));
+            
+            await logSearchEvent({
+              userId: user.id,
+              savedSearchId,
+              eventType: "search_completed",
+              platform: sources.join(", "),
+              message: `Manual search completed: found ${jobs.length} jobs (0 new scored, ${reusedCount} reused)`,
+              level: "success",
+              metadata: { keywords: params.keywords, totalFound: jobs.length, scored: 0, reused: reusedCount },
+            });
+
             return json({
               success: true,
               data: {
                 searchUrl,
                 jobs: historicalJobs,
                 total: historicalJobs.length,
-                warnings: jobs.length > 0
-                  ? [
-                      ...warnings,
-                      `Reused ${reusedCount} previously saved LinkedIn job${reusedCount === 1 ? "" : "s"} without rescoring.`,
-                    ]
-                  : [...warnings, "No LinkedIn jobs were found for that search."],
+                warnings: [
+                  ...warnings,
+                  `Reused ${existingJobsByUrl.size} previously saved job${existingJobsByUrl.size === 1 ? "" : "s"} without rescoring.`,
+                ],
               },
             });
           }
@@ -566,6 +581,16 @@ export const Route = createFileRoute("/api/linkedin/search")({
             jobs: scoredJobs,
           });
 
+          await logSearchEvent({
+            userId: user.id,
+            savedSearchId,
+            eventType: "search_completed",
+            platform: sources.join(", "),
+            message: `Manual search completed: found ${jobs.length} jobs (${scoredJobs.length} new scored, ${reusedCount} reused)`,
+            level: "success",
+            metadata: { keywords: params.keywords, totalFound: jobs.length, scored: scoredJobs.length, reused: reusedCount },
+          });
+
           return json({
             success: true,
             data: {
@@ -575,23 +600,31 @@ export const Route = createFileRoute("/api/linkedin/search")({
               warnings: [
                 ...warnings,
                 ...(scoredJobs.some((job) => !job.description)
-                  ? ["Some jobs were scored from snippets because LinkedIn did not expose a full description."]
+                  ? ["Some jobs were scored from snippets because description content was unavailable."]
                   : []),
                 ...(reusedCount > 0
-                  ? [`Reused ${reusedCount} previously saved LinkedIn job${reusedCount === 1 ? "" : "s"} without rescoring.`]
+                  ? [`Reused ${reusedCount} previously saved job${reusedCount === 1 ? "" : "s"} without rescoring.`]
                   : []),
               ],
             },
           });
         } catch (error) {
           console.error(`[linkedin-search] error during ${stage}:`, error);
+          await logSearchEvent({
+            userId: user.id,
+            savedSearchId,
+            eventType: "error",
+            platform: sources.join(", "),
+            message: `Manual search failed during ${stage}: ${error instanceof Error ? error.message : String(error)}`,
+            level: "error",
+          });
           return json(
             {
               success: false,
               error:
                 error instanceof Error
-                  ? `LinkedIn search failed during ${stage}: ${error.message}`
-                  : `LinkedIn search failed during ${stage}.`,
+                  ? `Search failed during ${stage}: ${error.message}`
+                  : `Search failed during ${stage}.`,
             },
             { status: 500 },
           );

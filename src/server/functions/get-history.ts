@@ -4,9 +4,15 @@ import { desc, eq, and, sql } from "drizzle-orm";
 import { getCloudflareEnv } from "@/lib/cloudflare";
 import type { CloudflareEnv } from "@/lib/cloudflare";
 import { getDb } from "@/db/db";
-import { jobAnalyses, generatedDocuments } from "@/db/schema";
+import { pipelineJobs, generatedDocuments } from "@/db/schema";
 import { resolveSessionUser } from "@/lib/resolve-user";
 import { aggregateAnalytics } from "@/server/cron/aggregate-analytics";
+import {
+  type PipelineStatus,
+  PIPELINE_STATUSES,
+  normalizePipelineStatus,
+} from "@/lib/pipeline-constants";
+import { type PipelineCounts, EMPTY_PIPELINE_COUNTS, STATUS_TO_KEY } from "@/lib/pipeline-constants";
 
 export interface HistoryRow {
   id: number;
@@ -17,28 +23,14 @@ export interface HistoryRow {
   jobUrl: string;
   pursue: boolean;
   applied: boolean;
-  applicationStatus: "Applied" | "Interviewed" | "Not Hired" | "Hired" | null;
+  applicationStatus: PipelineStatus | null;
   appliedAt: string | null;
   documents: Array<{ id: number; docType: string; r2Key: string; fileName: string }>;
 }
 
-export interface HistoryPipelineCounts {
-  analyzed: number;
-  prepped: number;
-  applied: number;
-  interviewed: number;
-  notHired: number;
-  hired: number;
-}
+export interface HistoryPipelineCounts extends PipelineCounts {}
 
-const emptyPipelineCounts: HistoryPipelineCounts = {
-  analyzed: 0,
-  prepped: 0,
-  applied: 0,
-  interviewed: 0,
-  notHired: 0,
-  hired: 0,
-};
+const emptyPipelineCounts: HistoryPipelineCounts = { ...EMPTY_PIPELINE_COUNTS };
 
 export const getHistory = createServerFn({ method: "GET" })
   .inputValidator((data: { page?: number; pageSize?: number; query?: string }) => data)
@@ -50,179 +42,113 @@ export const getHistory = createServerFn({ method: "GET" })
       const user = await resolveSessionUser();
       if (!user) return { rows: [], total: 0, totalApplied: 0, totalPursued: 0, totalDocuments: 0, pipelineCounts: emptyPipelineCounts };
 
+      const db = getDb(env.DB);
       const page = data.page ?? 1;
       const pageSize = data.pageSize ?? 20;
       const offset = (page - 1) * pageSize;
       const query = data.query?.trim().toLowerCase() ?? "";
-      const searchPattern = `%${query}%`;
-      let hasApplicationStatusColumn = false;
-      try {
-        const columnInfo = await env.DB.prepare("PRAGMA table_info(job_analyses)").all();
-        hasApplicationStatusColumn = (columnInfo.results ?? []).some(
-          (column: any) => column.name === "application_status",
+
+      // Only show analyzed+ jobs in history (not Discovered)
+      const baseConditions = [
+        eq(pipelineJobs.userId, user.id),
+        sql`${pipelineJobs.status} != 'Discovered'`,
+      ];
+
+      if (query) {
+        baseConditions.push(
+          sql`(lower(coalesce(${pipelineJobs.title}, '')) LIKE ${'%' + query + '%'} OR lower(coalesce(${pipelineJobs.company}, '')) LIKE ${'%' + query + '%'})`,
         );
-      } catch (error) {
-        console.warn("[getHistory] Unable to inspect job_analyses schema; using legacy applied status.", error);
       }
 
-      type AnalysisRecord = {
-        id: number;
-        createdAt: string | null;
-        jobTitle: string | null;
-        company: string | null;
-        matchScore: number | null;
-        jobUrl: string;
-        pursue: number | null;
-        applied: number | null;
-        applicationStatus?: string | null;
-        appliedAt: string | null;
-      };
+      const whereClause = and(...baseConditions);
 
-      const docsCte = `
-        WITH doc_counts AS (
-          SELECT
-            job_analysis_id,
-            sum(case when doc_type = 'resume' then 1 else 0 end) as resumeCount,
-            sum(case when doc_type = 'cover_letter' then 1 else 0 end) as coverCount
-          FROM generated_documents
-          GROUP BY job_analysis_id
-        )
-      `;
-      const appStatusExpr = hasApplicationStatusColumn ? "ja.application_status" : "NULL";
-      const workflowExpr = `
-        lower(
-          case
-            when ${appStatusExpr} = 'Hired' then 'hired'
-            when ${appStatusExpr} = 'Not Hired' then 'not_hired'
-            when ${appStatusExpr} = 'Interviewed' then 'interviewed'
-            when ${appStatusExpr} = 'Applied' or ja.applied = 1 then 'applied'
-            when coalesce(dc.resumeCount, 0) + coalesce(dc.coverCount, 0) > 0 then 'prepped'
-            else 'analyzed'
-          end
-        )
-      `;
-      const searchClause = query
-        ? ` AND (
-            lower(coalesce(ja.job_title, '')) LIKE ?
-            OR lower(coalesce(ja.company, '')) LIKE ?
-            OR lower(coalesce(${appStatusExpr}, '')) LIKE ?
-            OR ${workflowExpr} LIKE ?
-          )`
-        : "";
-      const searchBinds = query ? [searchPattern, searchPattern, searchPattern, searchPattern] : [];
+      const analyses = await db
+        .select()
+        .from(pipelineJobs)
+        .where(whereClause)
+        .orderBy(desc(pipelineJobs.analyzedAt), desc(pipelineJobs.createdAt))
+        .limit(pageSize)
+        .offset(offset);
 
-      const analysesResult = await env.DB.prepare(`
-        ${docsCte}
-        SELECT
-          ja.id,
-          ja.created_at as createdAt,
-          ja.job_title as jobTitle,
-          ja.company,
-          ja.match_score as matchScore,
-          ja.job_url as jobUrl,
-          ja.pursue,
-          ja.applied,
-          ${hasApplicationStatusColumn ? "ja.application_status as applicationStatus," : ""}
-          ja.applied_at as appliedAt
-        FROM job_analyses ja
-        LEFT JOIN doc_counts dc ON dc.job_analysis_id = ja.id
-        WHERE ja.user_id = ?${searchClause}
-        ORDER BY ja.created_at DESC
-        LIMIT ? OFFSET ?
-      `).bind(user.id, ...searchBinds, pageSize, offset).all<AnalysisRecord>();
-      const analyses = analysesResult.results ?? [];
+      const [countRow] = await db
+        .select({ count: sql<number>`count(*)` })
+        .from(pipelineJobs)
+        .where(whereClause);
 
-      const aggregates = await env.DB.prepare(`
-        ${docsCte}
-        SELECT
-          count(*) as total,
-          sum(case when ja.applied = 1 then 1 else 0 end) as totalApplied,
-          sum(case when ja.pursue = 1 then 1 else 0 end) as totalPursued
-        FROM job_analyses ja
-        LEFT JOIN doc_counts dc ON dc.job_analysis_id = ja.id
-        WHERE ja.user_id = ?${searchClause}
-      `).bind(user.id, ...searchBinds).first<{ total: number; totalApplied: number | null; totalPursued: number | null }>();
+      const [appliedRow] = await db
+        .select({ count: sql<number>`count(*)` })
+        .from(pipelineJobs)
+        .where(and(
+          eq(pipelineJobs.userId, user.id),
+          sql`${pipelineJobs.status} IN ('Applied', 'Interviewed', 'Hired')`,
+        ));
 
-      const docCountResult = await env.DB.prepare(`
-        ${docsCte}
-        SELECT count(*) as count
-        FROM generated_documents gd
-        INNER JOIN job_analyses ja ON gd.job_analysis_id = ja.id
-        LEFT JOIN doc_counts dc ON dc.job_analysis_id = ja.id
-        WHERE ja.user_id = ?${searchClause}
-      `).bind(user.id, ...searchBinds).first<{ count: number }>();
+      const [pursuedRow] = await db
+        .select({ count: sql<number>`count(*)` })
+        .from(pipelineJobs)
+        .where(and(
+          eq(pipelineJobs.userId, user.id),
+          eq(pipelineJobs.pursue, 1),
+        ));
 
-      type PipelineRecord = {
-        id: number;
-        pursue: number | null;
-        applied: number | null;
-        applicationStatus?: string | null;
-        resumeCount: number | null;
-        coverCount: number | null;
-      };
+      const [docCountRow] = await db
+        .select({ count: sql<number>`count(*)` })
+        .from(generatedDocuments)
+        .where(sql`${generatedDocuments.pipelineJobId} IN (SELECT id FROM pipeline_jobs WHERE user_id = ${user.id})`);
 
-      const pipelineResult = await env.DB.prepare(`
-        ${docsCte}
-        SELECT
-          ja.id,
-          ja.pursue,
-          ja.applied,
-          ${hasApplicationStatusColumn ? "ja.application_status as applicationStatus," : ""}
-          coalesce(dc.resumeCount, 0) as resumeCount,
-          coalesce(dc.coverCount, 0) as coverCount
-        FROM job_analyses ja
-        LEFT JOIN doc_counts dc ON dc.job_analysis_id = ja.id
-        WHERE ja.user_id = ?${searchClause}
-      `).bind(user.id, ...searchBinds).all<PipelineRecord>();
-      const pipelineRows = pipelineResult.results ?? [];
+      // Pipeline counts
+      const statusRows = await db
+        .select({
+          status: pipelineJobs.status,
+          count: sql<number>`count(*)`,
+        })
+        .from(pipelineJobs)
+        .where(and(
+          eq(pipelineJobs.userId, user.id),
+          sql`${pipelineJobs.status} != 'Discovered'`,
+        ))
+        .groupBy(pipelineJobs.status);
 
-      const pipelineCounts = pipelineRows.reduce<HistoryPipelineCounts>((counts, row) => {
-        const hasResume = Number(row.resumeCount ?? 0) > 0;
-        const hasCover = Number(row.coverCount ?? 0) > 0;
-        const applicationStatus = "applicationStatus" in row ? row.applicationStatus : null;
-        if (applicationStatus === "Hired") counts.hired += 1;
-        else if (applicationStatus === "Not Hired") counts.notHired += 1;
-        else if (applicationStatus === "Interviewed") counts.interviewed += 1;
-        else if (applicationStatus === "Applied" || row.applied === 1) counts.applied += 1;
-        else if (hasResume || hasCover) counts.prepped += 1;
-        else counts.analyzed += 1;
-        return counts;
-      }, { ...emptyPipelineCounts });
+      const pipelineCounts = { ...EMPTY_PIPELINE_COUNTS };
+      for (const row of statusRows) {
+        const status = normalizePipelineStatus(row.status);
+        const key = STATUS_TO_KEY[status];
+        if (key) pipelineCounts[key] = (pipelineCounts[key] ?? 0) + Number(row.count ?? 0);
+      }
 
       const rows: HistoryRow[] = await Promise.all(
         analyses.map(async (a) => {
-          const docsResult = await env.DB.prepare(`
-            SELECT
-              id,
-              doc_type as docType,
-              r2_key as r2Key,
-              file_name as fileName
-            FROM generated_documents
-            WHERE job_analysis_id = ?
-            ORDER BY id DESC
-          `).bind(a.id).all<{ id: number; docType: string; r2Key: string; fileName: string | null }>();
-          const docs = docsResult.results ?? [];
+          // Fetch documents for this pipeline job
+          const docs = await db
+            .select({
+              id: generatedDocuments.id,
+              docType: generatedDocuments.docType,
+              r2Key: generatedDocuments.r2Key,
+              fileName: generatedDocuments.fileName,
+            })
+            .from(generatedDocuments)
+            .where(eq(generatedDocuments.pipelineJobId, a.id))
+            .orderBy(desc(generatedDocuments.id));
+
+          const status = normalizePipelineStatus(a.status);
+          const isApplied = ['Applied', 'Interviewed', 'Hired'].includes(status);
 
           return {
             id: a.id,
-            createdAt: a.createdAt ?? "",
-            jobTitle: a.jobTitle ?? "Untitled",
+            createdAt: a.analyzedAt ?? a.createdAt ?? "",
+            jobTitle: a.title ?? "Untitled",
             company: a.company ?? "Unknown",
             matchScore: a.matchScore ?? 0,
-            jobUrl: a.jobUrl,
+            jobUrl: a.sourceUrl,
             pursue: a.pursue === 1,
-            applied: a.applied === 1,
-            applicationStatus: (() => {
-              const status = a.applicationStatus ?? null;
-              if (status === "Applied" || status === "Interviewed" || status === "Not Hired" || status === "Hired") return status;
-              return a.applied === 1 ? "Applied" : null;
-            })(),
-            appliedAt: a.appliedAt ?? null,
-            documents: docs.map((d: any) => ({
+            applied: isApplied,
+            applicationStatus: status,
+            appliedAt: null,
+            documents: docs.map((d) => ({
               id: d.id,
-              docType: d.docType ?? d.doc_type,
-              r2Key: d.r2Key ?? d.r2_key,
-              fileName: d.fileName ?? d.file_name ?? "",
+              docType: d.docType,
+              r2Key: d.r2Key,
+              fileName: d.fileName ?? "",
             })),
           };
         }),
@@ -230,10 +156,10 @@ export const getHistory = createServerFn({ method: "GET" })
 
       return {
         rows,
-        total: Number(aggregates?.total ?? 0),
-        totalApplied: Number(aggregates?.totalApplied ?? 0),
-        totalPursued: Number(aggregates?.totalPursued ?? 0),
-        totalDocuments: Number(docCountResult?.count ?? 0),
+        total: Number(countRow?.count ?? 0),
+        totalApplied: Number(appliedRow?.count ?? 0),
+        totalPursued: Number(pursuedRow?.count ?? 0),
+        totalDocuments: Number(docCountRow?.count ?? 0),
         pipelineCounts,
       };
     } catch (error) {
@@ -269,10 +195,12 @@ export const getDocumentsForAnalysis = createServerFn({ method: "GET" })
     if (!user) throw new Error("Not authenticated");
 
     const db = getDb(env.DB);
+
+    // Check both legacy job_analysis_id and new pipeline_job_id
     const docs = await db
       .select()
       .from(generatedDocuments)
-      .where(eq(generatedDocuments.jobAnalysisId, data.analysisId));
+      .where(sql`${generatedDocuments.pipelineJobId} = ${data.analysisId} OR ${generatedDocuments.jobAnalysisId} = ${data.analysisId}`);
 
     const resume = docs.find((d) => d.docType === "resume");
     const coverLetter = docs.find((d) => d.docType === "cover_letter");
@@ -293,18 +221,18 @@ export const deleteHistoryItem = createServerFn({ method: "POST" })
     if (!user) throw new Error("Not authenticated");
 
     const db = getDb(env.DB);
-    const [analysis] = await db
+    const [job] = await db
       .select()
-      .from(jobAnalyses)
-      .where(and(eq(jobAnalyses.id, data.id), eq(jobAnalyses.userId, user.id)))
+      .from(pipelineJobs)
+      .where(and(eq(pipelineJobs.id, data.id), eq(pipelineJobs.userId, user.id)))
       .limit(1);
 
-    if (!analysis) throw new Error("Analysis not found or not authorized");
+    if (!job) throw new Error("Job not found or not authorized");
 
     const docs = await db
       .select()
       .from(generatedDocuments)
-      .where(eq(generatedDocuments.jobAnalysisId, analysis.id));
+      .where(eq(generatedDocuments.pipelineJobId, job.id));
 
     if (env.R2) {
       await Promise.all(
@@ -316,12 +244,12 @@ export const deleteHistoryItem = createServerFn({ method: "POST" })
       );
     }
 
-    await db.delete(generatedDocuments).where(eq(generatedDocuments.jobAnalysisId, analysis.id));
-    await db.delete(jobAnalyses).where(and(eq(jobAnalyses.id, analysis.id), eq(jobAnalyses.userId, user.id)));
+    await db.delete(generatedDocuments).where(eq(generatedDocuments.pipelineJobId, job.id));
+    await db.delete(pipelineJobs).where(and(eq(pipelineJobs.id, job.id), eq(pipelineJobs.userId, user.id)));
 
     aggregateAnalytics(env as CloudflareEnv, user.id).catch((e) =>
       console.error("[deleteHistoryItem] aggregateAnalytics error:", e),
     );
 
-    return { ok: true, id: analysis.id };
+    return { ok: true, id: job.id };
   });

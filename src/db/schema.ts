@@ -266,6 +266,7 @@ export const jobAnalyses = sqliteTable('job_analyses', {
 export const generatedDocuments = sqliteTable('generated_documents', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   jobAnalysisId: integer('job_analysis_id').references(() => jobAnalyses.id),
+  pipelineJobId: integer('pipeline_job_id'), // FK to pipeline_jobs after migration
   docType: text('doc_type').notNull(), // "resume" | "cover_letter"
   r2Key: text('r2_key').notNull(),
   fileName: text('file_name'),
@@ -349,6 +350,92 @@ export const linkedinJobResults = sqliteTable('linkedin_job_results', {
   updatedAt: text('updated_at').notNull(),
 })
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Unified Pipeline — single table for ALL jobs (agent-discovered + analyzed)
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const pipelineJobs = sqliteTable('pipeline_jobs', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  userId: text('user_id').notNull().references(() => users.id),
+  savedSearchId: integer('saved_search_id').references(() => linkedinSavedSearches.id),
+
+  // ── Identity ──
+  externalJobId: text('external_job_id'),
+  title: text('title').notNull(),
+  company: text('company').notNull(),
+  location: text('location'),
+  industry: text('industry'),
+  sourceUrl: text('source_url').notNull(),
+  canonicalSourceUrl: text('canonical_source_url').notNull(),
+  sourceName: text('source_name').notNull().default('LinkedIn'),
+
+  // ── Discovery fields (from search agents) ──
+  searchUrl: text('search_url'),
+  criteria: text('criteria'),
+  salary: text('salary'),
+  snippet: text('snippet'),
+  description: text('description'),
+  postDateText: text('post_date_text'),
+  workplaceType: text('workplace_type'),
+
+  // ── Agent scoring (quick scores from agent) ──
+  atsScore: integer('ats_score'),
+  careerScore: integer('career_score'),
+  outlookScore: integer('outlook_score'),
+  masterScore: integer('master_score'),
+  atsReason: text('ats_reason'),
+  careerReason: text('career_reason'),
+  outlookReason: text('outlook_reason'),
+  isUnicorn: integer('is_unicorn').notNull().default(0),
+  unicornReason: text('unicorn_reason'),
+
+  // ── Deep analysis fields (from /analyze pipeline) ──
+  jdText: text('jd_text'),
+  matchScore: integer('match_score'),
+  gapAnalysis: text('gap_analysis'),
+  recommendations: text('recommendations'),
+  pursue: integer('pursue'),
+  pursueJustification: text('pursue_justification'),
+  keywords: text('keywords'),
+  strategyNote: text('strategy_note'),
+  personalInterest: text('personal_interest'),
+  careerAnalysis: text('career_analysis'),
+  insights: text('insights'),
+
+  // ── Pipeline status ──
+  status: text('status', {
+    enum: ['Discovered', 'Analyzed', 'Prepped', 'Applied', 'Interviewed', 'Hired', 'Not Hired', 'Archived'],
+  }).notNull().default('Discovered'),
+
+  // ── Timestamps ──
+  firstSeenAt: text('first_seen_at').notNull(),
+  lastSeenAt: text('last_seen_at').notNull(),
+  analyzedAt: text('analyzed_at'),
+  createdAt: text('created_at').notNull(),
+  updatedAt: text('updated_at').notNull(),
+})
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Search Activity Logs — comprehensive agent/search activity tracking
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const searchLogs = sqliteTable('search_logs', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  userId: text('user_id').notNull().references(() => users.id),
+  savedSearchId: integer('saved_search_id').references(() => linkedinSavedSearches.id),
+  eventType: text('event_type').notNull(),
+  // 'search_started' | 'search_completed' | 'job_found' | 'job_skipped_duplicate' |
+  // 'job_skipped_filtered' | 'ats_search_started' | 'ats_search_completed' |
+  // 'analysis_started' | 'analysis_completed' | 'analysis_error' |
+  // 'cron_triggered' | 'manual_search' | 'error'
+  platform: text('platform'),        // 'linkedin' | 'greenhouse' | 'lever' | 'workable' | 'manual'
+  agentName: text('agent_name'),
+  message: text('message').notNull(),
+  metadata: text('metadata', { mode: 'json' }).$type<Record<string, unknown>>(),
+  level: text('level').notNull().default('info'), // 'info' | 'success' | 'warning' | 'error'
+  createdAt: text('created_at').notNull(),
+})
+
 // ─── Inferred Types (user-centric tables) ─────────────────────────────────────
 export type User = typeof users.$inferSelect
 export type NewUser = typeof users.$inferInsert
@@ -366,3 +453,7 @@ export type LinkedinSavedSearch = typeof linkedinSavedSearches.$inferSelect
 export type NewLinkedinSavedSearch = typeof linkedinSavedSearches.$inferInsert
 export type LinkedinJobResult = typeof linkedinJobResults.$inferSelect
 export type NewLinkedinJobResult = typeof linkedinJobResults.$inferInsert
+export type PipelineJob = typeof pipelineJobs.$inferSelect
+export type NewPipelineJob = typeof pipelineJobs.$inferInsert
+export type SearchLog = typeof searchLogs.$inferSelect
+export type NewSearchLog = typeof searchLogs.$inferInsert

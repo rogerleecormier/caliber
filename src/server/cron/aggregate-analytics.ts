@@ -1,6 +1,6 @@
 import { getDb } from "@/db/db";
-import { jobAnalyses, analyticsSummary, generatedDocuments } from "@/db/schema";
-import { eq, and } from "drizzle-orm";
+import { pipelineJobs, analyticsSummary, generatedDocuments } from "@/db/schema";
+import { eq, and, sql } from "drizzle-orm";
 import type { CloudflareEnv } from "@/lib/cloudflare";
 
 interface KeywordCount { keyword: string; count: number }
@@ -71,7 +71,7 @@ export async function aggregateAnalytics(env: CloudflareEnv, userId?: string): P
   const db = getDb(env.DB);
 
   if (!userId) {
-    const allUsers = await db.select({ userId: jobAnalyses.userId }).from(jobAnalyses);
+    const allUsers = await db.select({ userId: pipelineJobs.userId }).from(pipelineJobs).where(sql`${pipelineJobs.matchScore} IS NOT NULL`);
     const uniqueIds = [...new Set(allUsers.map((u) => u.userId).filter((id): id is string => id !== null))];
     for (const uid of uniqueIds) {
       await aggregateAnalytics(env, uid);
@@ -79,7 +79,7 @@ export async function aggregateAnalytics(env: CloudflareEnv, userId?: string): P
     return;
   }
 
-  const allAnalyses = await db.select().from(jobAnalyses).where(eq(jobAnalyses.userId, userId));
+  const allAnalyses = await db.select().from(pipelineJobs).where(and(eq(pipelineJobs.userId, userId), sql`${pipelineJobs.matchScore} IS NOT NULL`));
   const now = new Date().toISOString();
   const period = "all_time";
 
@@ -126,9 +126,9 @@ export async function aggregateAnalytics(env: CloudflareEnv, userId?: string): P
   );
 
   // Resume keywords (from generated docs for this user's analyses)
-  const analysisIds = allAnalyses.map((a) => a.id);
+  const jobIds = allAnalyses.map((a) => a.id);
   const allResumeDocs = (await db.select().from(generatedDocuments).where(eq(generatedDocuments.docType, "resume")))
-    .filter((d) => analysisIds.includes(d.jobAnalysisId!));
+    .filter((d) => (d.pipelineJobId && jobIds.includes(d.pipelineJobId)) || (d.jobAnalysisId && jobIds.includes(d.jobAnalysisId)));
 
   const resumeKeywordMap = new Map<string, number>();
   for (const doc of allResumeDocs) {
@@ -146,8 +146,8 @@ export async function aggregateAnalytics(env: CloudflareEnv, userId?: string): P
   // Top job titles / focus areas (applied only, normalized so near-identical titles roll up together)
   const titleMap = new Map<string, { count: number; displayTitle: string }>();
   for (const a of allAnalyses) {
-    if (a.applied === 1) {
-      const rawTitle = (a.jobTitle ?? "").trim();
+    if (['Applied', 'Interviewed', 'Hired', 'Not Hired'].includes(a.status)) {
+      const rawTitle = (a.title ?? "").trim();
       if (!rawTitle) continue;
       const canonicalTitle = canonicalizeJobTitle(rawTitle);
       if (!canonicalTitle) continue;
@@ -190,7 +190,7 @@ export async function aggregateAnalytics(env: CloudflareEnv, userId?: string): P
     averageMatchScore: Math.round(averageMatchScore * 10) / 10,
     totalAnalyses: allAnalyses.length,
     totalResumesGenerated: allResumeDocs.length,
-    totalApplied: allAnalyses.filter((a) => a.applied === 1).length,
+    totalApplied: allAnalyses.filter((a) => ['Applied', 'Interviewed', 'Hired', 'Not Hired'].includes(a.status)).length,
     totalPursued: allAnalyses.filter((a) => a.pursue === 1).length,
     updatedAt: now,
   };

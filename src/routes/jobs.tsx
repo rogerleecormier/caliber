@@ -35,6 +35,10 @@ import {
   setPipelineJobStatus,
 } from "@/server/functions/jobs-pipeline";
 import type { LinkedInScrapedJob } from "@/lib/linkedin-search";
+import {
+  PIPELINE_STATUSES,
+  STATUS_TONES,
+} from "@/lib/pipeline-constants";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -47,6 +51,7 @@ type JobSearchParams = {
   green: boolean;
   sortBy: SortOption;
   status: string;
+  analyzedOnly: boolean;
 };
 
 type HubJob = Awaited<ReturnType<typeof getPipelineJobHistory>>["rows"][number] & {
@@ -57,23 +62,7 @@ type HubJob = Awaited<ReturnType<typeof getPipelineJobHistory>>["rows"][number] 
 
 const PAGE_SIZE = 20;
 const VALID_SORT_OPTIONS: SortOption[] = ["posted-date", "title", "score", "company", "location"];
-const JOB_STATUSES: LinkedinJobStatus[] = [
-  "Analyzed",
-  "Prepped",
-  "Applied",
-  "Interviewed",
-  "Hired",
-  "Archived",
-];
-
-const STATUS_PIPELINE_TONES: Record<LinkedinJobStatus, string> = {
-  Analyzed: "bg-slate-500",
-  Prepped: "bg-slate-600",
-  Applied: "bg-emerald-500",
-  Interviewed: "bg-sky-500",
-  Hired: "bg-amber-500",
-  Archived: "bg-slate-300",
-};
+const JOB_STATUSES = PIPELINE_STATUSES as unknown as LinkedinJobStatus[];
 
 // ─── Route ────────────────────────────────────────────────────────────────────
 
@@ -87,6 +76,7 @@ export const Route = createFileRoute("/jobs")({
       ? search.sortBy
       : "posted-date") as SortOption,
     status: typeof search.status === "string" ? search.status : "",
+    analyzedOnly: search.analyzedOnly === true || search.analyzedOnly === "true",
   }),
   loaderDeps: ({ search }: { search: JobSearchParams }) => search,
   beforeLoad: ({ context }) => {
@@ -97,7 +87,13 @@ export const Route = createFileRoute("/jobs")({
     const [resume, savedSearches, history, cronInfo] = await Promise.all([
       getResume(),
       getSavedPipelineSearches(),
-      getPipelineJobHistory({ data: { ...deps, pageSize: PAGE_SIZE } }),
+      getPipelineJobHistory({
+        data: {
+          ...deps,
+          pageSize: PAGE_SIZE,
+          excludeDiscovered: deps.analyzedOnly,
+        },
+      }),
       getPipelineCronInfo(),
     ]);
     return {
@@ -117,7 +113,7 @@ export const Route = createFileRoute("/jobs")({
 // ─── Page component ───────────────────────────────────────────────────────────
 
 function JobsPage() {
-  const { page, query, remote, green, sortBy, status: activeStatus } = Route.useSearch();
+  const { page, query, remote, green, sortBy, status: activeStatus, analyzedOnly } = Route.useSearch();
   const { hasResume, fullName, savedSearches: loaderSavedSearches, rows, total, statusCounts, canViewAllUsers, cronStartHour } =
     Route.useLoaderData();
   const navigate = Route.useNavigate();
@@ -137,7 +133,7 @@ function JobsPage() {
   const totalPages = Math.ceil(localTotal / PAGE_SIZE);
   const selectedCount = selectedIds.size;
   const allVisibleSelected = jobs.length > 0 && jobs.every((job) => selectedIds.has(job.id));
-  const hasActiveFilters = !!(query || green || remote || activeStatus);
+  const hasActiveFilters = !!(query || green || remote || activeStatus || analyzedOnly);
 
   const pipeline = useMemo(
     () =>
@@ -300,6 +296,7 @@ function JobsPage() {
         ...prev,
         status: prev.status === status ? "" : status,
         page: 1,
+        analyzedOnly: status === "Discovered" ? false : prev.analyzedOnly,
       }),
     });
   }
@@ -436,7 +433,7 @@ function JobsPage() {
               </div>
               <div className="text-sm font-semibold text-slate-700">{localTotal} total</div>
             </div>
-            <div className="grid gap-2 sm:grid-cols-3 lg:grid-cols-6">
+            <div className="grid gap-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-8">
               {pipeline.map(({ status, count, percent }) => (
                 <button
                   key={status}
@@ -454,7 +451,7 @@ function JobsPage() {
                   </div>
                   <div className="h-2 overflow-hidden rounded-full bg-white">
                     <div
-                      className={`h-full rounded-full ${STATUS_PIPELINE_TONES[status]}`}
+                      className={`h-full rounded-full ${STATUS_TONES[status].bar}`}
                       style={{ width: `${percent}%` }}
                     />
                   </div>
@@ -513,6 +510,27 @@ function JobsPage() {
                 }`}
               >
                 Remote only
+              </button>
+              <button
+                type="button"
+                aria-pressed={analyzedOnly}
+                onClick={() =>
+                  navigate({
+                    search: (prev) => ({
+                      ...prev,
+                      analyzedOnly: !analyzedOnly,
+                      status: !analyzedOnly && prev.status === "Discovered" ? "" : prev.status,
+                      page: 1,
+                    }),
+                  })
+                }
+                className={`inline-flex items-center rounded-full border px-3 py-2 text-sm font-medium transition ${
+                  analyzedOnly
+                    ? "border-indigo-200 bg-indigo-50 text-indigo-700"
+                    : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+                }`}
+              >
+                Analyzed only
               </button>
               {activeStatus && (
                 <button

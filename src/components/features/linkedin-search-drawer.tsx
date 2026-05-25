@@ -825,7 +825,7 @@ export function LinkedinSearchDrawer({
                 <Button
                   type="submit"
                   disabled={loading || !hasResume}
-                  className="w-full bg-red-600 text-white hover:bg-red-700 focus-visible:ring-red-300"
+                  className="w-full bg-amber-600 text-white hover:bg-amber-700 focus-visible:ring-amber-300"
                 >
                   {loading ? (
                     <span className="inline-flex items-center gap-2">
