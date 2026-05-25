@@ -8,7 +8,7 @@
 -- 1. Create unified pipeline_jobs table
 CREATE TABLE IF NOT EXISTS pipeline_jobs (
   id              INTEGER PRIMARY KEY AUTOINCREMENT,
-  user_id         TEXT NOT NULL REFERENCES user(id),
+  user_id         TEXT NOT NULL REFERENCES users(id),
   saved_search_id INTEGER REFERENCES linkedin_saved_searches(id),
 
   -- Identity
@@ -193,7 +193,7 @@ WHERE EXISTS (
 -- 5. Create search_logs table
 CREATE TABLE IF NOT EXISTS search_logs (
   id               INTEGER PRIMARY KEY AUTOINCREMENT,
-  user_id          TEXT NOT NULL REFERENCES user(id),
+  user_id          TEXT NOT NULL REFERENCES users(id),
   saved_search_id  INTEGER REFERENCES linkedin_saved_searches(id),
   event_type       TEXT NOT NULL,
   platform         TEXT,

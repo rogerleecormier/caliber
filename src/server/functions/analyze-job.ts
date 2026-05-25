@@ -13,6 +13,7 @@ import {
   cleanJobUrl,
 } from "./analyze-job-pipeline";
 import { logSearchEvent } from "@/lib/pipeline-persistence";
+import { scoreJobAgainstProfile } from "@/lib/ai/job-score";
 
 export const analyzeJob = createServerFn({ method: "POST" })
   .inputValidator((data: { url?: string; jdText?: string; pipelineJobId?: number }) => {
@@ -65,6 +66,17 @@ export const analyzeJob = createServerFn({ method: "POST" })
 
     const analysis = await runAnalysisPipeline(jdText, resumeText, resumeEvidenceText, env);
 
+    // Generate all 4 scores (ATS, Career, Outlook, Master)
+    const scoreResult = await scoreJobAgainstProfile(
+      env.AI,
+      resumeText,
+      {
+        id: 'manual-analysis',
+        title: analysis.jobTitle ?? 'Untitled',
+        description: jdText,
+      },
+    );
+
     const now = new Date().toISOString();
 
     // Check if a pipeline job already exists for this URL (from an agent)
@@ -91,6 +103,15 @@ export const analyzeJob = createServerFn({ method: "POST" })
         .set({
           jdText,
           matchScore: analysis.matchScore,
+          atsScore: scoreResult.atsScore,
+          careerScore: scoreResult.careerScore,
+          outlookScore: scoreResult.outlookScore,
+          masterScore: scoreResult.masterScore,
+          atsReason: scoreResult.atsReason,
+          careerReason: scoreResult.careerReason,
+          outlookReason: scoreResult.outlookReason,
+          isUnicorn: scoreResult.isUnicorn ? 1 : 0,
+          unicornReason: scoreResult.unicornReason,
           gapAnalysis: JSON.stringify(analysis.gapAnalysis),
           recommendations: JSON.stringify(analysis.recommendations),
           pursue: analysis.pursue ? 1 : 0,
@@ -122,6 +143,15 @@ export const analyzeJob = createServerFn({ method: "POST" })
           sourceName: cleanedUrl === 'text-input' ? 'Text Input' : 'Manual',
           jdText,
           matchScore: analysis.matchScore,
+          atsScore: scoreResult.atsScore,
+          careerScore: scoreResult.careerScore,
+          outlookScore: scoreResult.outlookScore,
+          masterScore: scoreResult.masterScore,
+          atsReason: scoreResult.atsReason,
+          careerReason: scoreResult.careerReason,
+          outlookReason: scoreResult.outlookReason,
+          isUnicorn: scoreResult.isUnicorn ? 1 : 0,
+          unicornReason: scoreResult.unicornReason,
           gapAnalysis: JSON.stringify(analysis.gapAnalysis),
           recommendations: JSON.stringify(analysis.recommendations),
           pursue: analysis.pursue ? 1 : 0,
@@ -160,5 +190,5 @@ export const analyzeJob = createServerFn({ method: "POST" })
 
     aggregateAnalytics(env, user.id).catch((e) => console.error("[analyzeJob] aggregateAnalytics error:", e));
 
-    return { id: insertedId, ...analysis };
+    return { id: insertedId, ...analysis, ...scoreResult };
   });

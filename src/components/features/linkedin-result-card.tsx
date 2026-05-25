@@ -65,7 +65,6 @@ export type LinkedinResultCardJob = {
   isUnicorn?: number | boolean | null;
   unicornReason?: string | null;
   matchScore?: number | null;
-  gapAnalysis?: string | null;
   documents?: Array<{ id: number; docType: string; r2Key: string; fileName: string }>;
 };
 
@@ -84,12 +83,13 @@ interface LinkedinResultCardProps {
 
 function getScore(job: LinkedinResultCardJob) {
   if (job.score) return job.score;
-  if (
-    job.masterScore == null ||
-    job.atsScore == null ||
-    job.careerScore == null ||
-    job.outlookScore == null
-  ) {
+  const hasAnyScore =
+    job.masterScore != null ||
+    job.atsScore != null ||
+    job.careerScore != null ||
+    job.outlookScore != null;
+
+  if (!hasAnyScore) {
     return null;
   }
 
@@ -102,6 +102,11 @@ function getScore(job: LinkedinResultCardJob) {
     isUnicorn: job.isUnicorn === true || job.isUnicorn === 1,
     unicornReason: job.unicornReason ?? null,
   };
+}
+
+function formatScore(value: number | null | undefined): string {
+  if (value == null) return "N/A";
+  return `${value}%`;
 }
 
 function formatSalary(insights?: InlineInsights | null, listedSalary?: string | null) {
@@ -300,37 +305,67 @@ export function LinkedinResultCard({
 
           {score || job.matchScore != null ? (
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-              {job.matchScore != null && (
-                <div className="rounded-lg border border-emerald-100 bg-emerald-50 px-3 py-2">
-                  <Caption variant="semibold" className="block text-[10px] uppercase tracking-wide text-emerald-600">
-                    Match Score
-                  </Caption>
-                  <Body size="sm" weight="semibold" className="text-emerald-700">
-                    {job.matchScore}%
-                  </Body>
-                </div>
+              {job.sourceName?.toLowerCase() === "manual" ? (
+                <>
+                  {job.matchScore != null && (
+                    <div className="rounded-lg border border-emerald-100 bg-emerald-50 px-3 py-2">
+                      <Caption variant="semibold" className="block text-[10px] uppercase tracking-wide text-emerald-600">
+                        Match Score
+                      </Caption>
+                      <Body size="sm" weight="semibold" className="text-emerald-700">
+                        {formatScore(job.matchScore)}
+                      </Body>
+                    </div>
+                  )}
+                  {["ATS", "Career", "Outlook"].map((label) => (
+                    <div
+                      key={label}
+                      className="rounded-lg border border-slate-200 bg-white px-3 py-2"
+                    >
+                      <Caption variant="semibold" className="block text-[10px] uppercase tracking-wide text-slate-500">
+                        {label}
+                      </Caption>
+                      <Body size="sm" weight="semibold" className="text-slate-800">
+                        N/A
+                      </Body>
+                    </div>
+                  ))}
+                </>
+              ) : (
+                <>
+                  {job.matchScore != null && (
+                    <div className="rounded-lg border border-emerald-100 bg-emerald-50 px-3 py-2">
+                      <Caption variant="semibold" className="block text-[10px] uppercase tracking-wide text-emerald-600">
+                        Match Score
+                      </Caption>
+                      <Body size="sm" weight="semibold" className="text-emerald-700">
+                        {formatScore(job.matchScore)}
+                      </Body>
+                    </div>
+                  )}
+                  {score && [
+                    ["ATS", score.atsScore],
+                    ["Career", score.careerScore],
+                    ["Outlook", score.outlookScore],
+                  ].map(([label, value]) => (
+                    <div
+                      key={label}
+                      className="rounded-lg border border-slate-200 bg-white px-3 py-2"
+                    >
+                      <Caption variant="semibold" className="block text-[10px] uppercase tracking-wide text-slate-500">
+                        {label}
+                      </Caption>
+                      <Body
+                        size="sm"
+                        weight="semibold"
+                        className="text-slate-800"
+                      >
+                        {formatScore(value as number | null)}
+                      </Body>
+                    </div>
+                  ))}
+                </>
               )}
-              {score && [
-                ["ATS", score.atsScore],
-                ["Career", score.careerScore],
-                ["Outlook", score.outlookScore],
-              ].map(([label, value]) => (
-                <div
-                  key={label}
-                  className="rounded-lg border border-slate-200 bg-white px-3 py-2"
-                >
-                  <Caption variant="semibold" className="block text-[10px] uppercase tracking-wide text-slate-500">
-                    {label}
-                  </Caption>
-                  <Body
-                    size="sm"
-                    weight="semibold"
-                    className="text-slate-800"
-                  >
-                    {value}
-                  </Body>
-                </div>
-              ))}
             </div>
           ) : null}
 
@@ -340,38 +375,10 @@ export function LinkedinResultCard({
             </Body>
           ) : null}
           {job.snippet ? (
-            <Body size="sm" className="line-clamp-2 leading-relaxed text-slate-600">
+            <Body size="sm" className="leading-relaxed text-slate-600">
               {job.snippet}
             </Body>
           ) : null}
-          {job.gapAnalysis && (
-            <div className="rounded-lg border border-slate-200 bg-slate-50/50 p-3 space-y-2">
-              <Caption variant="semibold" className="block text-[10px] uppercase tracking-wide text-slate-500">
-                Gap Analysis
-              </Caption>
-              <div className="flex flex-wrap gap-1.5">
-                {JSON.parse(job.gapAnalysis).slice(0, 4).map((gap: any, idx: number) => (
-                  <span
-                    key={idx}
-                    className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium border ${
-                      gap.severity === 'high'
-                        ? 'border-red-200 bg-red-50 text-red-700'
-                        : gap.severity === 'medium'
-                        ? 'border-amber-200 bg-amber-50 text-amber-700'
-                        : 'border-slate-200 bg-slate-100 text-slate-700'
-                    }`}
-                  >
-                    {gap.skill}
-                  </span>
-                ))}
-                {JSON.parse(job.gapAnalysis).length > 4 && (
-                  <span className="text-[10px] text-slate-500 self-center">
-                    +{JSON.parse(job.gapAnalysis).length - 4} more
-                  </span>
-                )}
-              </div>
-            </div>
-          )}
           {job.documents && job.documents.length > 0 && (
             <div className="flex flex-wrap gap-2 pt-2 border-t border-slate-100">
               <Caption variant="semibold" className="w-full text-[10px] uppercase tracking-wide text-slate-500">
