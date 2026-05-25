@@ -5,6 +5,7 @@ import { getDb } from "@/db/db";
 import { analyticsSummary, pipelineJobs } from "@/db/schema";
 import { eq, and, sql } from "drizzle-orm";
 import { resolveSessionUser } from "@/lib/resolve-user";
+import type { PipelineCounts } from "@/lib/pipeline-constants";
 
 export interface AnalyticsSummaryData {
   period: string;
@@ -17,6 +18,7 @@ export interface AnalyticsSummaryData {
   totalResumesGenerated: number;
   totalApplied: number;
   totalPursued: number;
+  pipelineCounts?: PipelineCounts;
   updatedAt: string;
 }
 
@@ -31,6 +33,16 @@ const EMPTY = (period: string): AnalyticsSummaryData => ({
   totalResumesGenerated: 0,
   totalApplied: 0,
   totalPursued: 0,
+  pipelineCounts: {
+    discovered: 0,
+    analyzed: 0,
+    prepped: 0,
+    applied: 0,
+    interviewed: 0,
+    hired: 0,
+    notHired: 0,
+    archived: 0,
+  },
   updatedAt: new Date().toISOString(),
 });
 
@@ -62,6 +74,37 @@ export const getAnalytics = createServerFn({ method: "GET" })
         .where(eq(pipelineJobs.userId, user.id));
       const totalPursued = Number(pursuedResult?.count ?? 0);
 
+      // Get pipeline counts by status
+      const statusCounts = await db
+        .select({
+          status: pipelineJobs.status,
+          count: sql<number>`count(*)`,
+        })
+        .from(pipelineJobs)
+        .where(eq(pipelineJobs.userId, user.id))
+        .groupBy(pipelineJobs.status);
+
+      const pipelineCounts: PipelineCounts = {
+        discovered: 0,
+        analyzed: 0,
+        prepped: 0,
+        applied: 0,
+        interviewed: 0,
+        hired: 0,
+        notHired: 0,
+        archived: 0,
+      };
+
+      statusCounts.forEach((row) => {
+        const status = row.status;
+        if (status === 'Not Hired') {
+          pipelineCounts.notHired = Number(row.count ?? 0);
+        } else if (status && status in pipelineCounts) {
+          const key = status.charAt(0).toLowerCase() + status.slice(1) as keyof PipelineCounts;
+          pipelineCounts[key] = Number(row.count ?? 0);
+        }
+      });
+
       return {
         period: row.period,
         topJdKeywords: JSON.parse(row.topJdKeywords ?? "[]"),
@@ -73,6 +116,7 @@ export const getAnalytics = createServerFn({ method: "GET" })
         totalResumesGenerated: row.totalResumesGenerated ?? 0,
         totalApplied: row.totalApplied ?? 0,
         totalPursued,
+        pipelineCounts,
         updatedAt: row.updatedAt ?? "",
       };
     } catch (error) {
