@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { useState } from "react";
 import { promoteToAdmin } from "@/server/functions/auth";
 
@@ -7,6 +7,7 @@ export const Route = createFileRoute("/admin-setup")({
 });
 
 function AdminSetup() {
+  const router = useRouter();
   const [email, setEmail] = useState("");
   const [token, setToken] = useState("");
   const [message, setMessage] = useState("");
@@ -18,12 +19,13 @@ function AdminSetup() {
     setLoading(true);
 
     try {
-      const result = await promoteToAdmin({ email, token });
-      setMessage(`✓ User ${email} promoted to admin`);
+      const result = await promoteToAdmin({ data: { email, token } });
+      await router.invalidate();
+      setMessage(`User ${result.email} promoted to admin`);
       setEmail("");
       setToken("");
     } catch (err) {
-      setMessage(`✗ ${err instanceof Error ? err.message : "Failed to promote user"}`);
+      setMessage(err instanceof Error ? err.message : "Failed to promote user");
     } finally {
       setLoading(false);
     }
@@ -63,7 +65,7 @@ function AdminSetup() {
           </div>
 
           {message && (
-            <div className={`rounded-lg p-3 text-sm ${message.startsWith("✓") ? "bg-green-500/10 text-green-700" : "bg-destructive/10 text-destructive"}`}>
+            <div className={`rounded-lg p-3 text-sm ${message.includes("promoted to admin") ? "bg-green-500/10 text-green-700" : "bg-destructive/10 text-destructive"}`}>
               {message}
             </div>
           )}

@@ -23,7 +23,7 @@ export default function Header({ user }: HeaderProps) {
     let cancelled = false;
     (async () => {
       try {
-        const fresh = await getSessionUser({});
+        const fresh = await getSessionUser();
         if (!cancelled) setResolvedUser(fresh);
       } catch {
         // Keep server-provided route context if refresh fails.
