@@ -411,6 +411,20 @@ export const Route = createFileRoute("/api/linkedin/search")({
             platform: sources.join(", "),
             message: `Manual search started with keywords: "${params.keywords}"`,
             level: "info",
+            metadata: {
+              keywords: params.keywords,
+              location: params.location || "Any Location",
+              region: params.region || "US",
+              postedWithin: params.postedWithin || "any",
+              sortBy: params.sortBy || "recent",
+              pagesToScan: params.pagesToScan || 1,
+              limit: params.limit || 10,
+              easyApply: params.easyApply ? "Yes" : "No",
+              workplaceTypes: params.workplaceTypes?.length ? params.workplaceTypes.join(", ") : "All Types",
+              experienceLevels: params.experienceLevels?.length ? params.experienceLevels.join(", ") : "All Levels",
+              jobTypes: params.jobTypes?.length ? params.jobTypes.join(", ") : "All Types",
+              selectedSources: sources.join(", "),
+            }
           });
 
           stage = "loading-resume";
@@ -498,7 +512,12 @@ export const Route = createFileRoute("/api/linkedin/search")({
               platform: sources.filter((s) => s !== "linkedin").join(", "),
               message: `ATS search completed: found ${atsJobs.length} matching jobs in cache`,
               level: "info",
-              metadata: { count: atsJobs.length },
+              metadata: {
+                keywords: params.keywords,
+                location: params.location || "Any Location",
+                count: atsJobs.length,
+                atsSources: sources.filter((s) => s !== "linkedin").join(", "),
+              },
             });
           }
           
@@ -512,7 +531,15 @@ export const Route = createFileRoute("/api/linkedin/search")({
               platform: sources.join(", "),
               message: "Manual search completed: 0 jobs found.",
               level: "info",
-              metadata: { keywords: params.keywords },
+              metadata: {
+                keywords: params.keywords,
+                location: params.location || "Any Location",
+                platformSources: sources.join(", "),
+                totalJobsFound: 0,
+                newJobsScored: 0,
+                reusedJobsCount: 0,
+                searchUrl,
+              },
             });
 
             return json({
@@ -582,7 +609,15 @@ export const Route = createFileRoute("/api/linkedin/search")({
               platform: sources.join(", "),
               message: `Manual search completed: found ${jobs.length} jobs (0 new scored, ${reusedCount} reused)`,
               level: "success",
-              metadata: { keywords: params.keywords, totalFound: jobs.length, scored: 0, reused: reusedCount },
+              metadata: {
+                keywords: params.keywords,
+                location: params.location || "Any Location",
+                platformSources: sources.join(", "),
+                totalJobsFound: jobs.length,
+                newJobsScored: 0,
+                reusedJobsCount: reusedCount,
+                searchUrl,
+              },
             });
 
             return json({
@@ -656,7 +691,15 @@ export const Route = createFileRoute("/api/linkedin/search")({
             platform: sources.join(", "),
             message: `Manual search completed: found ${jobs.length} jobs (${scoredJobs.length} new scored, ${reusedCount} reused)`,
             level: "success",
-            metadata: { keywords: params.keywords, totalFound: jobs.length, scored: scoredJobs.length, reused: reusedCount },
+            metadata: {
+              keywords: params.keywords,
+              location: params.location || "Any Location",
+              platformSources: sources.join(", "),
+              totalJobsFound: jobs.length,
+              newJobsScored: scoredJobs.length,
+              reusedJobsCount: reusedCount,
+              searchUrl,
+            },
           });
 
           return json({

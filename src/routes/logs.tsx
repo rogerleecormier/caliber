@@ -224,14 +224,6 @@ function LogsPage() {
         actions={
           <div className="flex items-center gap-2">
             <button
-              onClick={handleRefresh}
-              disabled={isPending}
-              className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white/80 px-3 py-2 text-sm font-semibold text-slate-700 transition hover:bg-white disabled:opacity-50"
-            >
-              <RefreshCw className={`h-4 w-4 ${isPending ? "animate-spin" : ""}`} />
-              {isPending ? "Refreshing..." : "Refresh"}
-            </button>
-            <button
               onClick={handleExportCsv}
               disabled={rows.length === 0}
               className="inline-flex items-center gap-2 rounded-lg bg-amber-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-amber-700 disabled:opacity-50"

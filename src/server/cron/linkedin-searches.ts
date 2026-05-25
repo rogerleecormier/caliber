@@ -295,6 +295,8 @@ export async function runLinkedinSearchMaintenance(env: CloudflareEnv) {
         sourcesList = ['linkedin'];
       }
 
+      const criteria = normalizeLinkedInSearchParams(JSON.parse(search.criteria) as LinkedInSearchParams);
+
       await logSearchEvent({
         userId: search.userId,
         savedSearchId: search.id,
@@ -303,10 +305,18 @@ export async function runLinkedinSearchMaintenance(env: CloudflareEnv) {
         agentName: search.name,
         message: `Cron agent "${search.name}" triggered background search.`,
         level: "info",
+        metadata: {
+          agentName: search.name,
+          keywords: criteria.keywords,
+          location: criteria.location || "Any Location",
+          postedWithin: criteria.postedWithin || "any",
+          sortBy: criteria.sortBy || "recent",
+          easyApply: criteria.easyApply ? "Yes" : "No",
+          selectedSources: sourcesList.join(", "),
+        }
       });
 
       try {
-        const criteria = normalizeLinkedInSearchParams(JSON.parse(search.criteria) as LinkedInSearchParams);
         const searchUrl = buildLinkedInSearchUrl(criteria);
 
         // Scrape LinkedIn if enabled
@@ -340,7 +350,13 @@ export async function runLinkedinSearchMaintenance(env: CloudflareEnv) {
             agentName: search.name,
             message: `Cron agent "${search.name}" completed ATS check: found ${atsJobs.length} jobs in cache`,
             level: "info",
-            metadata: { count: atsJobs.length },
+            metadata: {
+              agentName: search.name,
+              keywords: criteria.keywords,
+              location: criteria.location || "Any Location",
+              count: atsJobs.length,
+              atsSources: sourcesList.filter(s => s !== "linkedin").join(", "),
+            },
           });
         }
 
@@ -414,7 +430,16 @@ export async function runLinkedinSearchMaintenance(env: CloudflareEnv) {
             agentName: search.name,
             message: `Cron agent "${search.name}" completed: 0 new jobs found (${reusedCount} reused/skipped)`,
             level: "info",
-            metadata: { agentName: search.name, total: initialCount, newJobs: 0, reused: reusedCount },
+            metadata: {
+              agentName: search.name,
+              keywords: criteria.keywords,
+              location: criteria.location || "Any Location",
+              platformSources: sourcesList.join(", "),
+              totalJobsFound: initialCount,
+              newJobsScored: 0,
+              reusedJobsCount: reusedCount,
+              searchUrl,
+            },
           });
           continue;
         }
@@ -503,7 +528,16 @@ export async function runLinkedinSearchMaintenance(env: CloudflareEnv) {
           agentName: search.name,
           message: `Cron agent "${search.name}" completed: found ${initialCount} jobs (${scoredJobs.length} new scored, ${reusedCount} reused/skipped)`,
           level: "success",
-          metadata: { agentName: search.name, total: initialCount, newJobs: scoredJobs.length, reused: reusedCount },
+          metadata: {
+            agentName: search.name,
+            keywords: criteria.keywords,
+            location: criteria.location || "Any Location",
+            platformSources: sourcesList.join(", "),
+            totalJobsFound: initialCount,
+            newJobsScored: scoredJobs.length,
+            reusedJobsCount: reusedCount,
+            searchUrl,
+          },
         });
       } catch (err) {
         console.error(`Cron agent ${search.name} error:`, err);
