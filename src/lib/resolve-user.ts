@@ -75,24 +75,40 @@ async function resolveRole(
  * Returns null if not authenticated or if bindings are unavailable.
  */
 export async function resolveSessionUser(): Promise<SessionUser | null> {
+  let request: ReturnType<typeof getRequest> | null = null;
+
   try {
     const env = getCloudflareEnv();
-    const auth = getAuthInstance(env);
-    const request = getRequest();
 
-    const session = await auth.api.getSession({
-      headers: request.headers,
-    });
-
-    if (session?.user) {
-      const { id, email, role } = session.user as { id: string; email: string; role?: string | null };
-      const resolvedRole = await resolveRole(id, email, role);
-      return { id, email, role: resolvedRole };
+    try {
+      request = getRequest();
+    } catch {
+      // request context unavailable — skip to DB fallback
     }
 
-    // Fallback for intermittent getSession null results during client navigation:
-    // use the session token cookie directly against the auth session table.
-    if (env.DB) {
+    // Primary path: better-auth getSession.
+    // Isolated in its own try-catch so a throw here still reaches the DB fallback below.
+    if (request) {
+      try {
+        const auth = getAuthInstance(env);
+        const session = await auth.api.getSession({
+          headers: request.headers,
+        });
+
+        if (session?.user) {
+          const { id, email, role } = session.user as { id: string; email: string; role?: string | null };
+          const resolvedRole = await resolveRole(id, email, role);
+          return { id, email, role: resolvedRole };
+        }
+      } catch (sessionError) {
+        console.error("[resolveSessionUser] getSession error:", sessionError);
+        // fall through to DB fallback
+      }
+    }
+
+    // Fallback: read the session token cookie directly against the session table.
+    // Handles both intermittent getSession null returns and getSession exceptions.
+    if (env.DB && request) {
       const cookieHeader = request.headers.get("cookie") ?? "";
       const sessionToken = readCookieValue(cookieHeader, AUTH_COOKIE_CANDIDATES);
       if (!sessionToken) return null;
