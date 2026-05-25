@@ -1,7 +1,7 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Button, Textarea } from "@caliber/ui-kit";
 import { FileText, Mail, Loader2, Download, RefreshCw, Wand2 } from "lucide-react";
-import { useState } from "react";
+import { useState, cloneElement } from "react";
 import { generateResume } from "@/server/functions/generate-resume";
 import { generateCoverLetter } from "@/server/functions/generate-cover-letter";
 import { getDocumentDownload, getDocumentsForAnalysis } from "@/server/functions/get-history";
@@ -148,7 +148,7 @@ export function DocumentActions({ analysisId, applied = false }: DocumentActions
 }
 
 interface DocPanelProps {
-  icon: React.ReactNode;
+  icon: React.ReactElement;
   iconBg: string;
   label: string;
   result: DocResult | null;
@@ -226,7 +226,11 @@ function DocPanel({
             className="w-full"
             variant={buttonVariant}
           >
-            {generating ? <Loader2 className="animate-spin h-3.5 w-3.5" /> : icon}
+            {generating ? (
+              <Loader2 className="animate-spin h-3.5 w-3.5" />
+            ) : (
+              cloneElement(icon, { className: "h-4 w-4" })
+            )}
             {generating ? "Creating…" : generateLabel}
           </Button>
         )}
