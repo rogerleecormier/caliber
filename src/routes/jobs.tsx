@@ -443,7 +443,7 @@ function JobsPage() {
               </div>
               <div className="text-sm font-semibold text-slate-700">{localTotal} total</div>
             </div>
-            <div className="grid gap-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-8">
+            <div className="grid gap-2 grid-cols-2 sm:grid-cols-4">
               {pipeline.map(({ status, count, percent }) => (
                 <button
                   key={status}
@@ -605,7 +605,7 @@ function JobsPage() {
           )}
 
           {/* Job cards */}
-          <div className="grid gap-4 grid-cols-4">
+          <div className="grid gap-4 grid-cols-2 lg:grid-cols-3">
             {jobs.map((job) => (
               <LinkedinResultCard
                 key={job.id ?? job.sourceUrl}

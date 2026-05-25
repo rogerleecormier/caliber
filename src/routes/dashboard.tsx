@@ -175,25 +175,6 @@ function DashboardPage() {
               <RateBar label="Avg match score" value={data.averageMatchScore} count={null} color="bg-primary" />
             </div>
 
-            {/* Pipeline grid */}
-            <div className="rounded-xl border border-slate-200 bg-white p-5 space-y-5">
-              <div>
-                <h3 className="text-sm font-semibold text-slate-900">Pipeline status</h3>
-                <p className="mt-0.5 text-xs text-slate-500">Jobs across each stage of your pipeline</p>
-              </div>
-              <div className="grid grid-cols-4 gap-3">
-                {/* Row 1 */}
-                <PipelineStageCard label="Discovered" count={data.pipelineCounts?.discovered ?? 0} color="bg-amber-400" />
-                <PipelineStageCard label="Analyzed" count={data.pipelineCounts?.analyzed ?? 0} color="bg-slate-500" />
-                <PipelineStageCard label="Prepped" count={data.pipelineCounts?.prepped ?? 0} color="bg-violet-500" />
-                <PipelineStageCard label="Applied" count={data.pipelineCounts?.applied ?? 0} color="bg-emerald-500" />
-                {/* Row 2 */}
-                <PipelineStageCard label="Interviewed" count={data.pipelineCounts?.interviewed ?? 0} color="bg-sky-500" />
-                <PipelineStageCard label="Hired" count={data.pipelineCounts?.hired ?? 0} color="bg-emerald-600" />
-                <PipelineStageCard label="Not Hired" count={data.pipelineCounts?.notHired ?? 0} color="bg-slate-400" />
-                <PipelineStageCard label="Archived" count={data.pipelineCounts?.archived ?? 0} color="bg-slate-300" />
-              </div>
-            </div>
 
             {/* What stands out — full width */}
             <div className="md:col-span-2 rounded-xl border border-slate-200 bg-slate-50 p-5">
@@ -367,18 +348,6 @@ function FunnelStep({ label, count, total, color }: { label: string; count: numb
       </div>
       <div className="w-16 shrink-0 text-right text-xs font-semibold text-slate-700">
         {count} <span className="font-normal text-slate-400">({pct}%)</span>
-      </div>
-    </div>
-  );
-}
-
-function PipelineStageCard({ label, count, color }: { label: string; count: number; color: string }) {
-  return (
-    <div className="flex flex-col items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 p-3">
-      <div className={`h-8 w-8 rounded-full ${color}`} />
-      <div className="text-center">
-        <div className="text-xs font-medium text-slate-600">{label}</div>
-        <div className="text-lg font-semibold text-slate-900">{count}</div>
       </div>
     </div>
   );
