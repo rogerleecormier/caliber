@@ -604,12 +604,12 @@ export function AppHeader({
 
               const linkContent = (
                 <div
-                  className={`flex flex-col items-center gap-1 py-1 transition-all duration-300 ${
+                  className={`flex flex-col items-center text-center gap-1 py-1 w-full transition-all duration-300 ${
                     active ? "text-primary-600 scale-105" : "text-slate-500 active:scale-95"
                   }`}
                 >
                   <div
-                    className={`relative p-1.5 rounded-xl transition-all duration-300 ${
+                    className={`flex items-center justify-center relative p-1.5 rounded-xl transition-all duration-300 ${
                       active ? "bg-primary-50 text-primary-600" : "active:bg-slate-100/50"
                     }`}
                   >
@@ -619,7 +619,7 @@ export function AppHeader({
                     )}
                   </div>
                   <span
-                    className={`text-[10px] font-semibold tracking-wide transition-colors duration-300 ${
+                    className={`text-[10px] font-semibold tracking-wide text-center leading-tight transition-colors duration-300 break-words w-full ${
                       active ? "text-primary-700" : "text-slate-500"
                     }`}
                   >
