@@ -5,6 +5,7 @@ import { getRequest } from "@tanstack/react-start/server";
 import { getDb } from "@/db/db";
 import { session as authSession, user, users } from "@/db/schema";
 import { and, eq, gt } from "drizzle-orm";
+import { runWithRequestState } from "../../node_modules/better-auth/node_modules/@better-auth/core/dist/context/index.mjs";
 
 export type { SessionUser };
 
@@ -80,8 +81,10 @@ export async function resolveSessionUser(): Promise<SessionUser | null> {
     const auth = getAuthInstance(env);
     const request = getRequest();
 
-    const session = await auth.api.getSession({
-      headers: request.headers,
+    const session = await runWithRequestState(new WeakMap(), async () => {
+      return auth.api.getSession({
+        headers: request.headers,
+      });
     });
 
     if (session?.user) {
