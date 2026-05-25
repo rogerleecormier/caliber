@@ -481,6 +481,12 @@ export function AppHeader({
     },
   ];
 
+  const mobileNavLinks = useMemo(() => {
+    return jobsEntries.filter(
+      (entry): entry is MenuLinkItem => entry.type === "link" && entry.appScope === "jobs"
+    );
+  }, [jobsEntries]);
+
   function renderMenuEntries(entries: MenuEntry[]) {
     return entries.map((entry) => {
       if (entry.type === "separator") {
@@ -537,50 +543,117 @@ export function AppHeader({
   );
 
   return (
-    <Header logo={logo}>
-      <SharedDropdownMenu
-        label="Jobs"
-        icon={Briefcase}
-        active={isOnJobs}
-        panelClass={styles.menuPanelJobs}
-        entries={renderMenuEntries(jobsEntries)}
-      />
+    <>
+      <Header logo={logo}>
+        <div className="hidden md:block">
+          <SharedDropdownMenu
+            label="Jobs"
+            icon={Briefcase}
+            active={isOnJobs}
+            panelClass={styles.menuPanelJobs}
+            entries={renderMenuEntries(jobsEntries)}
+          />
+        </div>
 
-      {isDev ? (
-        <SharedDropdownMenu
-          label="Dev"
-          icon={Layers}
-          panelClass={styles.menuPanelDev}
-          align="end"
-          entries={renderMenuEntries(devEntries)}
-        />
-      ) : null}
-
-      {resolvedUser ? (
-        <DropdownMenu modal={false}>
-          <DropdownMenuTrigger asChild>
-            <button className={`spx-nav-trigger spx-nav-trigger-idle ${styles.triggerUserMenu}`}>
-              <User size={14} className="shrink-0" />
-              <span className="truncate text-sm">{resolvedUser.email}</span>
-              <ChevronDown size={12} className="shrink-0 opacity-50" />
-            </button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent
+        {isDev ? (
+          <SharedDropdownMenu
+            label="Dev"
+            icon={Layers}
+            panelClass={styles.menuPanelDev}
             align="end"
-            sideOffset={8}
-            className={`spx-menu-panel ${styles.menuPanelUser}`}
-          >
-            {renderMenuEntries(userEntries)}
-          </DropdownMenuContent>
-        </DropdownMenu>
-      ) : (
-        <a href={loginHref} className="spx-nav-trigger spx-nav-trigger-idle">
-          <LogIn size={14} />
-          Sign In
-        </a>
-      )}
+            entries={renderMenuEntries(devEntries)}
+          />
+        ) : null}
 
-      {extraNav}
-    </Header>
+        {resolvedUser ? (
+          <DropdownMenu modal={false}>
+            <DropdownMenuTrigger asChild>
+              <button className={`spx-nav-trigger spx-nav-trigger-idle ${styles.triggerUserMenu}`}>
+                <User size={14} className="shrink-0" />
+                <span className="truncate text-sm">{resolvedUser.email}</span>
+                <ChevronDown size={12} className="shrink-0 opacity-50" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent
+              align="end"
+              sideOffset={8}
+              className={`spx-menu-panel ${styles.menuPanelUser}`}
+            >
+              {renderMenuEntries(userEntries)}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        ) : (
+          <a href={loginHref} className="spx-nav-trigger spx-nav-trigger-idle">
+            <LogIn size={14} />
+            Sign In
+          </a>
+        )}
+
+        {extraNav}
+      </Header>
+
+      {app === "jobs" && (
+        <div className="fixed bottom-0 left-0 right-0 z-50 border-t border-slate-200/80 bg-white/88 backdrop-blur-xl px-4 pb-[calc(env(safe-area-inset-bottom,16px)+12px)] pt-3 md:hidden shadow-[0_-4px_24px_rgba(15,23,42,0.06)]">
+          <div className="mx-auto flex max-w-md items-center justify-around">
+            {mobileNavLinks.map((item) => {
+              const Icon = item.icon;
+              const active =
+                item.appScope === app &&
+                typeof item.path === "string" &&
+                isActivePath(currentPath, item.path);
+
+              const linkContent = (
+                <div
+                  className={`flex flex-col items-center gap-1 py-1 transition-all duration-300 ${
+                    active ? "text-primary-600 scale-105" : "text-slate-500 active:scale-95"
+                  }`}
+                >
+                  <div
+                    className={`relative p-1.5 rounded-xl transition-all duration-300 ${
+                      active ? "bg-primary-50 text-primary-600" : "active:bg-slate-100/50"
+                    }`}
+                  >
+                    <Icon size={20} className={active ? "scale-110" : ""} />
+                    {active && (
+                      <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-primary-600 animate-pulse" />
+                    )}
+                  </div>
+                  <span
+                    className={`text-[10px] font-semibold tracking-wide transition-colors duration-300 ${
+                      active ? "text-primary-700" : "text-slate-500"
+                    }`}
+                  >
+                    {item.label}
+                  </span>
+                </div>
+              );
+
+              const canUseLink = Boolean(Link && item.appScope === app && item.path);
+
+              if (canUseLink) {
+                return (
+                  <Link
+                    key={item.key}
+                    to={item.path}
+                    className="flex-1 flex justify-center outline-none select-none"
+                  >
+                    {linkContent}
+                  </Link>
+                );
+              }
+              return (
+                <a
+                  key={item.key}
+                  href={item.href}
+                  className="flex-1 flex justify-center outline-none select-none"
+                >
+                  {linkContent}
+                </a>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </>
   );
 }

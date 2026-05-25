@@ -52,7 +52,7 @@ function RootDocument({ children }: { children: React.ReactNode }) {
         <QueryClientProvider client={queryClient}>
           <TooltipProvider>
             <Header user={user} />
-            <main className="spx-app-frame">{children}</main>
+            <main className="spx-app-frame pb-28 md:pb-0">{children}</main>
           </TooltipProvider>
         </QueryClientProvider>
         <Scripts />
