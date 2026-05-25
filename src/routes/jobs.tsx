@@ -28,6 +28,7 @@ import {
 } from "@/components/features/job-result-card";
 import { LinkedinSearchDrawer } from "@/components/features/linkedin-search-drawer";
 import { AnalysisModal } from "@/components/features/analysis-modal";
+import type { AnalysisData } from "@/components/features/analysis-form";
 import { JobTableView } from "@/components/features/job-table-view";
 import { getResume } from "@/server/functions/manage-resume";
 import {
@@ -353,6 +354,18 @@ function JobsPage() {
     }
 
     setAnalysisModalOpen(true);
+  }
+
+  function handleAnalysisComplete(analysis: AnalysisData) {
+    if (selectedJobForAnalysis && selectedJobForAnalysis.id) {
+      setJobs((prev) =>
+        prev.map((job) =>
+          job.id === selectedJobForAnalysis.id
+            ? { ...job, status: "Analyzed" as const }
+            : job
+        )
+      );
+    }
   }
 
   function closeAnalysisModal() {
@@ -775,6 +788,8 @@ function JobsPage() {
           onClose={closeAnalysisModal}
           isFromExistingJob
           storedAnalysis={storedAnalysis}
+          pipelineJobId={selectedJobForAnalysis.id}
+          onAnalysisComplete={handleAnalysisComplete}
         />
       )}
 

@@ -10,6 +10,8 @@ interface AnalysisModalProps {
   onClose: () => void;
   isFromExistingJob?: boolean;
   storedAnalysis?: AnalysisData | null;
+  pipelineJobId?: number;
+  onAnalysisComplete?: (analysis: AnalysisData) => void;
 }
 
 export function AnalysisModal({
@@ -19,6 +21,8 @@ export function AnalysisModal({
   onClose,
   isFromExistingJob = false,
   storedAnalysis = null,
+  pipelineJobId,
+  onAnalysisComplete,
 }: AnalysisModalProps) {
   if (!isOpen) return null;
 
@@ -44,7 +48,12 @@ export function AnalysisModal({
           {isViewingStored && storedAnalysis ? (
             <AnalysisResult analysis={storedAnalysis} />
           ) : (
-            <AnalysisForm initialUrl={jobUrl} hideInputModeToggle={isFromExistingJob} />
+            <AnalysisForm
+              initialUrl={jobUrl}
+              hideInputModeToggle={isFromExistingJob}
+              pipelineJobId={pipelineJobId}
+              onAnalysisComplete={onAnalysisComplete}
+            />
           )}
         </div>
       </div>
