@@ -365,6 +365,8 @@ function JobsPage() {
             : job
         )
       );
+      // Don't invalidate router to avoid showing unfiltered total count
+      // The data is already updated locally
     }
   }
 

@@ -2,7 +2,6 @@ import { useState, useEffect, useRef } from "react";
 import { Button, Input, Textarea } from "@caliber/ui-kit";
 import { Search, Loader2, RotateCcw, Link2, FileText } from "lucide-react";
 import { analyzeJob } from "@/server/functions/analyze-job";
-import { useRouter } from "@tanstack/react-router";
 import { AnalysisResult } from "./analysis-result";
 import { DocumentActions } from "./document-actions";
 
@@ -24,7 +23,6 @@ export function AnalysisForm({
   pipelineJobId,
   onAnalysisComplete,
 }: AnalysisFormProps = {}) {
-  const router = useRouter();
   const [mode, setMode] = useState<InputMode>(initialJd ? "text" : "url");
   const [url, setUrl] = useState(initialUrl ?? "");
   const [jdText, setJdText] = useState(initialJd ?? "");
@@ -61,9 +59,6 @@ export function AnalysisForm({
       setResult(data);
       if (onAnalysisComplete) {
         onAnalysisComplete(data);
-      }
-      if (pipelineJobId) {
-        await router.invalidate();
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Analysis failed");
