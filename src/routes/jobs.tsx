@@ -147,7 +147,7 @@ function JobsPage() {
   const [viewMode, setViewMode] = useState<ViewMode>("cards");
   const [analysisModalOpen, setAnalysisModalOpen] = useState(false);
   const [selectedJobForAnalysis, setSelectedJobForAnalysis] = useState<HubJob | null>(null);
-  const [analyzedJobIds, setAnalyzedJobIds] = useState<Set<number>>(new Set());
+  const [storedAnalysis, setStoredAnalysis] = useState<any>(null);
   const didMount = useRef(false);
 
   const totalPages = Math.ceil(localTotal / PAGE_SIZE);
@@ -323,16 +323,42 @@ function JobsPage() {
 
   function openAnalysisModal(job: HubJob) {
     setSelectedJobForAnalysis(job);
+    setStoredAnalysis(null);
+
+    // If job is already analyzed, extract the analysis data from the job object
+    if (job.status === "Analyzed") {
+      const analysis = {
+        id: job.id,
+        jobTitle: job.title,
+        company: job.company,
+        industry: job.industry ?? undefined,
+        location: job.location ?? undefined,
+        matchScore: job.matchScore ?? 0,
+        pursueJustification: job.pursueJustification ?? "No justification provided",
+        gapAnalysis: job.gapAnalysis ? (typeof job.gapAnalysis === "string" ? JSON.parse(job.gapAnalysis) : job.gapAnalysis) : [],
+        recommendations: job.recommendations ? (typeof job.recommendations === "string" ? JSON.parse(job.recommendations) : job.recommendations) : [],
+        keywords: job.keywords ? (typeof job.keywords === "string" ? JSON.parse(job.keywords) : job.keywords) : [],
+        pursue: job.pursue === 1,
+        strategyNote: job.strategyNote ?? "",
+        personalInterest: job.personalInterest ?? "",
+        careerAnalysis: job.careerAnalysis ? (typeof job.careerAnalysis === "string" ? JSON.parse(job.careerAnalysis) : job.careerAnalysis) : null,
+        insights: job.insights ? (typeof job.insights === "string" ? JSON.parse(job.insights) : job.insights) : null,
+        applied: false,
+        appliedAt: null,
+        jobUrl: job.sourceUrl,
+        jdText: job.jdText,
+        createdAt: job.analyzedAt ?? job.createdAt,
+      };
+      setStoredAnalysis(analysis);
+    }
+
     setAnalysisModalOpen(true);
   }
 
   function closeAnalysisModal() {
     setAnalysisModalOpen(false);
     setSelectedJobForAnalysis(null);
-  }
-
-  function markJobAsAnalyzed(jobId: number) {
-    setAnalyzedJobIds((prev) => new Set([...prev, jobId]));
+    setStoredAnalysis(null);
   }
 
   // ─── Render ───────────────────────────────────────────────────────────────
@@ -735,12 +761,8 @@ function JobsPage() {
           jobTitle={selectedJobForAnalysis.title}
           jobUrl={selectedJobForAnalysis.sourceUrl}
           onClose={closeAnalysisModal}
-          onAnalysisComplete={() => {
-            if (selectedJobForAnalysis.id) {
-              markJobAsAnalyzed(selectedJobForAnalysis.id);
-            }
-          }}
           isFromExistingJob
+          storedAnalysis={storedAnalysis}
         />
       )}
 

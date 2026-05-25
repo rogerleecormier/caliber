@@ -5,7 +5,7 @@ import { analyzeJob } from "@/server/functions/analyze-job";
 import { AnalysisResult } from "./analysis-result";
 import { DocumentActions } from "./document-actions";
 
-type AnalysisData = Awaited<ReturnType<typeof analyzeJob>>;
+export type AnalysisData = Awaited<ReturnType<typeof analyzeJob>>;
 type InputMode = "url" | "text";
 
 interface AnalysisFormProps {
