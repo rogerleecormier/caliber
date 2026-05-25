@@ -25,18 +25,27 @@ export async function cleanupNonUSJobs(db: DrizzleD1Database): Promise<{ deleted
   let deletedLinkedin = 0
   let deletedPipeline = 0
 
+  // Delete in batches to avoid hitting query parameter limits
+  const batchSize = 30
+
   if (nonUSLinkedinIds.length > 0) {
-    const result = await db
-      .delete(linkedinJobResults)
-      .where(sql`id IN (${sql.join(nonUSLinkedinIds, sql`,`)})`)
-    deletedLinkedin = nonUSLinkedinIds.length
+    for (let i = 0; i < nonUSLinkedinIds.length; i += batchSize) {
+      const batch = nonUSLinkedinIds.slice(i, i + batchSize)
+      await db
+        .delete(linkedinJobResults)
+        .where(sql`id IN (${sql.join(batch, sql`,`)})`)
+      deletedLinkedin += batch.length
+    }
   }
 
   if (nonUSPipelineIds.length > 0) {
-    const result = await db
-      .delete(pipelineJobs)
-      .where(sql`id IN (${sql.join(nonUSPipelineIds, sql`,`)})`)
-    deletedPipeline = nonUSPipelineIds.length
+    for (let i = 0; i < nonUSPipelineIds.length; i += batchSize) {
+      const batch = nonUSPipelineIds.slice(i, i + batchSize)
+      await db
+        .delete(pipelineJobs)
+        .where(sql`id IN (${sql.join(batch, sql`,`)})`)
+      deletedPipeline += batch.length
+    }
   }
 
   return { deletedLinkedin, deletedPipeline }

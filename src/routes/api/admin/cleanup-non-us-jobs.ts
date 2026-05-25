@@ -9,7 +9,25 @@ export const Route = createFileRoute("/api/admin/cleanup-non-us-jobs")({
       POST: async ({ context }) => {
         try {
           const ctx = context as any
-          const db = await getDbFromContext(ctx)
+          let db;
+          try {
+            db = await getDbFromContext(ctx)
+          } catch (dbError) {
+            const dbErrorMsg = dbError instanceof Error ? dbError.message : String(dbError)
+            console.error('[Cleanup Non-US Jobs] DB connection failed:', dbErrorMsg)
+            return json({
+              success: false,
+              error: `Database connection failed: ${dbErrorMsg}`,
+            }, { status: 500 })
+          }
+
+          if (!db) {
+            return json({
+              success: false,
+              error: 'Database instance is null or undefined',
+            }, { status: 500 })
+          }
+
           const result = await cleanupNonUSJobs(db)
           return json({
             success: true,
@@ -17,6 +35,7 @@ export const Route = createFileRoute("/api/admin/cleanup-non-us-jobs")({
             ...result,
           })
         } catch (error) {
+          console.error('[Cleanup Non-US Jobs] Error:', error)
           return json(
             {
               success: false,
