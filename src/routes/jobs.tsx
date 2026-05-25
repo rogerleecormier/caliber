@@ -27,13 +27,13 @@ import {
 import { LinkedinSearchDrawer } from "@/components/features/linkedin-search-drawer";
 import { getResume } from "@/server/functions/manage-resume";
 import {
-  archiveLinkedinJobs,
-  deleteLinkedinJobs,
-  getLinkedinCronInfo,
-  getLinkedinJobHistory,
-  getSavedLinkedinSearches,
-  setLinkedinJobStatus,
-} from "@/server/functions/linkedin-searches";
+  archivePipelineJobs,
+  deletePipelineJobs,
+  getPipelineCronInfo,
+  getPipelineJobHistory,
+  getSavedPipelineSearches,
+  setPipelineJobStatus,
+} from "@/server/functions/jobs-pipeline";
 import type { LinkedInScrapedJob } from "@/lib/linkedin-search";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -49,7 +49,7 @@ type JobSearchParams = {
   status: string;
 };
 
-type HubJob = Awaited<ReturnType<typeof getLinkedinJobHistory>>["rows"][number] & {
+type HubJob = Awaited<ReturnType<typeof getPipelineJobHistory>>["rows"][number] & {
   isNew?: boolean;
 };
 
@@ -96,9 +96,9 @@ export const Route = createFileRoute("/jobs")({
   loader: async ({ deps }: { deps: JobSearchParams }) => {
     const [resume, savedSearches, history, cronInfo] = await Promise.all([
       getResume(),
-      getSavedLinkedinSearches(),
-      getLinkedinJobHistory({ data: { ...deps, pageSize: PAGE_SIZE } }),
-      getLinkedinCronInfo(),
+      getSavedPipelineSearches(),
+      getPipelineJobHistory({ data: { ...deps, pageSize: PAGE_SIZE } }),
+      getPipelineCronInfo(),
     ]);
     return {
       hasResume: !!resume?.rawText,
@@ -174,7 +174,7 @@ function JobsPage() {
 
     const interval = setInterval(async () => {
       try {
-        const check = await getLinkedinJobHistory({ data: { page: 1, pageSize: 1 } });
+        const check = await getPipelineJobHistory({ data: { page: 1, pageSize: 1 } });
         if (check.total > localTotal) {
           setCronNewCount(check.total - localTotal);
         }
@@ -218,7 +218,7 @@ function JobsPage() {
     setPendingStatusId(id);
     setJobs((prev) => prev.map((job) => (job.id === id ? { ...job, status } : job)));
     try {
-      await setLinkedinJobStatus({ data: { id, status } });
+      await setPipelineJobStatus({ data: { id, status } });
       await router.invalidate();
     } catch (error) {
       setJobs(previousRows);
@@ -237,7 +237,7 @@ function JobsPage() {
       prev.map((job) => (selectedIds.has(job.id) ? { ...job, status: "Archived" as const } : job)),
     );
     try {
-      await archiveLinkedinJobs({ data: { ids } });
+      await archivePipelineJobs({ data: { ids } });
       setSelectedIds(new Set());
       await router.invalidate();
     } catch (error) {
@@ -255,7 +255,7 @@ function JobsPage() {
 
     setPendingBulkAction("delete");
     try {
-      const result = await deleteLinkedinJobs({ data: { ids } });
+      const result = await deletePipelineJobs({ data: { ids } });
       const deleted = result.deleted ?? ids.length;
       const nextTotal = Math.max(0, localTotal - deleted);
       setJobs((prev) => prev.filter((job) => !selectedIds.has(job.id)));

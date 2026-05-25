@@ -3,7 +3,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { getCloudflareEnv } from "@/lib/cloudflare";
 import type { SessionUser } from "@/lib/cloudflare";
 import { resolveSessionUser } from "@/lib/resolve-user";
-import { eq } from "drizzle-orm";
+import { sql } from "drizzle-orm";
 import { getDb } from "@/db/db";
 import { user, users } from "@/db/schema";
 
@@ -36,9 +36,15 @@ export const promoteToAdmin = createServerFn({ method: "POST" })
     const normalizedEmail = data.email.trim().toLowerCase();
 
     // Canonical role source is better-auth's `user` table.
-    await db.update(user).set({ role: "admin" }).where(eq(user.email, normalizedEmail));
+    await db
+      .update(user)
+      .set({ role: "admin" })
+      .where(sql`lower(${user.email}) = ${normalizedEmail}`);
     // Keep legacy mirror in sync during transition.
-    await db.update(users).set({ role: "admin" }).where(eq(users.email, normalizedEmail));
+    await db
+      .update(users)
+      .set({ role: "admin" })
+      .where(sql`lower(${users.email}) = ${normalizedEmail}`);
 
     return { success: true };
   });
