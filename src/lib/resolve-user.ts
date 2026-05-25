@@ -101,7 +101,7 @@ export async function resolveSessionUser(): Promise<SessionUser | null> {
       if (!sessionToken) return null;
 
       const db = getDb(env.DB);
-      const now = Math.floor(Date.now() / 1000);
+      const now = new Date();
 
       const [fallbackRow] = await db
         .select({
