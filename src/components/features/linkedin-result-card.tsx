@@ -6,7 +6,6 @@ import {
   Body,
   Button,
   Caption,
-  Label,
   PrimaryCard,
 } from "@caliber/ui-kit";
 import {
@@ -335,18 +334,23 @@ export function LinkedinResultCard({
         <div className="flex flex-col gap-3 border-t border-slate-100 pt-3">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex w-full flex-wrap items-center gap-1.5 sm:w-auto">
-              {onAnalyzeClick ? (
+              {isAnalyzed ? (
                 <button
                   type="button"
                   onClick={onAnalyzeClick}
-                  className={`inline-flex h-8 items-center gap-1 whitespace-nowrap rounded-lg px-2.5 text-xs font-semibold transition ${
-                    isAnalyzed
-                      ? "border border-indigo-200 bg-indigo-50 text-indigo-700 hover:bg-indigo-100"
-                      : "border border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100"
-                  }`}
+                  className="inline-flex h-8 items-center gap-1 whitespace-nowrap rounded-lg border border-indigo-200 bg-indigo-50 px-2.5 text-xs font-semibold text-indigo-700 transition hover:bg-indigo-100"
                 >
                   <Sparkles className="h-3.5 w-3.5" />
-                  {isAnalyzed ? "View Analysis" : "Analyze"}
+                  View Analysis
+                </button>
+              ) : onAnalyzeClick ? (
+                <button
+                  type="button"
+                  onClick={onAnalyzeClick}
+                  className="inline-flex h-8 items-center gap-1 whitespace-nowrap rounded-lg border border-amber-200 bg-amber-50 px-2.5 text-xs font-semibold text-amber-700 transition hover:bg-amber-100"
+                >
+                  <Sparkles className="h-3.5 w-3.5" />
+                  Analyze
                 </button>
               ) : (
                 <Link
@@ -382,25 +386,25 @@ export function LinkedinResultCard({
                 Open <ExternalLink className="h-3.5 w-3.5" />
               </a>
             </div>
+            {statusOptions && onStatusChange ? (
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-medium text-slate-600">Status</span>
+                <select
+                  value={(job.status ?? "Analyzed") as LinkedinJobStatus}
+                  onChange={(event: ChangeEvent<HTMLSelectElement>) =>
+                    onStatusChange(event.target.value as LinkedinJobStatus)
+                  }
+                  disabled={statusPending}
+                  className="h-8 w-36 rounded-lg border border-slate-200 bg-white px-2 text-xs font-semibold text-slate-700 disabled:opacity-60"
+                  aria-label={`Status for ${job.title}`}
+                >
+                  {statusOptions.map((status) => (
+                    <option key={status} value={status}>{status}</option>
+                  ))}
+                </select>
+              </div>
+            ) : null}
           </div>
-          {statusOptions && onStatusChange ? (
-            <Label className="flex items-center justify-between gap-2 text-xs text-slate-500">
-              Status
-              <select
-                value={(job.status ?? "Analyzed") as LinkedinJobStatus}
-                onChange={(event: ChangeEvent<HTMLSelectElement>) =>
-                  onStatusChange(event.target.value as LinkedinJobStatus)
-                }
-                disabled={statusPending}
-                className="h-8 w-36 rounded-lg border border-slate-200 bg-white px-2 text-xs font-semibold text-slate-700 disabled:opacity-60"
-                aria-label={`Status for ${job.title}`}
-              >
-                {statusOptions.map((status) => (
-                  <option key={status} value={status}>{status}</option>
-                ))}
-              </select>
-            </Label>
-          ) : null}
         </div>
 
         {outreachError ? (
