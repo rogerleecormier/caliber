@@ -466,7 +466,7 @@ function HistoryPage() {
             {total} total
           </span>
         </div>
-        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-6">
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
           {workflowSteps.map((step, index) => (
             <div
               key={step.key}
@@ -529,7 +529,131 @@ function HistoryPage() {
             onChange={setInputValue}
             onClear={() => setInputValue("")}
           />
-          <div className="overflow-x-auto -mx-6">
+          {/* Mobile Card List View */}
+          <div className="space-y-4 md:hidden">
+            {table.getRowModel().rows.map((rowModel) => {
+              const row = rowModel.original;
+              const resumeDoc = row.documents.find((d) => d.docType === "resume");
+              const coverDoc = row.documents.find((d) => d.docType === "cover_letter");
+              return (
+                <div
+                  key={row.id}
+                  className="rounded-2xl border border-slate-200/80 bg-white/85 p-5 shadow-sm space-y-4 transition hover:shadow-md"
+                >
+                  {/* Top Header: Title, Company, Match Score */}
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="min-w-0 flex-1">
+                      <Link
+                        to="/analyze/$id"
+                        params={{ id: String(row.id) }}
+                        className="block font-bold text-slate-900 hover:text-primary-600 transition-colors truncate text-base"
+                      >
+                        {row.jobTitle}
+                      </Link>
+                      <p className="text-xs text-slate-400 mt-1 truncate">{row.company}</p>
+                    </div>
+                    <div className="shrink-0">
+                      <ScorePill score={row.matchScore} />
+                    </div>
+                  </div>
+
+                  {/* Divider */}
+                  <div className="h-px bg-slate-100" />
+
+                  {/* Status, Outcome Details Grid */}
+                  <div className="grid grid-cols-2 gap-3 text-xs">
+                    <div className="space-y-1">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
+                        Status
+                      </span>
+                      <div className="flex">
+                        <StatusPill row={row} />
+                      </div>
+                    </div>
+                    <div className="space-y-1">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
+                        Outcome
+                      </span>
+                      <ApplicationOutcomeSelect
+                        value={row.applicationStatus}
+                        pending={updatingOutcomeId === row.id}
+                        onChange={(status) => handleApplicationOutcomeChange(row.id, status)}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Divider */}
+                  <div className="h-px bg-slate-100" />
+
+                  {/* Date & Documents Info */}
+                  <div className="flex flex-wrap items-center justify-between gap-3 text-xs">
+                    <div className="flex flex-col gap-0.5">
+                      <span className="text-[10px] font-medium text-slate-400">Analyzed</span>
+                      <span className="text-slate-600 font-semibold">{formatDate(row.createdAt)}</span>
+                    </div>
+
+                    <div className="flex items-center gap-1.5">
+                      {resumeDoc ? (
+                        <DocButton
+                          icon={downloadingKey === resumeDoc.r2Key
+                            ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            : <FileText className="h-3.5 w-3.5" />}
+                          label="Resume"
+                          onClick={() => handleDownload(resumeDoc.r2Key, resumeDoc.fileName || "resume.pdf")}
+                        />
+                      ) : (
+                        <DocButtonDisabled label="Resume" />
+                      )}
+                      {coverDoc ? (
+                        <DocButton
+                          icon={downloadingKey === coverDoc.r2Key
+                            ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            : <Mail className="h-3.5 w-3.5" />}
+                          label="Cover"
+                          onClick={() => handleDownload(coverDoc.r2Key, coverDoc.fileName || "cover-letter.pdf")}
+                        />
+                      ) : (
+                        <DocButtonDisabled label="Cover" />
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Actions Footer */}
+                  <div className="flex items-center justify-between gap-2 pt-3 border-t border-slate-100/60">
+                    <Link
+                      to="/analyze/$id"
+                      params={{ id: String(row.id) }}
+                      className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-600 transition hover:bg-slate-50 hover:text-slate-900"
+                    >
+                      <Search className="h-3.5 w-3.5" />
+                      View Analysis
+                    </Link>
+                    {row.jobUrl && (
+                      <a
+                        href={row.jobUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 text-slate-500 transition hover:border-slate-300 hover:bg-slate-50"
+                        title="View job description"
+                      >
+                        <ExternalLink className="h-3.5 w-3.5" />
+                      </a>
+                    )}
+                    <button
+                      onClick={() => setConfirmingRow(row)}
+                      className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 text-red-500 transition hover:border-red-200 hover:bg-red-50 hover:text-red-600"
+                      title="Delete analysis"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Desktop Table View */}
+          <div className="hidden md:block overflow-x-auto -mx-6">
             <table className="w-full min-w-[720px]">
               <thead>
                 {table.getHeaderGroups().map((hg) => (
@@ -732,12 +856,12 @@ function ApplicationOutcomeSelect({
   onChange: (status: ApplicationOutcome) => void;
 }) {
   return (
-    <div className="relative inline-flex items-center">
+    <div className="relative inline-flex items-center w-full sm:w-auto">
       <select
         value={value ?? ""}
         onChange={(event) => onChange((event.target.value || null) as ApplicationOutcome)}
         disabled={pending}
-        className="h-8 min-w-[132px] rounded-lg border border-slate-200 bg-white px-2 text-xs font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:opacity-60"
+        className="h-8 w-full min-w-[132px] rounded-lg border border-slate-200 bg-white px-2 text-xs font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:opacity-60"
         aria-label="Application outcome"
       >
         <option value="">Track outcome</option>
