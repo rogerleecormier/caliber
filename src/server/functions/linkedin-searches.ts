@@ -290,3 +290,19 @@ ${resumeSnippet}`;
 
     return { titles };
   });
+
+export const setSearchAgentRunning = createServerFn({ method: "POST" })
+  .inputValidator((data: { id: number; isRunning: boolean }) => data)
+  .handler(async ({ data }) => {
+    const user = await resolveSessionUser();
+    if (!user) throw new Error("Not authenticated");
+    const env = getCloudflareEnv();
+    if (!env.KV) return { success: false };
+    const lockKey = `user:${user.id}:agent:${data.id}:running`;
+    if (data.isRunning) {
+      await env.KV.put(lockKey, "true", { expirationTtl: 300 });
+    } else {
+      await env.KV.delete(lockKey);
+    }
+    return { success: true };
+  });

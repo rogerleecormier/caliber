@@ -68,6 +68,7 @@ export type SavedLinkedinSearchRow = {
   lastRunAt: string | null;
   createdAt: string;
   updatedAt: string;
+  isRunning?: boolean;
 };
 
 export type LinkedinHistoryRow = LinkedinJobResult & {
@@ -442,29 +443,38 @@ export async function listSavedLinkedinSearches(userId: string): Promise<SavedLi
     .where(eq(linkedinSavedSearches.userId, userId))
     .orderBy(desc(linkedinSavedSearches.updatedAt));
 
-  return rows.map((row) => {
-    let parsedSources: string[] = ["linkedin", "greenhouse", "lever"];
-    try {
-      if (row.sources) {
-        parsedSources = JSON.parse(row.sources) as string[];
+  return Promise.all(
+    rows.map(async (row) => {
+      let parsedSources: string[] = ["linkedin", "greenhouse", "lever"];
+      try {
+        if (row.sources) {
+          parsedSources = JSON.parse(row.sources) as string[];
+        }
+      } catch (e) {
+        // fallback
       }
-    } catch (e) {
-      // fallback
-    }
 
-    return {
-      id: row.id,
-      userId: row.userId,
-      name: row.name,
-      criteria: JSON.parse(row.criteria) as LinkedInSearchParams,
-      isActive: row.isActive === 1,
-      runIntervalHours: row.runIntervalHours,
-      sources: parsedSources,
-      lastRunAt: row.lastRunAt ?? null,
-      createdAt: row.createdAt,
-      updatedAt: row.updatedAt,
-    };
-  });
+      let isRunning = false;
+      if (env.KV) {
+        const running = await env.KV.get(`user:${userId}:agent:${row.id}:running`);
+        isRunning = running === "true";
+      }
+
+      return {
+        id: row.id,
+        userId: row.userId,
+        name: row.name,
+        criteria: JSON.parse(row.criteria) as LinkedInSearchParams,
+        isActive: row.isActive === 1,
+        runIntervalHours: row.runIntervalHours,
+        sources: parsedSources,
+        lastRunAt: row.lastRunAt ?? null,
+        createdAt: row.createdAt,
+        updatedAt: row.updatedAt,
+        isRunning,
+      };
+    })
+  );
 }
 
 export async function saveLinkedinSearchDefinition(args: {

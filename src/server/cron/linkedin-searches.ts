@@ -252,138 +252,149 @@ export async function runLinkedinSearchMaintenance(env: CloudflareEnv) {
 
   try {
     for (const search of dueSearches) {
-      let sourcesList: string[] = ['linkedin'];
+      const lockKey = `user:${search.userId}:agent:${search.id}:running`;
+      if (env.KV) {
+        await env.KV.put(lockKey, "true", { expirationTtl: 300 });
+      }
+
       try {
-        if ((search as any).sources) {
-          sourcesList = JSON.parse((search as any).sources) as string[];
+        let sourcesList: string[] = ['linkedin'];
+        try {
+          if ((search as any).sources) {
+            sourcesList = JSON.parse((search as any).sources) as string[];
+          }
+        } catch {
+          sourcesList = ['linkedin'];
         }
-      } catch {
-        sourcesList = ['linkedin'];
-      }
 
-      const criteria = normalizeLinkedInSearchParams(JSON.parse(search.criteria) as LinkedInSearchParams);
-      const searchUrl = buildLinkedInSearchUrl(criteria);
+        const criteria = normalizeLinkedInSearchParams(JSON.parse(search.criteria) as LinkedInSearchParams);
+        const searchUrl = buildLinkedInSearchUrl(criteria);
 
-      // Scrape LinkedIn if enabled
-      let linkedinJobs: LinkedInScrapedJob[] = [];
-      if (sourcesList.includes('linkedin') && browser) {
-        linkedinJobs = await collectLinkedinJobsAcrossPages({ browser, criteria });
-      }
+        // Scrape LinkedIn if enabled
+        let linkedinJobs: LinkedInScrapedJob[] = [];
+        if (sourcesList.includes('linkedin') && browser) {
+          linkedinJobs = await collectLinkedinJobsAcrossPages({ browser, criteria });
+        }
 
-      // Query local Greenhouse/Lever/Workable cache if enabled
-      const activeAtsSources: string[] = [];
-      if (sourcesList.includes('greenhouse')) activeAtsSources.push('Greenhouse');
-      if (sourcesList.includes('lever')) activeAtsSources.push('Lever');
-      if (sourcesList.includes('workable')) activeAtsSources.push('Workable');
+        // Query local Greenhouse/Lever/Workable cache if enabled
+        const activeAtsSources: string[] = [];
+        if (sourcesList.includes('greenhouse')) activeAtsSources.push('Greenhouse');
+        if (sourcesList.includes('lever')) activeAtsSources.push('Lever');
+        if (sourcesList.includes('workable')) activeAtsSources.push('Workable');
 
-      const atsJobs: LinkedInScrapedJob[] = [];
-      if (activeAtsSources.length > 0) {
-        const matchedAtsJobs = await db.select()
-          .from(schema.jobs)
-          .where(
-            and(
-              inArray(schema.jobs.sourceName, activeAtsSources),
-              or(
-                like(schema.jobs.title, `%${criteria.keywords}%`),
-                like(schema.jobs.descriptionRaw, `%${criteria.keywords}%`)
+        const atsJobs: LinkedInScrapedJob[] = [];
+        if (activeAtsSources.length > 0) {
+          const matchedAtsJobs = await db.select()
+            .from(schema.jobs)
+            .where(
+              and(
+                inArray(schema.jobs.sourceName, activeAtsSources),
+                or(
+                  like(schema.jobs.title, `%${criteria.keywords}%`),
+                  like(schema.jobs.descriptionRaw, `%${criteria.keywords}%`)
+                )
               )
-            )
-          );
+            );
 
-        for (const job of matchedAtsJobs) {
-          atsJobs.push({
-            id: `ats-${job.id}`,
-            title: job.title,
-            company: job.company || 'Unknown',
-            location: 'Remote',
-            sourceUrl: job.sourceUrl,
-            sourceName: job.sourceName as any,
-            postDateText: job.postDate ? new Date(job.postDate).toLocaleDateString() : null,
-            workplaceType: 'remote',
-            salary: job.payRange || null,
-            snippet: job.descriptionRaw ? job.descriptionRaw.substring(0, 300) : null,
-            description: job.descriptionRaw || null,
-          });
+          for (const job of matchedAtsJobs) {
+            atsJobs.push({
+              id: `ats-${job.id}`,
+              title: job.title,
+              company: job.company || 'Unknown',
+              location: 'Remote',
+              sourceUrl: job.sourceUrl,
+              sourceName: job.sourceName as any,
+              postDateText: job.postDate ? new Date(job.postDate).toLocaleDateString() : null,
+              workplaceType: 'remote',
+              salary: job.payRange || null,
+              snippet: job.descriptionRaw ? job.descriptionRaw.substring(0, 300) : null,
+              description: job.descriptionRaw || null,
+            });
+          }
         }
-      }
 
-      // Combine candidates from LinkedIn and ATS cache
-      let jobs = [...linkedinJobs, ...atsJobs];
+        // Combine candidates from LinkedIn and ATS cache
+        let jobs = [...linkedinJobs, ...atsJobs];
 
-      const existingJobsByUrl = await findExistingLinkedinJobs({
-        userId: search.userId,
-        jobs: jobs.map((job) => ({ id: job.id, sourceUrl: job.sourceUrl })),
-      });
-      const semanticExistingJobs = await findSemanticallyMatchingExistingLinkedinJobs({
-        userId: search.userId,
-        jobs,
-      });
+        const existingJobsByUrl = await findExistingLinkedinJobs({
+          userId: search.userId,
+          jobs: jobs.map((job) => ({ id: job.id, sourceUrl: job.sourceUrl })),
+        });
+        const semanticExistingJobs = await findSemanticallyMatchingExistingLinkedinJobs({
+          userId: search.userId,
+          jobs,
+        });
 
-      jobs = dedupeJobsBySemanticKey(
-        jobs.filter((job) => {
-          const exactMatch = existingJobsByUrl.get(canonicalizeLinkedinJobUrl(job.sourceUrl, job.id));
-          const semanticKey = buildLinkedinJobSemanticKey({
-            title: job.title,
-            company: job.company,
-            location: job.location,
+        jobs = dedupeJobsBySemanticKey(
+          jobs.filter((job) => {
+            const exactMatch = existingJobsByUrl.get(canonicalizeLinkedinJobUrl(job.sourceUrl, job.id));
+            const semanticKey = buildLinkedinJobSemanticKey({
+              title: job.title,
+              company: job.company,
+              location: job.location,
+            });
+            const semanticMatch = semanticExistingJobs.get(semanticKey);
+            return !exactMatch && !semanticMatch;
+          }),
+        );
+
+        if (jobs.length === 0) {
+          await upsertLinkedinJobResults({
+            userId: search.userId,
+            savedSearchId: search.id,
+            searchUrl,
+            criteria,
+            jobs: [],
           });
-          const semanticMatch = semanticExistingJobs.get(semanticKey);
-          return !exactMatch && !semanticMatch;
-        }),
-      );
+          continue;
+        }
 
-      if (jobs.length === 0) {
+        // Enrich job descriptions for LinkedIn jobs only (ATS jobs already have descriptions)
+        for (const job of jobs) {
+          if (job.id.startsWith('ats-')) continue; // Skip ATS jobs
+          if (!browser) continue;
+
+          const detailPage = await browser.newPage();
+          try {
+            await detailPage.goto(canonicalizeLinkedinJobUrl(job.sourceUrl, job.id), { waitUntil: "domcontentloaded", timeout: 60000 });
+            await new Promise((resolve) => setTimeout(resolve, 1500));
+            job.description = await extractJobDescription(detailPage);
+          } catch {
+            job.description = job.snippet;
+          } finally {
+            await detailPage.close();
+          }
+        }
+
+        const profile = await buildProfile(db, search.userId);
+        if (!profile) continue;
+
+        const scoredJobs = await Promise.all(
+          jobs.map(async (job) => {
+            const score = await scoreJobAgainstProfile(ai, profile, {
+              id: job.id,
+              title: job.title,
+              description: job.description || job.snippet || `${job.title} ${job.company} ${job.location}`,
+            });
+            return {
+              ...job,
+              score,
+            };
+          }),
+        );
+
         await upsertLinkedinJobResults({
           userId: search.userId,
           savedSearchId: search.id,
           searchUrl,
           criteria,
-          jobs: [],
+          jobs: scoredJobs,
         });
-        continue;
-      }
-
-      // Enrich job descriptions for LinkedIn jobs only (ATS jobs already have descriptions)
-      for (const job of jobs) {
-        if (job.id.startsWith('ats-')) continue; // Skip ATS jobs
-        if (!browser) continue;
-
-        const detailPage = await browser.newPage();
-        try {
-          await detailPage.goto(canonicalizeLinkedinJobUrl(job.sourceUrl, job.id), { waitUntil: "domcontentloaded", timeout: 60000 });
-          await new Promise((resolve) => setTimeout(resolve, 1500));
-          job.description = await extractJobDescription(detailPage);
-        } catch {
-          job.description = job.snippet;
-        } finally {
-          await detailPage.close();
+      } finally {
+        if (env.KV) {
+          await env.KV.delete(lockKey);
         }
       }
-
-      const profile = await buildProfile(db, search.userId);
-      if (!profile) continue;
-
-      const scoredJobs = await Promise.all(
-        jobs.map(async (job) => {
-          const score = await scoreJobAgainstProfile(ai, profile, {
-            id: job.id,
-            title: job.title,
-            description: job.description || job.snippet || `${job.title} ${job.company} ${job.location}`,
-          });
-          return {
-            ...job,
-            score,
-          };
-        }),
-      );
-
-      await upsertLinkedinJobResults({
-        userId: search.userId,
-        savedSearchId: search.id,
-        searchUrl,
-        criteria,
-        jobs: scoredJobs,
-      });
     }
   } finally {
     if (browser) {

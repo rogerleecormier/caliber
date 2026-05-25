@@ -15,6 +15,7 @@ import {
   getSavedLinkedinSearches,
   removeLinkedinSearch,
   saveLinkedinSearch,
+  setSearchAgentRunning,
   toggleLinkedinSearchCron,
 } from "@/server/functions/linkedin-searches";
 import type { LinkedInScrapedJob, LinkedInSearchParams } from "@/lib/linkedin-search";
@@ -261,6 +262,26 @@ export function LinkedinSearchDrawer({
     if (!open) setActiveSavedSearchId(null);
   }, [open]);
 
+  // Poll saved searches state every 10 seconds if drawer is open to sync running status across devices.
+  // Also fetch immediately on open.
+  useEffect(() => {
+    if (!open) return;
+    
+    const fetchLatest = async () => {
+      try {
+        const next = await getSavedLinkedinSearches();
+        setSavedSearches(next);
+      } catch (err) {
+        console.error("Failed to fetch saved searches:", err);
+      }
+    };
+    
+    fetchLatest();
+    
+    const interval = setInterval(fetchLatest, 10000);
+    return () => clearInterval(interval);
+  }, [open]);
+
   function update<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm((prev) => ({ ...prev, [key]: value }));
   }
@@ -355,12 +376,28 @@ export function LinkedinSearchDrawer({
     setRunningSearchId(saved.id);
     setError(null);
     try {
+      await setSearchAgentRunning({ data: { id: saved.id, isRunning: true } });
+    } catch (e) {
+      console.error("Failed to acquire running lock:", e);
+    }
+
+    try {
       const result = await runLinkedinSearch(saved.criteria, { activeSavedSearchId: saved.id });
+      try {
+        await setSearchAgentRunning({ data: { id: saved.id, isRunning: false } });
+      } catch (e) {
+        console.error("Failed to release running lock:", e);
+      }
       const next = await getSavedLinkedinSearches();
       setSavedSearches(next);
       onSearchComplete(result.jobs, { warnings: result.warnings, searchUrl: result.searchUrl });
       onOpenChange(false);
     } catch (err) {
+      try {
+        await setSearchAgentRunning({ data: { id: saved.id, isRunning: false } });
+      } catch (e) {
+        console.error("Failed to release running lock on error:", e);
+      }
       setError(err instanceof Error ? err.message : "Search failed.");
     } finally {
       setRunningSearchId(null);
@@ -852,10 +889,10 @@ export function LinkedinSearchDrawer({
                       <button
                         type="button"
                         onClick={() => void handleRunSavedSearch(saved)}
-                        disabled={runningSearchId !== null || loading}
+                        disabled={runningSearchId !== null || loading || saved.isRunning}
                         className="flex-1 rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-semibold text-indigo-700 transition hover:bg-indigo-100 disabled:opacity-50"
                       >
-                        {runningSearchId === saved.id ? (
+                        {runningSearchId === saved.id || saved.isRunning ? (
                           <span className="flex items-center justify-center gap-1">
                             <Loader2 className="h-3 w-3 animate-spin" />
                             Running
