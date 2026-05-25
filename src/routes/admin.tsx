@@ -190,7 +190,7 @@ function AdminPage() {
                 <tr key={u.id} className="hover:bg-muted/30">
                   <td className="px-4 py-3">{u.email}</td>
                   <td className="px-4 py-3 capitalize">{u.role}</td>
-                  <td className="px-4 py-3 text-muted-foreground">{u.createdAt?.slice(0, 10)}</td>
+                  <td className="px-4 py-3 text-muted-foreground">{u.createdAt ? new Date(u.createdAt).toISOString().slice(0, 10) : ""}</td>
                   <td className="px-4 py-3 text-right">
                     <button
                       onClick={() => handleDeleteUser(u.id)}
