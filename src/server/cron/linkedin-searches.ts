@@ -298,6 +298,10 @@ export async function runLinkedinSearchMaintenance(env: CloudflareEnv) {
           sortBy: criteria.sortBy || "recent",
           easyApply: criteria.easyApply ? "Yes" : "No",
           selectedSources: sourcesList.join(", "),
+          geoId: criteria.geoId || undefined,
+          distance: criteria.distance != null ? criteria.distance : undefined,
+          f_SAL: criteria.f_SAL || undefined,
+          useSemanticFormat: criteria.useSemanticFormat ? "Yes" : "No",
         }
       });
 
@@ -445,6 +449,10 @@ export async function runLinkedinSearchMaintenance(env: CloudflareEnv) {
               newJobsScored: 0,
               reusedJobsCount: reusedCount,
               searchUrl,
+              geoId: criteria.geoId || undefined,
+              distance: criteria.distance != null ? criteria.distance : undefined,
+              f_SAL: criteria.f_SAL || undefined,
+              useSemanticFormat: criteria.useSemanticFormat ? "Yes" : "No",
             },
           });
           continue;
@@ -569,6 +577,10 @@ export async function runLinkedinSearchMaintenance(env: CloudflareEnv) {
             newJobsScored: scoredJobs.length,
             reusedJobsCount: reusedCount,
             searchUrl,
+            geoId: criteria.geoId || undefined,
+            distance: criteria.distance != null ? criteria.distance : undefined,
+            f_SAL: criteria.f_SAL || undefined,
+            useSemanticFormat: criteria.useSemanticFormat ? "Yes" : "No",
           },
         });
       } catch (err) {

@@ -36,6 +36,11 @@ export interface LinkedInSearchParams {
   page?: number;
   pagesToScan?: number;
   limit?: number;
+  geoId?: string;
+  distance?: number | null;
+  f_SAL?: string;
+  origin?: string;
+  useSemanticFormat?: boolean;
 }
 
 export interface LinkedInScrapedJob {
@@ -111,6 +116,11 @@ export interface NormalizedLinkedInSearchParams extends LinkedInSearchParams {
   page: number;
   pagesToScan: number;
   limit: number;
+  geoId: string;
+  distance: number | null;
+  f_SAL: string;
+  origin: string;
+  useSemanticFormat: boolean;
 }
 
 export function normalizeLinkedInSearchParams(
@@ -131,6 +141,11 @@ export function normalizeLinkedInSearchParams(
     page: Math.max(1, Math.min(MAX_LINKEDIN_START_PAGE, Number(params.page || 1))),
     pagesToScan: Math.max(1, Math.min(MAX_LINKEDIN_PAGES_TO_SCAN, Number(params.pagesToScan || 1))),
     limit: Math.max(1, Math.min(MAX_LINKEDIN_CARDS_PER_PAGE, Number(params.limit || 10))),
+    geoId: (params.geoId || "").trim(),
+    distance: params.distance != null ? Number(params.distance) : null,
+    f_SAL: (params.f_SAL || "").trim(),
+    origin: params.origin || "SEMANTIC_SEARCH_HISTORY",
+    useSemanticFormat: params.useSemanticFormat ?? true,
   };
 }
 
@@ -139,13 +154,48 @@ export function buildLinkedInSearchUrlForPage(
   pageNumber?: number,
 ): string {
   const params = normalizeLinkedInSearchParams(rawParams);
-  const url = new URL("https://www.linkedin.com/jobs/search/");
 
-  const keywords = [params.keywords, params.company].filter(Boolean).join(" ");
+  // If the keywords field itself is a valid LinkedIn search URL, use it as the base
+  if (params.keywords.startsWith("http://") || params.keywords.startsWith("https://")) {
+    try {
+      const url = new URL(params.keywords);
+      if (url.hostname.includes("linkedin.com") && url.pathname.includes("/jobs/")) {
+        const effectivePage = Math.max(1, Math.min(MAX_LINKEDIN_START_PAGE, Number(pageNumber || params.page || 1)));
+        const offset = (effectivePage - 1) * 25;
+        url.searchParams.set("start", String(offset));
+        return url.toString();
+      }
+    } catch (e) {
+      console.error("Failed to parse custom LinkedIn URL:", e);
+    }
+  }
+
+  const baseUrl = params.useSemanticFormat
+    ? "https://www.linkedin.com/jobs/search-results/"
+    : "https://www.linkedin.com/jobs/search/";
+  const url = new URL(baseUrl);
+
+  let keywords = [params.keywords, params.company].filter(Boolean).join(" ");
+  if (params.useSemanticFormat && params.location) {
+    keywords = `${keywords} in ${params.location}`;
+  }
   url.searchParams.set("keywords", keywords);
 
-  if (params.location) {
+  if (!params.useSemanticFormat && params.location) {
     url.searchParams.set("location", params.location);
+  }
+
+  if (params.useSemanticFormat) {
+    url.searchParams.set("origin", params.origin);
+    if (params.geoId) {
+      url.searchParams.set("geoId", params.geoId);
+    }
+    if (params.distance !== null) {
+      url.searchParams.set("distance", String(params.distance));
+    }
+    if (params.f_SAL) {
+      url.searchParams.set("f_SAL", params.f_SAL);
+    }
   }
 
   if (params.region) {

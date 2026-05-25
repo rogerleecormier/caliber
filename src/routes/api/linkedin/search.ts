@@ -410,7 +410,9 @@ export const Route = createFileRoute("/api/linkedin/search")({
             savedSearchId,
             eventType: "search_started",
             platform: sources.join(", "),
-            message: `Manual search started with keywords: "${params.keywords}"`,
+            message: params.keywords.startsWith("http")
+              ? `Manual search started using custom URL`
+              : `Manual search started with keywords: "${params.keywords}"`,
             level: "info",
             metadata: {
               keywords: params.keywords,
@@ -425,6 +427,10 @@ export const Route = createFileRoute("/api/linkedin/search")({
               experienceLevels: params.experienceLevels?.length ? params.experienceLevels.join(", ") : "All Levels",
               jobTypes: params.jobTypes?.length ? params.jobTypes.join(", ") : "All Types",
               selectedSources: sources.join(", "),
+              geoId: params.geoId || undefined,
+              distance: params.distance != null ? params.distance : undefined,
+              f_SAL: params.f_SAL || undefined,
+              useSemanticFormat: params.useSemanticFormat ? "Yes" : "No",
             }
           });
 
@@ -561,6 +567,10 @@ export const Route = createFileRoute("/api/linkedin/search")({
                 newJobsScored: 0,
                 reusedJobsCount: 0,
                 searchUrl,
+                geoId: params.geoId || undefined,
+                distance: params.distance != null ? params.distance : undefined,
+                f_SAL: params.f_SAL || undefined,
+                useSemanticFormat: params.useSemanticFormat ? "Yes" : "No",
               },
             });
 
@@ -721,6 +731,10 @@ export const Route = createFileRoute("/api/linkedin/search")({
               newJobsScored: scoredJobs.length,
               reusedJobsCount: reusedCount,
               searchUrl,
+              geoId: params.geoId || undefined,
+              distance: params.distance != null ? params.distance : undefined,
+              f_SAL: params.f_SAL || undefined,
+              useSemanticFormat: params.useSemanticFormat ? "Yes" : "No",
             },
           });
 

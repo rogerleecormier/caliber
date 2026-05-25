@@ -43,6 +43,10 @@ type FormState = {
   pagesToScan: number;
   limit: number;
   sources: string[];
+  geoId: string;
+  distance: string;
+  f_SAL: string;
+  useSemanticFormat: boolean;
 };
 
 export type DrawerPreload = {
@@ -84,6 +88,10 @@ const defaultForm: FormState = {
   pagesToScan: 1,
   limit: 10,
   sources: ["linkedin", "greenhouse", "lever", "workable"],
+  geoId: "",
+  distance: "",
+  f_SAL: "",
+  useSemanticFormat: true,
 };
 
 const workplaceOptions = [
@@ -176,6 +184,10 @@ function criteriaToForm(criteria: LinkedInSearchParams): Omit<FormState, "source
     page: criteria.page || 1,
     pagesToScan: criteria.pagesToScan || 1,
     limit: criteria.limit || 10,
+    geoId: criteria.geoId || "",
+    distance: criteria.distance != null ? String(criteria.distance) : "",
+    f_SAL: criteria.f_SAL || "",
+    useSemanticFormat: criteria.useSemanticFormat ?? true,
   };
 }
 
@@ -315,6 +327,10 @@ export function AgentsSearchDrawer({
         page: form.page,
         pagesToScan: form.pagesToScan,
         limit: form.limit,
+        geoId: form.geoId || undefined,
+        distance: form.distance ? Number(form.distance) : null,
+        f_SAL: form.f_SAL || undefined,
+        useSemanticFormat: form.useSemanticFormat,
       };
       const result = await runLinkedinSearch(params, {
         broadenDiscovery,
@@ -358,6 +374,10 @@ export function AgentsSearchDrawer({
         page: form.page,
         pagesToScan: form.pagesToScan,
         limit: form.limit,
+        geoId: form.geoId || undefined,
+        distance: form.distance ? Number(form.distance) : null,
+        f_SAL: form.f_SAL || undefined,
+        useSemanticFormat: form.useSemanticFormat,
       };
       const existing = savedSearches.find(s => s.id === activeSavedSearchId);
       await saveLinkedinSearch({
@@ -734,6 +754,66 @@ export function AgentsSearchDrawer({
                           </label>
                         ))}
                       </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="border-b border-slate-100 p-4">
+                  <p className="mb-0.5 text-xs font-semibold uppercase tracking-wider text-slate-400">AI / Semantic Search Options</p>
+                  <p className="mb-3 text-sm text-slate-500">Configure parameters for the new LinkedIn job search format.</p>
+                  <div className="space-y-3">
+                    <label className="flex cursor-pointer items-center gap-3 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-medium text-slate-700 transition hover:bg-slate-100">
+                      <input
+                        type="checkbox"
+                        checked={form.useSemanticFormat}
+                        onChange={(e) => update("useSemanticFormat", e.target.checked)}
+                        className="h-4 w-4 rounded"
+                      />
+                      Use AI Semantic URL format
+                    </label>
+
+                    <div className="space-y-1.5">
+                      <FieldLabelWithInfo
+                        htmlFor="drawer-geoId"
+                        label="Location Geo ID"
+                        tooltip="The internal numerical identifier for a location in LinkedIn URLs (e.g. 105142029 for Orlando, FL). Retrieve this by running a search on LinkedIn and copying the geoId parameter."
+                      />
+                      <Input
+                        id="drawer-geoId"
+                        value={form.geoId}
+                        onChange={(e: ChangeEvent<HTMLInputElement>) => update("geoId", e.target.value)}
+                        placeholder="e.g. 105142029"
+                      />
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <FieldLabelWithInfo
+                        htmlFor="drawer-distance"
+                        label="Distance Radius (miles)"
+                        tooltip="Distance/radius in miles around your chosen location for job suggestions."
+                      />
+                      <Input
+                        id="drawer-distance"
+                        type="number"
+                        min="0"
+                        value={form.distance}
+                        onChange={(e: ChangeEvent<HTMLInputElement>) => update("distance", e.target.value)}
+                        placeholder="e.g. 50"
+                      />
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <FieldLabelWithInfo
+                        htmlFor="drawer-f_SAL"
+                        label="Salary Filter ID (f_SAL)"
+                        tooltip="Specific ID used by LinkedIn's new salary filter (e.g. f_SA_id_226001:272015). Retrieve this from the address bar of a filtered LinkedIn search."
+                      />
+                      <Input
+                        id="drawer-f_SAL"
+                        value={form.f_SAL}
+                        onChange={(e: ChangeEvent<HTMLInputElement>) => update("f_SAL", e.target.value)}
+                        placeholder="e.g. f_SA_id_226001:272015"
+                      />
                     </div>
                   </div>
                 </div>
