@@ -10,6 +10,7 @@ import { AppliedToggle } from "./applied-toggle";
 interface DocumentActionsProps {
   analysisId: number;
   applied?: boolean;
+  onDocumentGenerated?: () => void;
 }
 
 type DocResult = { documentId: number; fileName: string | null; r2Key: string };
@@ -25,7 +26,7 @@ async function triggerDownload(r2Key: string, fileName: string) {
   URL.revokeObjectURL(url);
 }
 
-export function DocumentActions({ analysisId, applied = false }: DocumentActionsProps) {
+export function DocumentActions({ analysisId, applied = false, onDocumentGenerated }: DocumentActionsProps) {
   const [extraGuidance, setExtraGuidance] = useState("");
 
   // ── Fetch existing documents ──────────────────────────────────────
@@ -42,12 +43,14 @@ export function DocumentActions({ analysisId, applied = false }: DocumentActions
   const resumeMutation = useMutation({
     mutationFn: () =>
       generateResume({ data: { analysisId, extraGuidance: extraGuidance.trim() || undefined } }),
+    onSuccess: () => onDocumentGenerated?.(),
   });
 
   // ── Generate cover letter ─────────────────────────────────────────
   const coverMutation = useMutation({
     mutationFn: () =>
       generateCoverLetter({ data: { analysisId, extraGuidance: extraGuidance.trim() || undefined } }),
+    onSuccess: () => onDocumentGenerated?.(),
   });
 
   // ── Download (fire-and-forget, no cache needed) ───────────────────

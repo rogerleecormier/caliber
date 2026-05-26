@@ -368,8 +368,8 @@ function JobsPage() {
     setSelectedJobForAnalysis(job);
     setStoredAnalysis(null);
 
-    // If job is already analyzed, extract the analysis data from the job object
-    if (job.status === "Analyzed") {
+    // If job has been analyzed, extract the analysis data from the job object
+    if (job.analyzedAt) {
       const analysis = {
         id: job.id,
         jobTitle: job.title,
@@ -410,6 +410,24 @@ function JobsPage() {
           ),
         };
       });
+    }
+  }
+
+  function handleDocumentGenerated() {
+    if (selectedJobForAnalysis?.id) {
+      const id = selectedJobForAnalysis.id;
+      jobsQuery.updateJobsOptimistically((data) => {
+        if (!data) return data;
+        return {
+          ...data,
+          rows: data.rows.map((job) =>
+            job.id === id && job.status === "Analyzed"
+              ? { ...job, status: "Prepped" as const }
+              : job
+          ),
+        };
+      });
+      setPipelineJobStatus({ data: { id, status: "Prepped" } }).catch(() => {});
     }
   }
 
@@ -746,7 +764,7 @@ function JobsPage() {
                   statusOptions={JOB_STATUSES}
                   onStatusChange={job.id ? (status) => handleStatusChange(job.id!, status) : undefined}
                   statusPending={job.id ? pendingStatusId === job.id : false}
-                  isAnalyzed={job.status === "Analyzed"}
+                  isAnalyzed={!!job.analyzedAt}
                   onAnalyzeClick={job.id ? () => openAnalysisModal(job) : undefined}
                 />
               ))}
@@ -774,7 +792,7 @@ function JobsPage() {
                 const job = jobs.find((j) => j.sourceUrl === jobUrl);
                 if (job) openAnalysisModal(job);
               }}
-              analyzedJobIds={new Set(jobs.filter((j) => j.status === "Analyzed").map((j) => j.id).filter((id): id is number => !!id))}
+              analyzedJobIds={new Set(jobs.filter((j) => j.analyzedAt).map((j) => j.id).filter((id): id is number => !!id))}
             />
           )}
 
@@ -816,6 +834,7 @@ function JobsPage() {
         storedAnalysis={storedAnalysis}
         pipelineJobId={selectedJobForAnalysis?.id}
         onAnalysisComplete={handleAnalysisComplete}
+        onDocumentGenerated={handleDocumentGenerated}
       />
 
       <AgentsSearchDrawer

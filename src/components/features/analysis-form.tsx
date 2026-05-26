@@ -14,6 +14,7 @@ interface AnalysisFormProps {
   hideInputModeToggle?: boolean;
   pipelineJobId?: number;
   onAnalysisComplete?: (analysis: AnalysisData) => void;
+  onDocumentGenerated?: () => void;
 }
 
 export function AnalysisForm({
@@ -22,6 +23,7 @@ export function AnalysisForm({
   hideInputModeToggle = false,
   pipelineJobId,
   onAnalysisComplete,
+  onDocumentGenerated,
 }: AnalysisFormProps = {}) {
   const [mode, setMode] = useState<InputMode>(initialJd ? "text" : "url");
   const [url, setUrl] = useState(initialUrl ?? "");
@@ -181,6 +183,7 @@ export function AnalysisForm({
           <DocumentActions
             analysisId={result.id}
             applied={"applied" in result && result.applied === true}
+            onDocumentGenerated={onDocumentGenerated}
           />
         </div>
       )}

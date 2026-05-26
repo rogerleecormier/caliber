@@ -12,6 +12,7 @@ interface AnalysisModalProps {
   storedAnalysis?: AnalysisData | null;
   pipelineJobId?: number;
   onAnalysisComplete?: (analysis: AnalysisData) => void;
+  onDocumentGenerated?: () => void;
 }
 
 export function AnalysisModal({
@@ -23,6 +24,7 @@ export function AnalysisModal({
   storedAnalysis = null,
   pipelineJobId,
   onAnalysisComplete,
+  onDocumentGenerated,
 }: AnalysisModalProps) {
   if (!isOpen) return null;
 
@@ -66,6 +68,7 @@ export function AnalysisModal({
               hideInputModeToggle={isFromExistingJob}
               pipelineJobId={pipelineJobId}
               onAnalysisComplete={onAnalysisComplete}
+              onDocumentGenerated={onDocumentGenerated}
             />
           )}
         </div>
