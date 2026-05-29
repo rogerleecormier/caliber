@@ -3,7 +3,7 @@ import type { SessionUser } from "@/lib/cloudflare";
 import { getAuthInstance } from "@/server/auth";
 import { getRequest } from "@tanstack/react-start/server";
 import { getDb } from "@/db/db";
-import { session as authSession, user, users } from "@/db/schema";
+import { session as authSession, user } from "@/db/schema";
 import { and, eq, gt } from "drizzle-orm";
 
 export type { SessionUser };
@@ -90,17 +90,6 @@ async function resolveRole(
 
   if (authUser?.role === "admin" || authUser?.role === "user") {
     return authUser.role;
-  }
-
-  const normalizedEmail = email.trim().toLowerCase();
-  const [legacyUser] = await db
-    .select({ role: users.role })
-    .from(users)
-    .where(eq(users.email, normalizedEmail))
-    .limit(1);
-
-  if (legacyUser?.role === "admin" || legacyUser?.role === "user") {
-    return legacyUser.role;
   }
 
   if (hintedRole === "admin" || hintedRole === "user") return hintedRole;

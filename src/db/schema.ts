@@ -201,24 +201,13 @@ export const verification = sqliteTable('verification', {
 // ─────────────────────────────────────────────────────────────────────────────
 
 // ─── Users ───────────────────────────────────────────────────────────────────
-export const users = sqliteTable('users', {
-  id: text('id').primaryKey(),
-  email: text('email').notNull().unique(),
-  emailVerified: integer('email_verified').notNull().default(0),
-  name: text('name'),
-  image: text('image'),
-  passwordHash: text('password_hash'),
-  role: text('role').notNull().default('user'), // "admin" | "user"
-  createdAt: integer('created_at', { mode: 'timestamp' })
-    .notNull()
-    .default(sql`(unixepoch())`),
-})
+// Legacy users table removed. We now use better-auth 'user' table.
 
 // ─── Master Resume ────────────────────────────────────────────────────────────
 // One structured resume per user. JSON fields store typed arrays (see comments).
 export const masterResume = sqliteTable('master_resume', {
   id: integer('id').primaryKey({ autoIncrement: true }),
-  userId: text('user_id').unique().references(() => users.id),
+  userId: text('user_id').unique().references(() => user.id),
   fullName: text('full_name').notNull(),
   email: text('email'),
   phone: text('phone'),
@@ -238,7 +227,7 @@ export const masterResume = sqliteTable('master_resume', {
 // One row per job the user has analyzed. Links to generatedDocuments for PDFs.
 export const jobAnalyses = sqliteTable('job_analyses', {
   id: integer('id').primaryKey({ autoIncrement: true }),
-  userId: text('user_id').references(() => users.id),
+  userId: text('user_id').references(() => user.id),
   jobUrl: text('job_url').notNull(),
   jobTitle: text('job_title'),
   company: text('company'),
@@ -278,7 +267,7 @@ export const generatedDocuments = sqliteTable('generated_documents', {
 // Populated exclusively by the cron job — do not write from request handlers.
 export const analyticsSummary = sqliteTable('analytics_summary', {
   id: integer('id').primaryKey({ autoIncrement: true }),
-  userId: text('user_id').references(() => users.id),
+  userId: text('user_id').references(() => user.id),
   period: text('period').notNull(), // "all_time" | "YYYY-MM"
   topJdKeywords: text('top_jd_keywords'),      // JSON: { keyword, count }[]
   topResumeKeywords: text('top_resume_keywords'), // JSON: { keyword, count }[]
@@ -305,7 +294,7 @@ export const appSettings = sqliteTable('app_settings', {
 
 export const linkedinSavedSearches = sqliteTable('linkedin_saved_searches', {
   id: integer('id').primaryKey({ autoIncrement: true }),
-  userId: text('user_id').notNull().references(() => users.id),
+  userId: text('user_id').notNull().references(() => user.id),
   name: text('name').notNull(),
   criteria: text('criteria').notNull(),
   isActive: integer('is_active').notNull().default(1),
@@ -318,7 +307,7 @@ export const linkedinSavedSearches = sqliteTable('linkedin_saved_searches', {
 
 export const linkedinJobResults = sqliteTable('linkedin_job_results', {
   id: integer('id').primaryKey({ autoIncrement: true }),
-  userId: text('user_id').notNull().references(() => users.id),
+  userId: text('user_id').notNull().references(() => user.id),
   savedSearchId: integer('saved_search_id').references(() => linkedinSavedSearches.id),
   externalJobId: text('external_job_id').notNull(),
   title: text('title').notNull(),
@@ -356,7 +345,7 @@ export const linkedinJobResults = sqliteTable('linkedin_job_results', {
 
 export const pipelineJobs = sqliteTable('pipeline_jobs', {
   id: integer('id').primaryKey({ autoIncrement: true }),
-  userId: text('user_id').notNull().references(() => users.id),
+  userId: text('user_id').notNull().references(() => user.id),
   savedSearchId: integer('saved_search_id').references(() => linkedinSavedSearches.id),
 
   // ── Identity ──
@@ -421,7 +410,7 @@ export const pipelineJobs = sqliteTable('pipeline_jobs', {
 
 export const searchLogs = sqliteTable('search_logs', {
   id: integer('id').primaryKey({ autoIncrement: true }),
-  userId: text('user_id').notNull().references(() => users.id),
+  userId: text('user_id').notNull().references(() => user.id),
   savedSearchId: integer('saved_search_id').references(() => linkedinSavedSearches.id),
   eventType: text('event_type').notNull(),
   // 'search_started' | 'search_completed' | 'job_found' | 'job_skipped_duplicate' |
@@ -437,8 +426,8 @@ export const searchLogs = sqliteTable('search_logs', {
 })
 
 // ─── Inferred Types (user-centric tables) ─────────────────────────────────────
-export type User = typeof users.$inferSelect
-export type NewUser = typeof users.$inferInsert
+export type User = typeof user.$inferSelect
+export type NewUser = typeof user.$inferInsert
 export type MasterResume = typeof masterResume.$inferSelect
 export type NewMasterResume = typeof masterResume.$inferInsert
 export type JobAnalysis = typeof jobAnalyses.$inferSelect

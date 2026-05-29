@@ -38,24 +38,6 @@ export function getAuthInstance(env: Partial<CloudflareEnv> & Record<string, any
       enabled: true,
       passwordMinLength: 8,
     },
-    databaseHooks: {
-      user: {
-        create: {
-          after: async (user) => {
-            const dbInstance = getDb(env.DB);
-            await dbInstance
-              .insert(schema.users)
-              .values({
-                id: user.id,
-                email: user.email,
-                role: (user.role as "admin" | "user") || "user",
-                createdAt: Math.floor(Date.now() / 1000),
-              })
-              .onConflictDoNothing();
-          },
-        },
-      },
-    },
     plugins: [
       admin({
         defaultRole: "user",

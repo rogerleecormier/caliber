@@ -6,7 +6,6 @@ import { getDb } from "@/db/db";
 import { resolveSessionUser } from "@/lib/resolve-user";
 import { getAuthInstance } from "@/server/auth";
 import {
-  users,
   user as userTable,
   masterResume,
   jobAnalyses,
@@ -29,7 +28,7 @@ export const listUsers = createServerFn({ method: "GET" }).handler(async () => {
   const env = getCloudflareEnv();
   if (!env.DB) return [];
   const db = getDb(env.DB);
-  return db.select({ id: users.id, email: users.email, role: users.role, createdAt: users.createdAt }).from(users);
+  return db.select({ id: userTable.id, email: userTable.email, role: userTable.role, createdAt: userTable.createdAt }).from(userTable);
 });
 
 export const createUser = createServerFn({ method: "POST" })
@@ -94,7 +93,6 @@ export const deleteUser = createServerFn({ method: "POST" })
     await db.delete(linkedinSavedSearches).where(eq(linkedinSavedSearches.userId, data.userId));
 
     // 4. Delete the user records themselves
-    await db.delete(users).where(eq(users.id, data.userId));
     await db.delete(userTable).where(eq(userTable.id, data.userId));
 
     return { success: true };

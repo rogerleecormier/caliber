@@ -18,7 +18,6 @@
     "db:migrate:prod": "wrangler d1 migrations apply DB --remote",
     "data:migrate:job-analyzer": "node scripts/migrate-job-analyzer-data.mjs",
     "db:studio": "drizzle-kit studio",
-    "db:sync-users": "node scripts/sync-legacy-users.js",
     "deploy:sync": "wrangler deploy --config wrangler.sync.toml",
     "deploy:ats": "wrangler deploy --config wrangler.ats.toml",
     "deploy:discovery": "wrangler deploy --config wrangler.discovery.toml",

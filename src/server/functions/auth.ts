@@ -5,7 +5,7 @@ import type { SessionUser } from "@/lib/cloudflare";
 import { resolveSessionUser } from "@/lib/resolve-user";
 import { eq, sql } from "drizzle-orm";
 import { getDb } from "@/db/db";
-import { user, users } from "@/db/schema";
+import { user } from "@/db/schema";
 
 export const getSessionUser = createServerFn({ method: "GET" }).handler(
   async (): Promise<SessionUser | null> => {
@@ -46,12 +46,6 @@ export const promoteToAdmin = createServerFn({ method: "POST" })
 
     // Canonical role source is better-auth's `user` table.
     await db.update(user).set({ role: "admin" }).where(eq(user.id, authUser.id));
-
-    // Keep legacy mirror in sync during transition.
-    await db
-      .update(users)
-      .set({ role: "admin" })
-      .where(sql`lower(${users.email}) = ${normalizedEmail}`);
 
     return { success: true, email: authUser.email, role: "admin" };
   });

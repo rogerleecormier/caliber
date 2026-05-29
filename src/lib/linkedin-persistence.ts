@@ -730,7 +730,7 @@ export async function listLinkedinHistory(args: {
       lastSeenAt: pipelineJobs.lastSeenAt,
       createdAt: pipelineJobs.createdAt,
       updatedAt: pipelineJobs.updatedAt,
-      ownerEmail: sql<string | null>`${sql.raw(canViewAllUsers ? "(select email from users where users.id = pipeline_jobs.user_id)" : "null")}`.as('ownerEmail'),
+      ownerEmail: sql<string | null>`${sql.raw(canViewAllUsers ? "(select email from user where user.id = pipeline_jobs.user_id)" : "null")}`.as('ownerEmail'),
     })
     .from(pipelineJobs)
     .where(whereClause)

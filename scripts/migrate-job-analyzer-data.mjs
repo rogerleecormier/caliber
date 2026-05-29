@@ -4,6 +4,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
+import crypto from "node:crypto";
 
 const APP_DIR = "/run/media/rogerleecormier/Storage/dev/caliber/apps/jobs";
 const SOURCE_DB = "job-analyzer-db";
@@ -213,23 +214,31 @@ async function main() {
         continue;
       }
 
-      if (isDryRun) {
-        sourceUserIdToTargetUserId.set(user.id, -(user.id));
-        report.usersInserted += 1;
-        continue;
+      const targetId = crypto.randomUUID();
+      const name = user.email.split("@")[0];
+      const createdAtMs = (typeof user.created_at === "number" ? user.created_at : Math.floor(Date.now() / 1000)) * 1000;
+
+      if (!isDryRun) {
+        d1Exec(
+          TARGET_DB,
+          [
+            "INSERT INTO user (id, name, email, email_verified, created_at, updated_at, role)",
+            `VALUES (${escapeSql(targetId)}, ${escapeSql(name)}, ${escapeSql(user.email)}, 1, ${createdAtMs}, ${createdAtMs}, ${escapeSql(user.role)});`,
+          ].join(" "),
+        );
+
+        const accountId = crypto.randomUUID();
+        d1Exec(
+          TARGET_DB,
+          [
+            "INSERT INTO account (id, account_id, provider_id, user_id, password, created_at, updated_at)",
+            `VALUES (${escapeSql(accountId)}, ${escapeSql(user.email)}, 'credential', ${escapeSql(targetId)}, ${escapeSql(user.password_hash)}, ${createdAtMs}, ${createdAtMs});`,
+          ].join(" "),
+        );
       }
 
-      const insertResult = d1Exec(
-        TARGET_DB,
-        [
-          "INSERT INTO users (email, password_hash, role, created_at)",
-          `VALUES (${escapeSql(user.email)}, ${escapeSql(user.password_hash)}, ${escapeSql(user.role)}, ${escapeSql(user.created_at)});`,
-        ].join(" "),
-      );
-
-      const insertedId = lastRowId(insertResult);
-      sourceUserIdToTargetUserId.set(user.id, insertedId);
-      targetUserByEmail.set(email, { ...user, id: insertedId });
+      sourceUserIdToTargetUserId.set(user.id, targetId);
+      targetUserByEmail.set(email, { ...user, id: targetId });
       report.usersInserted += 1;
     }
 
