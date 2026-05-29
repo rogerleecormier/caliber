@@ -333,16 +333,7 @@ export function AppHeader({
       : getSharedAuthOrigin(window.location.href);
   const appOrigin = getAppOrigin(app, currentPath);
   const resolvedUser = user ?? null;
-  const loginHref = useMemo(() => {
-    if (app === "corporate") return "/login";
-
-    const returnTo =
-      typeof window !== "undefined"
-        ? window.location.href
-        : `${appOrigin}${currentPath || "/"}`;
-    const params = new URLSearchParams({ redirect: returnTo });
-    return `https://caliber.rcormier.dev/login?${params.toString()}`;
-  }, [app, appOrigin, currentPath]);
+  const loginHref = "/login";
 
   async function handleSharedLogout() {
     if (onLogout) {
