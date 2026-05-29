@@ -1,11 +1,8 @@
-import { createFileRoute, redirect, useRouter, useSearch } from "@tanstack/react-router";
+import { createFileRoute, redirect, useRouter } from "@tanstack/react-router";
 import { useState } from "react";
 import { authClient } from "@/auth/client";
 
 export const Route = createFileRoute("/login")({
-  validateSearch: (search: Record<string, unknown>) => ({
-    redirect: (search.redirect as string) || undefined,
-  }),
   beforeLoad: ({ context }) => {
     const ctx = context as { user?: { id: string; role: string } | null };
     if (ctx.user) {
@@ -17,7 +14,6 @@ export const Route = createFileRoute("/login")({
 
 function LoginPage() {
   const router = useRouter();
-  const { redirect: redirectTo } = useSearch({ from: Route.id });
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -39,12 +35,7 @@ function LoginPage() {
       } else {
         // Ensure root route context rehydrates with the newly created session.
         await router.invalidate();
-        if (redirectTo) {
-          const url = new URL(redirectTo);
-          window.location.href = url.pathname + url.search;
-        } else {
-          window.location.href = "/";
-        }
+        window.location.href = "/";
       }
     } catch {
       setError("An unexpected error occurred. Please try again.");
