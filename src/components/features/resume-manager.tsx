@@ -109,7 +109,7 @@ export function ResumeManager({ initial }: { initial: ResumeData | null }) {
         <CardHeader className="pb-3">
           <CardTitle className="text-base">Upload Resume</CardTitle>
           <CardDescription>
-            Upload a PDF, DOCX, or TXT file. AI will extract your contact details automatically.
+            Upload a PDF, DOCX, or TXT file.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">

@@ -1,4 +1,5 @@
 import { ScoreBadge } from "./score-badge";
+import { DocumentActions } from "./document-actions";
 import {
   CheckCircle2,
   AlertTriangle,
@@ -58,6 +59,7 @@ interface CareerAnalysis {
 
 interface AnalysisResultProps {
   analysis: {
+    id?: number;
     jobTitle: string;
     company: string;
     industry?: string;
@@ -72,7 +74,10 @@ interface AnalysisResultProps {
     personalInterest?: string;
     careerAnalysis?: CareerAnalysis | null;
     insights?: JobInsightsSection | null;
+    applied?: boolean;
   };
+  showDocumentActions?: boolean;
+  onDocumentGenerated?: () => void;
 }
 
 const verdictMap = {
@@ -109,7 +114,7 @@ function SectionCard({ icon, title, eyebrow, children }: {
   );
 }
 
-export function AnalysisResult({ analysis }: AnalysisResultProps) {
+export function AnalysisResult({ analysis, showDocumentActions = true, onDocumentGenerated }: AnalysisResultProps) {
   const rec = analysis.careerAnalysis?.recommendation ?? (analysis.pursue ? "pursue" : "pass");
   const verdict = verdictMap[rec];
   const VerdictIcon = verdict.Icon;
@@ -120,7 +125,7 @@ export function AnalysisResult({ analysis }: AnalysisResultProps) {
   const total    = analysis.gapAnalysis.length;
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-6">
 
       {/* ── Hero card ── */}
       <div className={`rounded-2xl border p-5 ${verdict.bg}`}>
@@ -353,6 +358,15 @@ export function AnalysisResult({ analysis }: AnalysisResultProps) {
             )}
           </div>
         </SectionCard>
+      )}
+
+      {/* ── Document generation ── */}
+      {showDocumentActions && analysis.id && (
+        <DocumentActions
+          analysisId={analysis.id}
+          applied={analysis.applied ?? false}
+          onDocumentGenerated={onDocumentGenerated}
+        />
       )}
     </div>
   );

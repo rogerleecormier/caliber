@@ -61,7 +61,7 @@ export function AnalysisModal({
         </div>
         <div className="p-6">
           {isViewingStored && storedAnalysis ? (
-            <AnalysisResult analysis={storedAnalysis} />
+            <AnalysisResult analysis={storedAnalysis} showDocumentActions={true} onDocumentGenerated={onDocumentGenerated} />
           ) : (
             <AnalysisForm
               initialUrl={jobUrl}

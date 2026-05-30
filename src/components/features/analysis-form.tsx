@@ -179,7 +179,7 @@ export function AnalysisForm({
               New Analysis
             </Button>
           </div>
-          <AnalysisResult analysis={result} />
+          <AnalysisResult analysis={result} showDocumentActions={false} onDocumentGenerated={onDocumentGenerated} />
           <DocumentActions
             analysisId={result.id}
             applied={"applied" in result && result.applied === true}
