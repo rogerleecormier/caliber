@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback } from "react";
 import { Button, Input, Card, CardContent, CardDescription, CardHeader, CardTitle } from "@caliber/ui-kit";
-import { CheckCircle2, FileText, Loader2, Upload, AlertCircle } from "lucide-react";
+import { CheckCircle2, Loader2, Upload, AlertCircle } from "lucide-react";
 import { saveResume, parseResumeText, type ResumeData } from "@/server/functions/manage-resume";
 
 export function ResumeManager({ initial }: { initial: ResumeData | null }) {
@@ -18,14 +18,6 @@ export function ResumeManager({ initial }: { initial: ResumeData | null }) {
   const [linkedin, setLinkedin] = useState(initial?.linkedin ?? "");
   const [website, setWebsite] = useState(initial?.website ?? "");
   const [rawText, setRawText] = useState(initial?.rawText ?? "");
-  const [structured, setStructured] = useState<Partial<ResumeData>>({
-    summary: initial?.summary,
-    experience: initial?.experience,
-    competencies: initial?.competencies,
-    tools: initial?.tools,
-    education: initial?.education,
-    certifications: initial?.certifications,
-  });
 
   const parseFile = useCallback(async (file: File) => {
     setUploadStatus("parsing");
@@ -55,24 +47,13 @@ export function ResumeManager({ initial }: { initial: ResumeData | null }) {
       }
       setRawText(text);
 
-      const parsed = await Promise.race([
-        parseResumeText({ data: { text } }),
-        new Promise<null>((resolve) => setTimeout(() => resolve(null), 45_000)),
-      ]).catch(() => null);
+      const parsed = await parseResumeText({ data: { text } });
       if (parsed) {
         if (parsed.fullName && !fullName) setFullName(parsed.fullName);
         if (parsed.email && !email) setEmail(parsed.email);
         if (parsed.phone && !phone) setPhone(parsed.phone);
         if (parsed.linkedin && !linkedin) setLinkedin(parsed.linkedin);
         if (parsed.website && !website) setWebsite(parsed.website);
-        setStructured({
-          summary: parsed.summary,
-          experience: parsed.experience,
-          competencies: parsed.competencies,
-          tools: parsed.tools,
-          education: parsed.education,
-          certifications: parsed.certifications,
-        });
       }
       setUploadStatus("done");
       setTimeout(() => setUploadStatus("idle"), 4000);
@@ -110,12 +91,6 @@ export function ResumeManager({ initial }: { initial: ResumeData | null }) {
           linkedin: linkedin.trim() || undefined,
           website: website.trim() || undefined,
           rawText: rawText || undefined,
-          summary: structured.summary,
-          experience: structured.experience,
-          competencies: structured.competencies,
-          tools: structured.tools,
-          education: structured.education,
-          certifications: structured.certifications,
         },
       });
       setLastSaved(result.updatedAt);
@@ -163,15 +138,15 @@ export function ResumeManager({ initial }: { initial: ResumeData | null }) {
             )}
             <div className="text-center">
               <p className="text-sm font-medium">
-                {uploadStatus === "parsing" ? "AI is parsing your resume…" :
+                {uploadStatus === "parsing" ? "Parsing your resume…" :
                  uploadStatus === "done" ? "Resume imported — review fields below and save." :
                  uploadStatus === "error" ? "Failed to read file" :
                  "Click to upload or drag & drop"}
               </p>
               <p className="text-xs text-muted-foreground mt-1">
                 {uploadStatus === "idle" || uploadStatus === "error" ? "PDF, DOCX, or TXT" :
-                 uploadStatus === "done" ? "Fields auto-filled — save when ready." :
-                 "Extracting all roles, skills, and certifications. This can take up to 45 seconds…"}
+                 uploadStatus === "done" ? "Contact info auto-filled — save when ready." :
+                 "Extracting contact information…"}
               </p>
             </div>
             {(uploadStatus === "idle" || uploadStatus === "error") && (
