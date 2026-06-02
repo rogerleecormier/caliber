@@ -55,7 +55,28 @@ export async function scrapeJobInternal(url: string) {
 
     const cached = await kvNamespace.get(cacheKey);
     if (cached) {
-      return { text: cached, fromCache: true };
+      const lowerCached = cached.toLowerCase();
+      const botSigs = [
+        "security check",
+        "access denied",
+        "verify you are human",
+        "checking your browser",
+        "turnstile",
+        "cloudflare",
+        "datadome",
+        "bot-detection",
+        "authenticating...",
+        "create an account to apply for the job",
+        "sign in to your account",
+        "sign in with google",
+        "sign in with apple"
+      ];
+      const hasBotSig = botSigs.some((sig) => lowerCached.includes(sig));
+      if (!hasBotSig) {
+        return { text: cached, fromCache: true };
+      }
+      // If cached data contains bot signatures, delete it to allow re-scrape
+      await kvNamespace.delete(cacheKey).catch(() => {});
     }
 
     const puppeteer = await import("@cloudflare/puppeteer");
@@ -148,7 +169,11 @@ export async function scrapeJobInternal(url: string) {
               "cloudflare",
               "datadome",
               "bot-detection",
-              "authenticating..."
+              "authenticating...",
+              "create an account to apply for the job",
+              "sign in to your account",
+              "sign in with google",
+              "sign in with apple"
             ];
             if (botSigs.some((sig) => lowerText.includes(sig))) {
               throw new Error("This request was blocked by the website's bot detection system. Please copy and paste the job description text manually.");
