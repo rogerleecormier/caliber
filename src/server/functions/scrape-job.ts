@@ -122,6 +122,31 @@ export async function scrapeJobInternal(url: string) {
             const isLinkedIn = navigateUrl.includes("linkedin.com");
 
             const evalResult = await page.evaluate((isIndeed, isLinkedIn) => {
+              // Try to extract metadata if Indeed or LinkedIn
+              let title = "";
+              let company = "";
+              let location = "";
+
+              if (isIndeed) {
+                const titleEl = document.querySelector(".jobsearch-JobInfoHeader-title, h1");
+                if (titleEl) title = titleEl.textContent?.trim() || "";
+
+                const companyEl = document.querySelector(".jobsearch-InlineCompanyRating a, [data-company-name='true'], .jobsearch-CompanyInfoContainer");
+                if (companyEl) company = companyEl.textContent?.trim() || "";
+
+                const locationEl = document.querySelector(".jobsearch-JobInfoHeader-subtitle > div:last-child, .jobsearch-JobInfoTextBox, .jobsearch-JobInfoHeader-subtitle");
+                if (locationEl) location = locationEl.textContent?.trim() || "";
+              } else if (isLinkedIn) {
+                const titleEl = document.querySelector("h1, .top-card-layout__title, .jobs-unified-top-card__job-title");
+                if (titleEl) title = titleEl.textContent?.trim() || "";
+
+                const companyEl = document.querySelector(".topcard__org-name-link, .jobs-unified-top-card__company-name, .topcard__flavor a");
+                if (companyEl) company = companyEl.textContent?.trim() || "";
+
+                const locationEl = document.querySelector(".topcard__flavor--bullet, .jobs-unified-top-card__bullet-point, .top-card-layout__first-subline");
+                if (locationEl) location = locationEl.textContent?.trim() || "";
+              }
+
               // Try targeted selectors first for clean extraction
               const selectors = [
                 "#jobDescriptionText", // Indeed
@@ -139,7 +164,15 @@ export async function scrapeJobInternal(url: string) {
                   // Clean up children script/style tags if any
                   el.querySelectorAll("script, style").forEach((s) => s.remove());
                   const t = el.textContent?.trim();
-                  if (t && t.length > 100) return { text: t, foundTarget: true };
+                  if (t && t.length > 100) {
+                    let fullText = "";
+                    if (title) fullText += `Job Title: ${title}\n`;
+                    if (company) fullText += `Company: ${company}\n`;
+                    if (location) fullText += `Location: ${location}\n`;
+                    if (fullText) fullText += `\n`;
+                    fullText += t;
+                    return { text: fullText, foundTarget: true };
+                  }
                 }
               }
 
