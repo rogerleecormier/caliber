@@ -115,7 +115,13 @@ function SectionCard({ icon, title, eyebrow, children }: {
 }
 
 export function AnalysisResult({ analysis, showDocumentActions = true, onDocumentGenerated }: AnalysisResultProps) {
-  const rec = analysis.careerAnalysis?.recommendation ?? (analysis.pursue ? "pursue" : "pass");
+  let recRaw = analysis.careerAnalysis?.recommendation;
+  if (typeof recRaw === "string") {
+    recRaw = recRaw.toLowerCase().trim() as any;
+  }
+  const rec = (recRaw === "pursue" || recRaw === "consider" || recRaw === "pass")
+    ? recRaw
+    : (analysis.pursue ? "pursue" : "pass");
   const verdict = verdictMap[rec];
   const VerdictIcon = verdict.Icon;
 

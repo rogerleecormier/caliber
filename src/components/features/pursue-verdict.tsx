@@ -8,7 +8,13 @@ interface PursueVerdictProps {
 }
 
 export function PursueVerdict({ pursue, justification, recommendation }: PursueVerdictProps) {
-  const rec = recommendation ?? (pursue ? "pursue" : "pass");
+  let recRaw = recommendation;
+  if (typeof recRaw === "string") {
+    recRaw = recRaw.toLowerCase().trim() as any;
+  }
+  const rec = (recRaw === "pursue" || recRaw === "consider" || recRaw === "pass")
+    ? recRaw
+    : (pursue ? "pursue" : "pass");
 
   const config = {
     pursue: {
