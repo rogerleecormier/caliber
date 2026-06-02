@@ -67,9 +67,16 @@ export async function scrapeJobInternal(url: string) {
         "bot-detection",
         "authenticating...",
         "create an account to apply for the job",
+        "create an account or sign in",
+        "sign in to proceed",
         "sign in to your account",
         "sign in with google",
-        "sign in with apple"
+        "sign in with apple",
+        "forgot password",
+        "terms of service",
+        "cookie policy",
+        "privacy policy",
+        "by continuing, you agree"
       ];
       const hasBotSig = botSigs.some((sig) => lowerCached.includes(sig));
       if (!hasBotSig) {
@@ -204,9 +211,16 @@ export async function scrapeJobInternal(url: string) {
               "bot-detection",
               "authenticating...",
               "create an account to apply for the job",
+              "create an account or sign in",
+              "sign in to proceed",
               "sign in to your account",
               "sign in with google",
-              "sign in with apple"
+              "sign in with apple",
+              "forgot password",
+              "terms of service",
+              "cookie policy",
+              "privacy policy",
+              "by continuing, you agree"
             ];
             if (botSigs.some((sig) => lowerText.includes(sig))) {
               throw new Error("This request was blocked by the website's bot detection system. Please copy and paste the job description text manually.");
