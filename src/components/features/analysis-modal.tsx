@@ -65,7 +65,7 @@ export function AnalysisModal({
           ) : (
             <AnalysisForm
               initialUrl={jobUrl}
-              hideInputModeToggle={isFromExistingJob}
+              hideInputModeToggle={false}
               pipelineJobId={pipelineJobId}
               onAnalysisComplete={onAnalysisComplete}
               onDocumentGenerated={onDocumentGenerated}

@@ -167,7 +167,7 @@ export function JobTableView({
                 <td className="px-4 py-3">
                   <div className="flex items-center justify-center gap-2">
                     {isAnalyzed ? (
-                      <button
+                       <button
                         type="button"
                         onClick={() => onAnalyze(job.sourceUrl)}
                         className="inline-flex h-8 items-center gap-1 rounded-lg border border-indigo-200 bg-indigo-50 px-2.5 text-xs font-semibold text-indigo-700 transition hover:bg-indigo-100"
@@ -185,14 +185,24 @@ export function JobTableView({
                         <Sparkles className="h-3.5 w-3.5" />
                       </button>
                     )}
-                    <a
-                      href={job.sourceUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex h-8 items-center gap-1 rounded-lg bg-amber-600 px-2.5 text-xs font-semibold text-white transition hover:bg-amber-700"
-                    >
-                      <ExternalLink className="h-3.5 w-3.5" />
-                    </a>
+                    {job.sourceUrl && job.sourceUrl !== "text-input" ? (
+                      <a
+                        href={job.sourceUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex h-8 items-center gap-1 rounded-lg bg-amber-600 px-2.5 text-xs font-semibold text-white transition hover:bg-amber-700"
+                      >
+                        <ExternalLink className="h-3.5 w-3.5" />
+                      </a>
+                    ) : (
+                      <button
+                        type="button"
+                        disabled
+                        className="inline-flex h-8 items-center gap-1 rounded-lg bg-slate-100 border border-slate-200 px-2.5 text-xs font-semibold text-slate-400 cursor-not-allowed"
+                      >
+                        <ExternalLink className="h-3.5 w-3.5" />
+                      </button>
+                    )}
                   </div>
                 </td>
               </tr>

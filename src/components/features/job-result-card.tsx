@@ -111,6 +111,7 @@ export function JobResultCard({
   onAnalyzeClick,
 }: JobResultCardProps) {
   const score = getScore(job);
+  const hasUrl = !!(job.sourceUrl && job.sourceUrl !== "text-input");
   const [downloadingKey, setDownloadingKey] = useState<string | null>(null);
 
   const mostRecentDocuments = (() => {
@@ -351,22 +352,32 @@ export function JobResultCard({
                 </button>
               ) : (
                 <Link
-                  to="/analyze"
-                  search={{ url: job.sourceUrl }}
+                  to="/jobs"
+                  search={{ url: hasUrl ? job.sourceUrl : undefined }}
                   className="inline-flex h-8 items-center gap-1 whitespace-nowrap rounded-lg border border-amber-200 bg-amber-50 px-2.5 text-xs font-semibold text-amber-700 transition hover:bg-amber-100"
                 >
                   <Sparkles className="h-3.5 w-3.5" />
                   Analyze
                 </Link>
               )}
-              <a
-                href={job.sourceUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex h-8 items-center gap-1 whitespace-nowrap rounded-lg bg-amber-600 px-2.5 text-xs font-semibold text-white transition hover:bg-amber-700"
-              >
-                Open <ExternalLink className="h-3.5 w-3.5" />
-              </a>
+              {hasUrl ? (
+                <a
+                  href={job.sourceUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex h-8 items-center gap-1 whitespace-nowrap rounded-lg bg-amber-600 px-2.5 text-xs font-semibold text-white transition hover:bg-amber-700"
+                >
+                  Open <ExternalLink className="h-3.5 w-3.5" />
+                </a>
+              ) : (
+                <button
+                  type="button"
+                  disabled
+                  className="inline-flex h-8 items-center gap-1 whitespace-nowrap rounded-lg bg-slate-100 border border-slate-200 px-2.5 text-xs font-semibold text-slate-400 cursor-not-allowed"
+                >
+                  Open <ExternalLink className="h-3.5 w-3.5" />
+                </button>
+              )}
             </div>
             {statusOptions && onStatusChange ? (
               <div className="flex items-center gap-2">

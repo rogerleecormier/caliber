@@ -56,6 +56,8 @@ type JobSearchInput = {
   sortBy?: SortOption;
   status?: string;
   analyzedOnly?: boolean | string;
+  analyze?: boolean | string;
+  url?: string;
 };
 
 export type JobSearchParams = {
@@ -65,6 +67,8 @@ export type JobSearchParams = {
   sortBy: SortOption;
   status: string;
   analyzedOnly: boolean;
+  analyze?: boolean;
+  url?: string;
 };
 
 type HubJob = Awaited<ReturnType<typeof getPipelineJobHistory>>["rows"][number] & {
@@ -89,6 +93,8 @@ export const Route = createFileRoute("/jobs")({
       : "posted-date") as SortOption,
     status: typeof search.status === "string" ? search.status : "",
     analyzedOnly: search.analyzedOnly === true || search.analyzedOnly === "true",
+    analyze: search.analyze === true || search.analyze === "true" ? true : undefined,
+    url: typeof search.url === "string" && search.url.trim() !== "" ? search.url.trim() : undefined,
   }),
   loaderDeps: ({ search }: { search: JobSearchParams }) => search,
   beforeLoad: ({ context }) => {
@@ -128,7 +134,7 @@ export const Route = createFileRoute("/jobs")({
 type ViewMode = "cards" | "table";
 
 function JobsPage() {
-  const { page, query, remote, sortBy, status: activeStatus, analyzedOnly } = Route.useSearch();
+  const { page, query, remote, sortBy, status: activeStatus, analyzedOnly, analyze, url: searchUrl } = Route.useSearch();
   const { hasResume, fullName, savedSearches: loaderSavedSearches, rows, total, statusCounts, canViewAllUsers, cronStartHour, cronFrequency } =
     Route.useLoaderData();
   const navigate = Route.useNavigate();
@@ -202,6 +208,32 @@ function JobsPage() {
     }, 350);
     return () => clearTimeout(timer);
   }, [inputValue, navigate, query]);
+
+  useEffect(() => {
+    if (analyze || searchUrl) {
+      // Clear parameters from the URL
+      navigate({
+        search: (prev) => {
+          const next = { ...prev };
+          delete (next as any).analyze;
+          delete (next as any).url;
+          return next;
+        },
+        replace: true,
+      });
+
+      setSelectedJobForAnalysis(null);
+      setStoredAnalysis(null);
+      if (searchUrl) {
+        setSelectedJobForAnalysis({
+          title: "New Job Analysis",
+          company: "",
+          sourceUrl: searchUrl,
+        } as any);
+      }
+      setAnalysisModalOpen(true);
+    }
+  }, [analyze, searchUrl, navigate]);
 
   useEffect(() => {
     const hasActiveCron = loaderSavedSearches.some((s) => s.isActive);

@@ -405,7 +405,8 @@ function JobsHome() {
             Launch Search Agents
           </Link>
           <Link
-            to="/analyze"
+            to="/jobs"
+            search={{ analyze: true }}
             className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-6 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 hover:border-slate-300"
           >
             <Briefcase className="h-4 w-4" />
@@ -454,7 +455,7 @@ function JobsHome() {
           eyebrow="Automated Agents"
           accent="border-slate-200 bg-slate-50 text-slate-700"
           title="Find remote jobs from multiple sources on auto-pilot."
-          description="Create custom search agents targeting LinkedIn along with public ATS job boards like Greenhouse, Lever, and Workable. Your agents sync matches and alert you on the intervals you configure."
+          description="Create custom search agents targeting LinkedIn along with public ATS job boards like Greenhouse, Lever, and Workable. Your search agents sync matches and alert you on the intervals you configure."
           bullets={[
             "Consolidated results from LinkedIn and major public ATS sources",
             "Customizable search agent run intervals (hourly, daily, etc.)",
