@@ -10,7 +10,14 @@ function cleanUrl(raw: string): string {
       const jobId = url.searchParams.get("currentJobId");
       if (jobId) return `https://www.linkedin.com/jobs/view/${jobId}/`;
     }
-    const trackingParams = ["utm_source", "utm_medium", "utm_campaign", "utm_content", "utm_term", "trackingId", "refId", "eBP"];
+    if (url.hostname.includes("indeed.com") && url.pathname.includes("/viewjob")) {
+      const jk = url.searchParams.get("jk");
+      if (jk) {
+        url.search = `?jk=${jk}`;
+        return url.toString();
+      }
+    }
+    const trackingParams = ["utm_source", "utm_medium", "utm_campaign", "utm_content", "utm_term", "trackingId", "refId", "eBP", "xkcb"];
     for (const p of trackingParams) url.searchParams.delete(p);
     return url.toString();
   } catch {
@@ -59,10 +66,60 @@ export async function scrapeJobInternal(url: string) {
         try {
           const page = await browser.newPage();
           try {
+            // Stealth/Anti-bot overrides
+            await page.setUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36");
+            await page.setExtraHTTPHeaders({
+              "Accept-Language": "en-US,en;q=0.9",
+              "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
+            });
+            await page.evaluateOnNewDocument(() => {
+              Object.defineProperty(navigator, "webdriver", {
+                get: () => false,
+              });
+            });
+
             await page.goto(navigateUrl, { waitUntil: "domcontentloaded", timeout: 60000 });
-            await new Promise((r) => setTimeout(r, 3000));
+
+            // Wait for known selectors to ensure content loads
+            if (navigateUrl.includes("indeed.com")) {
+              try {
+                await page.waitForSelector("#jobDescriptionText", { timeout: 8000 });
+              } catch (e) {
+                console.warn("[scrape-job] Timeout waiting for indeed jobDescriptionText:", e);
+              }
+            } else if (navigateUrl.includes("linkedin.com")) {
+              try {
+                await page.waitForSelector(".show-more-less-html__markup, .description__text, .jobs-description", { timeout: 8000 });
+              } catch (e) {
+                console.warn("[scrape-job] Timeout waiting for linkedin jobDescription:", e);
+              }
+            } else {
+              await new Promise((r) => setTimeout(r, 3000));
+            }
 
             const text = await page.evaluate(() => {
+              // Try targeted selectors first for clean extraction
+              const selectors = [
+                "#jobDescriptionText", // Indeed
+                ".show-more-less-html__markup", // LinkedIn
+                ".description__text", // LinkedIn alt
+                ".jobs-description", // LinkedIn alt
+                "[data-ui='job-description']", // Workable
+                ".job-description", // General
+                "#content", // Greenhouse
+                ".posting-headline", // Lever
+              ];
+              for (const sel of selectors) {
+                const el = document.querySelector(sel);
+                if (el) {
+                  // Clean up children script/style tags if any
+                  el.querySelectorAll("script, style").forEach((s) => s.remove());
+                  const t = el.textContent?.trim();
+                  if (t && t.length > 100) return t;
+                }
+              }
+
+              // Fallback to body clean text
               const scripts = document.querySelectorAll("script, style, nav, footer, header");
               scripts.forEach((el) => el.remove());
               return document.body?.innerText?.trim() ?? "";
