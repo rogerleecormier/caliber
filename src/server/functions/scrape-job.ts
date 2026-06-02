@@ -97,7 +97,10 @@ export async function scrapeJobInternal(url: string) {
               await new Promise((r) => setTimeout(r, 3000));
             }
 
-            const text = await page.evaluate(() => {
+            const isIndeed = navigateUrl.includes("indeed.com");
+            const isLinkedIn = navigateUrl.includes("linkedin.com");
+
+            const evalResult = await page.evaluate((isIndeed, isLinkedIn) => {
               // Try targeted selectors first for clean extraction
               const selectors = [
                 "#jobDescriptionText", // Indeed
@@ -115,20 +118,44 @@ export async function scrapeJobInternal(url: string) {
                   // Clean up children script/style tags if any
                   el.querySelectorAll("script, style").forEach((s) => s.remove());
                   const t = el.textContent?.trim();
-                  if (t && t.length > 100) return t;
+                  if (t && t.length > 100) return { text: t, foundTarget: true };
                 }
               }
 
               // Fallback to body clean text
               const scripts = document.querySelectorAll("script, style, nav, footer, header");
               scripts.forEach((el) => el.remove());
-              return document.body?.innerText?.trim() ?? "";
-            });
+              return { text: document.body?.innerText?.trim() ?? "", foundTarget: false };
+            }, isIndeed, isLinkedIn);
 
-            if (!text) throw new Error("No text content extracted from the page");
+            if (isIndeed && !evalResult.foundTarget) {
+              throw new Error("Indeed blocked this automated request or requires authentication. Please copy and paste the job description text manually.");
+            }
+            if (isLinkedIn && !evalResult.foundTarget) {
+              throw new Error("LinkedIn blocked this automated request or requires authentication. Please copy and paste the job description text manually.");
+            }
 
-            await kvNamespace.put(cacheKey, text, { expirationTtl: 7 * 24 * 60 * 60 });
-            return { text, fromCache: false };
+            const cleanText = evalResult.text;
+            if (!cleanText) throw new Error("No text content extracted from the page");
+
+            const lowerText = cleanText.toLowerCase();
+            const botSigs = [
+              "security check",
+              "access denied",
+              "verify you are human",
+              "checking your browser",
+              "turnstile",
+              "cloudflare",
+              "datadome",
+              "bot-detection",
+              "authenticating..."
+            ];
+            if (botSigs.some((sig) => lowerText.includes(sig))) {
+              throw new Error("This request was blocked by the website's bot detection system. Please copy and paste the job description text manually.");
+            }
+
+            await kvNamespace.put(cacheKey, cleanText, { expirationTtl: 7 * 24 * 60 * 60 });
+            return { text: cleanText, fromCache: false };
           } finally {
             try {
               await page.close();
