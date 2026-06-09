@@ -131,7 +131,11 @@ export async function callWorkersAI(
     throw new Error("Workers AI.run() returned undefined");
   }
 
-  // Workers AI can return: { response: string }, a plain string, or a stream.
+  // Workers AI can return multiple formats:
+  // 1. { response: string } - standard format
+  // 2. { choices: [{ message: { content: string } }] } - OpenAI format
+  // 3. Plain string
+  // 4. { result: string } - alternative format
   let text: string | undefined;
   if (typeof result === "string") {
     text = result;
@@ -143,6 +147,9 @@ export async function callWorkersAI(
     text = result.result;
   } else if (result && result.result != null) {
     text = JSON.stringify(result.result);
+  } else if (result && Array.isArray(result.choices) && result.choices[0]?.message?.content) {
+    // OpenAI-style format: { choices: [{ message: { content: string } }] }
+    text = result.choices[0].message.content;
   } else {
     console.error("[callWorkersAI] Unexpected result shape:", JSON.stringify(result).slice(0, 200));
     text = result != null ? JSON.stringify(result) : undefined;
