@@ -115,7 +115,7 @@ SECTIONS:
   Example without metric: "Led cross-functional stakeholder alignment across engineering, finance, and operations to deliver ERP cutover on schedule."
 - Education: degree type, field of study, institution, year — copied exactly.
 - Certifications: copy every certification — omit none (PMP, CompTIA A+/Network+/Security+, CCNA, AWS, etc.).
-- Personal Projects: include only if present in the candidate's data or raw resume text. Each project must have a name and description (1–2 sentences max). Include technologies array if mentioned. Include url if present. Omit this section entirely if no personal projects exist.
+- Personal Projects: IMPORTANT — scan the raw resume text for any section labeled "Personal Projects", "Projects", "Side Projects", or similar. If found, include ALL projects listed there. Each project must have a name and description (1–2 sentences max). Include technologies array if mentioned. Include url if present. Do NOT omit this section if projects exist in the raw resume text.
 
 CANDIDATE STRUCTURED DATA:
 {candidateData}
