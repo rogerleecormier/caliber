@@ -211,6 +211,12 @@ export const generateResume = createServerFn({ method: "POST" })
       const rawResumeText = resume?.rawText ?? "";
 
       // Tailor each section
+      console.log(`[generateResume] About to tailor sections with data:`, {
+        professional_summary: sectionData.professional_summary?.substring(0, 100) ?? "EMPTY",
+        core_competencies: sectionData.core_competencies?.length ?? 0,
+        technical_skills: sectionData.technical_skills?.length ?? 0,
+      });
+
       const tailoredSections = await Promise.all([
         tailorSection(env, "professional_summary", sectionData.professional_summary || "", jobTitle, company, jobDescription),
         tailorSection(env, "core_competencies", sectionData.core_competencies || [], jobTitle, company, jobDescription),
@@ -220,6 +226,12 @@ export const generateResume = createServerFn({ method: "POST" })
         tailorSection(env, "education", sectionData.education || [], jobTitle, company, jobDescription),
         tailorSection(env, "awards", sectionData.awards || [], jobTitle, company, jobDescription),
       ]);
+
+      console.log(`[generateResume] Tailored sections received:`, {
+        professional_summary: typeof tailoredSections[0] === 'string' ? tailoredSections[0].substring(0, 100) : tailoredSections[0],
+        core_competencies: Array.isArray(tailoredSections[1]) ? tailoredSections[1].length : tailoredSections[1],
+        technical_skills: Array.isArray(tailoredSections[2]) ? tailoredSections[2].length : tailoredSections[2],
+      });
 
       // Format contact info with all available details
       const contactParts: string[] = [];
