@@ -13,8 +13,44 @@ export interface CloudflareEnv {
   AI: Ai;
   BROWSER: Fetcher;
   ADMIN_PROMOTION_TOKEN?: string;
+  BETTER_AUTH_SECRET?: string;
+  BETTER_AUTH_URL?: string;
+}
+
+let cachedEnv: Partial<CloudflareEnv> | null = null;
+
+export async function getCloudflareEnvAsync(): Promise<Partial<CloudflareEnv>> {
+  if (cachedEnv) return cachedEnv;
+
+  const env = cfEnv as unknown as Partial<CloudflareEnv>;
+
+  // In development, use platform proxy to get bindings
+  if (!env.DB && typeof globalThis !== "undefined" && (import.meta.env?.DEV || process.env.NODE_ENV === "development")) {
+    try {
+      const { getPlatformProxy } = await import(/* @vite-ignore */ "wrangler");
+      const proxy = await getPlatformProxy({
+        configPath: "./wrangler.toml",
+      });
+      cachedEnv = {
+        ...env,
+        DB: proxy.env.DB,
+        R2: proxy.env.R2,
+        KV: proxy.env.KV,
+        AI: proxy.env.AI,
+        ...proxy.env,
+      };
+      return cachedEnv;
+    } catch {
+      // Fall back to cfEnv if proxy fails
+    }
+  }
+
+  cachedEnv = env;
+  return env;
 }
 
 export function getCloudflareEnv(): Partial<CloudflareEnv> {
+  // For synchronous access, return cfEnv (this is used in context where we can't await)
+  // The async version should be preferred in server functions
   return cfEnv as unknown as Partial<CloudflareEnv>;
 }

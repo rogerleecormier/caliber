@@ -1,4 +1,4 @@
-import { getCloudflareEnv } from "@/lib/cloudflare";
+import { getCloudflareEnv, getCloudflareEnvAsync } from "@/lib/cloudflare";
 import type { SessionUser } from "@/lib/cloudflare";
 import { getAuthInstance } from "@/server/auth";
 import { getRequest } from "@tanstack/react-start/server";
@@ -105,7 +105,7 @@ export async function resolveSessionUser(): Promise<SessionUser | null> {
   let request: ReturnType<typeof getRequest> | null = null;
 
   try {
-    const env = getCloudflareEnv();
+    const env = await getCloudflareEnvAsync();
 
     try {
       request = getRequest();
