@@ -124,6 +124,20 @@ export async function generateResumePdf(content: AtsResumeContent): Promise<Uint
     y -= 4;
   }
 
+  if (content.personalProjects && content.personalProjects.length > 0) {
+    drawSection("Personal Projects");
+    for (const project of content.personalProjects) {
+      ensureSpace(LINE_HEIGHT * 2);
+      const titleLine = project.url ? `${project.name}  —  ${project.url}` : project.name;
+      drawText(titleLine, { font: fontBold, size: 10 });
+      drawText(project.description);
+      if (project.technologies && project.technologies.length > 0) {
+        drawText(`Technologies: ${project.technologies.join(", ")}`, { size: 9, color: darkGray });
+      }
+      y -= 4;
+    }
+  }
+
   drawSection("Education");
   for (const edu of content.education) {
     const degreeLine = edu.fieldOfStudy
@@ -136,20 +150,6 @@ export async function generateResumePdf(content: AtsResumeContent): Promise<Uint
     drawSection("Certifications");
     for (const cert of content.certifications) {
       drawText(`•  ${cert}`, { x: MARGIN + 10, hangingIndent: bulletIndent });
-    }
-  }
-
-  if (content.personalProjects && content.personalProjects.length > 0) {
-    drawSection("Personal Projects");
-    for (const project of content.personalProjects) {
-      ensureSpace(LINE_HEIGHT * 2);
-      const titleLine = project.url ? `${project.name}  —  ${project.url}` : project.name;
-      drawText(titleLine, { font: fontBold, size: 10 });
-      drawText(project.description);
-      if (project.technologies && project.technologies.length > 0) {
-        drawText(`Technologies: ${project.technologies.join(", ")}`, { size: 9, color: darkGray });
-      }
-      y -= 4;
     }
   }
 

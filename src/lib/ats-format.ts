@@ -5,9 +5,9 @@ export const ATS_SECTION_ORDER = [
   "Core Competencies",
   "Technical Skills",
   "Professional Experience",
+  "Personal Projects",
   "Education",
   "Certifications",
-  "Personal Projects",
 ] as const;
 
 export type AtsSection = (typeof ATS_SECTION_ORDER)[number];
