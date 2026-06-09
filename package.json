@@ -10,7 +10,7 @@
     "dev": "vite dev --port 3003",
     "build": "vite build",
     "serve": "wrangler dev",
-    "test": "vitest run",
+    "test": "vitest run -c vitest.config.ts",
     "preview": "npm run build && wrangler dev",
     "cf-typegen": "wrangler types",
     "db:generate": "drizzle-kit generate",

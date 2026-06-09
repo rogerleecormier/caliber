@@ -106,7 +106,7 @@ export function truncateToTokenBudget(
 export async function callWorkersAI(
   env: { AI?: any },
   messages: Message[],
-  options?: { maxTokens?: number; temperature?: number; topP?: number },
+  options?: { maxTokens?: number; temperature?: number; topP?: number; model?: string },
 ): Promise<string> {
   if (!env.AI) {
     throw new Error("Workers AI binding not available in development mode.");
@@ -115,7 +115,7 @@ export async function callWorkersAI(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let result: any;
   try {
-    result = await env.AI.run(DEFAULT_MODEL as any, {
+    result = await env.AI.run((options?.model ?? DEFAULT_MODEL) as any, {
       messages,
       max_tokens: options?.maxTokens ?? 4096,
       temperature: options?.temperature,

@@ -11,11 +11,12 @@ Company: {company}
 Description: {jobDescription}
 
 Create a tailored professional summary:
-- MUST be exactly 3 sentences, NO MORE, NO LESS
+- MUST be 3-4 sentences, NO MORE, NO FEWER
 - MUST be ≤60 words total (count every word — if over 60, remove words)
-- Sentence 1 (~20 words): candidate's title/years of experience/core domains most relevant to THIS job
-- Sentence 2 (~20 words): specific strength or track record from the resume that directly applies to this role (include metric if one exists naturally)
-- Sentence 3 (~20 words): forward-looking value statement connecting their background to what they'll deliver at this company
+- Sentence 1 (~15 words): candidate's title/years of experience/core domains most relevant to THIS job
+- Sentence 2 (~15 words): specific strength or track record from the resume that directly applies to this role (include metric if one exists naturally)
+- Sentence 3 (~15 words): a second relevant strength or domain area aligned to the job description
+- Sentence 4 (optional, ~15 words): forward-looking value statement connecting their background to what they'll deliver at this company
 - STRICT BAN: "I bring", "I leverage", "innovative", "passionate", "dynamic", "I am qualified", "proven track record", "extensive experience"
 - Every sentence must be specific and true — NO GENERIC LANGUAGE
 
@@ -95,7 +96,7 @@ Guidelines:
 - For each role, keep the title and company exactly as stated
 - For dates: combine startDate and endDate (or use startDate only if endDate is missing)
   Example: "Jan 2020 - Dec 2021" or "Jan 2020 - Present"
-- Rewrite 4-6 bullets per role using JD language and patterns
+- Rewrite exactly 6 bullets per role using JD language and patterns (if the role has fewer than 6 source bullets, expand by splitting compound bullets into distinct, specific bullets — do not fabricate)
 - Bullet format: [Action Verb] + [Context/Tool] + [Quantifiable Result] + [Metric if available]
 - Surface real metrics from the resume text (%, $, time, team size) — never fabricate
 - If no metric exists, state the strongest factual result
@@ -126,7 +127,8 @@ Company: {company}
 Description: {jobDescription}
 
 Guidelines:
-- Include ALL projects from the resume (no omissions)
+- Select the 3-4 MOST RELEVANT projects to THIS job (do not include all projects if there are more than 4)
+- Order by relevance to the job description, most relevant first
 - Preserve: name, technologies, url exactly as stated
 - Rewrite description (1-2 sentences max) to emphasize relevance to THIS job
 - Connect the project's skills/outcomes to job requirements where applicable
@@ -171,6 +173,26 @@ Respond with ONLY valid JSON:
     },
     ...
   ]
+}`
+
+export const SECTION_PROMPT_CERTIFICATIONS = `You are an Executive Resume Strategist. Format certifications for this job.
+
+CURRENT CERTIFICATIONS:
+{currentContent}
+
+TARGET JOB:
+Title: {jobTitle}
+Company: {company}
+Description: {jobDescription}
+
+Guidelines:
+- Include ALL certifications from the resume (no omissions)
+- Copy exactly: every certification name as stated
+- No tailoring needed (copy as-is); order by relevance to THIS job if it helps, but do not drop any
+
+Respond with ONLY valid JSON:
+{
+  "certifications": ["string", ...]
 }`
 
 export const SECTION_PROMPT_AWARDS = `You are an Executive Resume Strategist. Format awards for this job.

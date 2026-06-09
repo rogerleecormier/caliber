@@ -10,12 +10,16 @@ import {
 } from "@/lib/ai-gateway";
 import { type AtsResumeContent } from "@/lib/ats-format";
 import { generateResumePdf } from "@/lib/pdf";
-import { jsonrepair } from "jsonrepair";
 import {
   type SectionType,
   type SectionContent,
   parseSectionContent,
 } from "@/lib/resume-sections";
+import {
+  parseSectionResponse,
+  getDefaultSectionValue,
+  enforceGuardrails,
+} from "@/lib/resume-section-parsing";
 import {
   SECTION_PROMPT_PROFESSIONAL_SUMMARY,
   SECTION_PROMPT_CORE_COMPETENCIES,
@@ -23,128 +27,11 @@ import {
   SECTION_PROMPT_PROFESSIONAL_EXPERIENCE,
   SECTION_PROMPT_PERSONAL_PROJECTS,
   SECTION_PROMPT_EDUCATION,
+  SECTION_PROMPT_CERTIFICATIONS,
   SECTION_PROMPT_AWARDS,
 } from "@/lib/resume-section-prompts";
+import { RESUME_TAILORING_MODEL } from "@/lib/ai/types";
 
-
-function parseSectionResponse<T extends SectionType>(raw: string, sectionType: T): SectionContent[T] {
-  try {
-    console.log(`[parseSectionResponse] Parsing ${sectionType}, raw response:`, raw.substring(0, 500));
-
-    const jsonMatch = raw.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) {
-      console.warn(`[parseSectionResponse] No JSON found in ${sectionType} response, returning default`);
-      return getDefaultSectionValue(sectionType);
-    }
-
-    let parsed: any;
-    try {
-      parsed = JSON.parse(jsonMatch[0]);
-    } catch (e) {
-      console.log(`[parseSectionResponse] JSON parse failed, attempting repair for ${sectionType}`);
-      parsed = JSON.parse(jsonrepair(jsonMatch[0]));
-    }
-
-    console.log(`[parseSectionResponse] Parsed JSON for ${sectionType}:`, JSON.stringify(parsed).substring(0, 300));
-
-    const sectionMap: Record<SectionType, (p: any) => any> = {
-      professional_summary: (p) => {
-        // Try multiple field name variations
-        const result = p.professionalSummary ?? p.summary ?? p.professional_summary ?? "";
-        console.log(`[parseSectionResponse] professional_summary result:`, result.substring(0, 100));
-        return result;
-      },
-      core_competencies: (p) => {
-        // Try multiple field name variations
-        const competencies = p.coreCompetencies ?? p.competencies ?? p.core_competencies ?? [];
-        const filtered = Array.isArray(competencies) ? competencies.filter((c: any) => c) : [];
-        console.log(`[parseSectionResponse] core_competencies filtered:`, filtered.length, "items", filtered.slice(0, 3));
-        return filtered;
-      },
-      technical_skills: (p) => {
-        const skills = p.technicalSkills ?? p.technical_skills ?? p.skills ?? [];
-        const filtered = Array.isArray(skills) ? skills.filter((cat: any) => cat?.skills?.length > 0) : [];
-        console.log(`[parseSectionResponse] technical_skills filtered:`, filtered.length, "categories");
-        return filtered;
-      },
-      professional_experience: (p) => Array.isArray(p.experience) ? p.experience.filter((exp: any) => exp?.title && exp?.company) : [],
-      personal_projects: (p) => Array.isArray(p.personalProjects) ? p.personalProjects.filter((proj: any) => proj?.name) : [],
-      education: (p) => Array.isArray(p.education) ? p.education.filter((edu: any) => edu?.institution) : [],
-      awards: (p) => Array.isArray(p.awards) ? p.awards.filter((a: any) => a) : [],
-    };
-
-    let result = sectionMap[sectionType](parsed);
-    result = enforceGuardrails(sectionType, result);
-    console.log(`[parseSectionResponse] Final result for ${sectionType}:`, JSON.stringify(result).substring(0, 300));
-    return result;
-  } catch (err) {
-    console.error(`[parseSectionResponse] Error parsing ${sectionType}:`, err);
-    console.error(`Raw response was:`, raw.substring(0, 500));
-    return getDefaultSectionValue(sectionType);
-  }
-}
-
-function getDefaultSectionValue(sectionType: SectionType): any {
-  const defaults: Record<SectionType, any> = {
-    professional_summary: "",
-    core_competencies: [],
-    technical_skills: [],
-    professional_experience: [],
-    personal_projects: [],
-    education: [],
-    certifications: [],
-    awards: [],
-  };
-  return defaults[sectionType];
-}
-
-function enforceGuardrails(sectionType: SectionType, content: any): any {
-  switch (sectionType) {
-    case "professional_summary": {
-      // Enforce 3 sentences and ≤60 words
-      let summary = content as string;
-      if (!summary || summary.trim().length === 0) return "";
-
-      // Count words
-      const words = summary.split(/\s+/).filter(w => w.length > 0);
-      if (words.length > 60) {
-        console.warn(`[enforceGuardrails] professional_summary exceeds 60 words (${words.length}), truncating`);
-        summary = words.slice(0, 60).join(" ");
-      }
-
-      // Check sentence count (roughly by periods)
-      const sentences = summary.split(/[.!?]+/).filter(s => s.trim().length > 0);
-      if (sentences.length !== 3) {
-        console.warn(`[enforceGuardrails] professional_summary has ${sentences.length} sentences, expected 3`);
-      }
-
-      return summary;
-    }
-    case "core_competencies": {
-      // Enforce exactly 8 items
-      const comps = Array.isArray(content) ? content : [];
-      if (comps.length !== 8) {
-        console.warn(`[enforceGuardrails] core_competencies has ${comps.length} items, expected 8`);
-        if (comps.length < 8) {
-          // Pad with empty strings if needed
-          return [...comps, ...Array(8 - comps.length).fill("")].slice(0, 8);
-        }
-        return comps.slice(0, 8);
-      }
-      return comps;
-    }
-    case "technical_skills": {
-      // Enforce 5-6 categories
-      const skills = Array.isArray(content) ? content : [];
-      if (skills.length < 5 || skills.length > 6) {
-        console.warn(`[enforceGuardrails] technical_skills has ${skills.length} categories, expected 5-6`);
-      }
-      return skills;
-    }
-    default:
-      return content;
-  }
-}
 
 async function tailorSection(
   env: any,
@@ -162,7 +49,7 @@ async function tailorSection(
     professional_experience: SECTION_PROMPT_PROFESSIONAL_EXPERIENCE,
     personal_projects: SECTION_PROMPT_PERSONAL_PROJECTS,
     education: SECTION_PROMPT_EDUCATION,
-    certifications: SECTION_PROMPT_AWARDS,
+    certifications: SECTION_PROMPT_CERTIFICATIONS,
     awards: SECTION_PROMPT_AWARDS,
   };
 
@@ -192,7 +79,7 @@ async function tailorSection(
     console.log(`[tailorSection] Input content:`, JSON.stringify(currentContent).substring(0, 300));
     // Increase token budget: experience sections may need more tokens for multiple jobs
     const maxTokens = sectionType === "professional_experience" ? 4096 : 2048;
-    const response = await callClaude(env, messages, { maxTokens, temperature: 0.2 });
+    const response = await callClaude(env, messages, { maxTokens, temperature: 0.2, model: RESUME_TAILORING_MODEL });
     console.log(`[tailorSection] Raw response for ${sectionType}:`, response.substring(0, 500));
     const result = parseSectionResponse(response, sectionType);
     console.log(`[tailorSection] ${sectionType} parsed result:`, JSON.stringify(result).substring(0, 300));
@@ -257,7 +144,8 @@ export const generateResume = createServerFn({ method: "POST" })
           professional_experience: resume.experience ? JSON.parse(resume.experience) : [],
           personal_projects: resume.personalProjects?.startsWith("[") ? JSON.parse(resume.personalProjects) : [],
           education: resume.education ? JSON.parse(resume.education) : [],
-          awards: resume.certifications ? JSON.parse(resume.certifications) : [],
+          certifications: resume.certifications ? JSON.parse(resume.certifications) : [],
+          awards: [],
         };
       }
 
@@ -274,29 +162,44 @@ export const generateResume = createServerFn({ method: "POST" })
         technical_skills: sectionData.technical_skills?.length ?? 0,
       });
 
-      // Skip tailoring - just use original sections with guardrails
-      // This avoids AI model reliability issues and ensures consistent output
-      const tailoredSections = [
-        sectionData.professional_summary || "",
-        sectionData.core_competencies || [],
-        sectionData.technical_skills || [],
-        sectionData.professional_experience || [],
-        sectionData.personal_projects || [],
-        sectionData.education || [],
-        sectionData.certifications || [],
-        sectionData.awards || [],
+      // Tailor each section against the job description. If the AI call fails or
+      // returns empty content, fall back to the original (guardrail-enforced) section.
+      const sectionsToTailor: SectionType[] = [
+        "professional_summary",
+        "core_competencies",
+        "technical_skills",
+        "professional_experience",
+        "personal_projects",
+        "education",
+        "certifications",
+        "awards",
       ];
 
-      // Apply guardrails to sections
-      if (tailoredSections[0]) {
-        tailoredSections[0] = enforceGuardrails("professional_summary", tailoredSections[0]);
-      }
-      if (tailoredSections[1]) {
-        tailoredSections[1] = enforceGuardrails("core_competencies", tailoredSections[1]);
-      }
-      if (tailoredSections[2]) {
-        tailoredSections[2] = enforceGuardrails("technical_skills", tailoredSections[2]);
-      }
+      const isEmptySection = (value: any): boolean => {
+        if (value == null) return true;
+        if (typeof value === "string") return value.trim().length === 0;
+        if (Array.isArray(value)) return value.length === 0;
+        return false;
+      };
+
+      const tailoredSections = await Promise.all(
+        sectionsToTailor.map(async (sectionType) => {
+          const original = sectionData[sectionType] ?? getDefaultSectionValue(sectionType);
+          if (isEmptySection(original)) return original;
+
+          try {
+            const tailored = await tailorSection(env, sectionType, original, jobTitle, company, jobDescription, rawResumeText);
+            if (isEmptySection(tailored)) {
+              console.warn(`[generateResume] Tailored ${sectionType} was empty, falling back to original`);
+              return enforceGuardrails(sectionType, original);
+            }
+            return tailored;
+          } catch (err) {
+            console.error(`[generateResume] Failed to tailor ${sectionType}, falling back to original:`, err);
+            return enforceGuardrails(sectionType, original);
+          }
+        }),
+      );
 
       console.log(`[generateResume] Tailored sections received:`, {
         professional_summary: typeof tailoredSections[0] === 'string' ? tailoredSections[0].substring(0, 100) : tailoredSections[0],
@@ -313,7 +216,6 @@ export const generateResume = createServerFn({ method: "POST" })
       const contactInfo = contactParts.join(" | ");
 
       // Assemble tailored sections into AtsResumeContent
-      // Use ONLY tailored sections (no fallback) to ensure consistent tailoring
       // Tailored sections order: [0]=summary, [1]=competencies, [2]=skills, [3]=experience, [4]=projects, [5]=education, [6]=certifications, [7]=awards
       const resumeContent: AtsResumeContent = {
         nameHeader: resume?.fullName || "Candidate",
