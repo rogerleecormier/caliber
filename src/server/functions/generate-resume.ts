@@ -162,10 +162,17 @@ async function tailorSection(
     professional_experience: SECTION_PROMPT_PROFESSIONAL_EXPERIENCE,
     personal_projects: SECTION_PROMPT_PERSONAL_PROJECTS,
     education: SECTION_PROMPT_EDUCATION,
+    certifications: SECTION_PROMPT_AWARDS,
     awards: SECTION_PROMPT_AWARDS,
   };
 
-  let prompt = sectionPrompts[sectionType]
+  const basePrompt = sectionPrompts[sectionType];
+  if (!basePrompt) {
+    console.error(`[tailorSection] No prompt found for section type: ${sectionType}`);
+    return getDefaultSectionValue(sectionType);
+  }
+
+  let prompt = basePrompt
     .replace("{currentContent}", JSON.stringify(currentContent, null, 2))
     .replace("{jobTitle}", jobTitle)
     .replace("{company}", company)
