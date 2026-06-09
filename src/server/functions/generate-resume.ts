@@ -104,11 +104,13 @@ async function tailorSection(
 
   try {
     console.log(`[tailorSection] Tailoring ${sectionType}...`);
+    console.log(`[tailorSection] Input content:`, JSON.stringify(currentContent).substring(0, 300));
     // Increase token budget: experience sections may need more tokens for multiple jobs
     const maxTokens = sectionType === "professional_experience" ? 4096 : 2048;
     const response = await callClaude(env, messages, { maxTokens, temperature: 0.2 });
+    console.log(`[tailorSection] Raw response for ${sectionType}:`, response.substring(0, 500));
     const result = parseSectionResponse(response, sectionType);
-    console.log(`[tailorSection] ${sectionType} complete:`, JSON.stringify(result).substring(0, 200));
+    console.log(`[tailorSection] ${sectionType} parsed result:`, JSON.stringify(result).substring(0, 300));
     return result;
   } catch (err) {
     console.error(`[tailorSection] Error tailoring ${sectionType}:`, err);
@@ -153,7 +155,9 @@ export const generateResume = createServerFn({ method: "POST" })
         console.log(`[generateResume] Found ${sections.length} resume sections in DB`);
         for (const section of sections) {
           const type = section.sectionType as SectionType;
-          sectionData[type] = parseSectionContent(type, section.content);
+          const parsed = parseSectionContent(type, section.content);
+          sectionData[type] = parsed;
+          console.log(`[generateResume] Loaded ${type}:`, type === 'professional_summary' ? `"${parsed}".substring(0, 100)` : parsed?.length ?? 0, 'items');
         }
       } else {
         // Fallback to legacy masterResume table

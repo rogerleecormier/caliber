@@ -1,6 +1,6 @@
 // Section-specific prompts for tailoring resume sections to job descriptions
 
-export const SECTION_PROMPT_PROFESSIONAL_SUMMARY = `You are an Executive Resume Strategist. Tailor the professional summary to the target job.
+export const SECTION_PROMPT_PROFESSIONAL_SUMMARY = `You are an Executive Resume Strategist. Tailor the professional summary to the target job. Respond with ONLY valid JSON, no markdown, no code fences, no extra text.
 
 CURRENT SUMMARY:
 {currentContent}
@@ -10,7 +10,7 @@ Title: {jobTitle}
 Company: {company}
 Description: {jobDescription}
 
-Guidelines:
+Create a tailored professional summary:
 - Exactly 3 sentences, ≤60 words total
 - Sentence 1: candidate's title/years of experience/core domains most relevant to THIS job
 - Sentence 2: specific strength or track record from the resume that directly applies to this role (include metric if one exists naturally)
@@ -18,9 +18,9 @@ Guidelines:
 - No filler: ban "I bring", "I leverage", "innovative", "passionate", "dynamic", "I am qualified"
 - Every sentence must be specific and true
 
-Respond with ONLY valid JSON:
+Return this exact JSON structure:
 {
-  "professionalSummary": "string"
+  "professionalSummary": "string (the 3-sentence summary)"
 }`
 
 export const SECTION_PROMPT_CORE_COMPETENCIES = `You are an Executive Resume Strategist. Tailor core competencies to the target job.
@@ -45,7 +45,7 @@ Respond with ONLY valid JSON:
   "coreCompetencies": ["string", ...]
 }`
 
-export const SECTION_PROMPT_TECHNICAL_SKILLS = `You are an Executive Resume Strategist. Tailor technical skills to the target job.
+export const SECTION_PROMPT_TECHNICAL_SKILLS = `You are an Executive Resume Strategist. Tailor technical skills to the target job. Respond with ONLY valid JSON, no markdown, no code fences, no extra text.
 
 CURRENT SKILLS:
 {currentContent}
@@ -55,21 +55,21 @@ Title: {jobTitle}
 Company: {company}
 Description: {jobDescription}
 
-Guidelines:
-- 5-6 categories total (no more, no less)
+Create a tailored technical skills section:
+- Create 5-6 categories (no more, no less)
 - Only include tools/methodologies/platforms explicitly in the candidate's resume
 - Match categories to this job's requirements (e.g., "PM Tools" for PM roles, "Infrastructure" for architecture roles)
 - Within each category, include 3-5 skills; order by relevance to THIS job
 - Each skill should be a specific tool, platform, or technology name
 
-Respond with ONLY valid JSON:
+Return this exact JSON structure:
 {
   "technicalSkills": [
     {
-      "category": "string",
-      "skills": ["string", ...]
+      "category": "string (the category name)",
+      "skills": ["string (skill 1)", "string (skill 2)", ...]
     },
-    ...
+    ...repeat for each category...
   ]
 }`
 
