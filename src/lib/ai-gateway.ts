@@ -113,16 +113,26 @@ export async function callWorkersAI(
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const result: any = await env.AI.run(DEFAULT_MODEL as any, {
-    messages,
-    max_tokens: options?.maxTokens ?? 4096,
-    temperature: options?.temperature,
-    top_p: options?.topP,
-    stream: false,
-  } as any);
+  let result: any;
+  try {
+    result = await env.AI.run(DEFAULT_MODEL as any, {
+      messages,
+      max_tokens: options?.maxTokens ?? 4096,
+      temperature: options?.temperature,
+      top_p: options?.topP,
+      stream: false,
+    } as any);
+  } catch (error) {
+    console.error("[callWorkersAI] AI.run() error:", error);
+    throw error;
+  }
+
+  if (result === undefined) {
+    throw new Error("Workers AI.run() returned undefined");
+  }
 
   // Workers AI can return: { response: string }, a plain string, or a stream.
-  let text: string;
+  let text: string | undefined;
   if (typeof result === "string") {
     text = result;
   } else if (result && typeof result.response === "string") {
@@ -135,10 +145,10 @@ export async function callWorkersAI(
     text = JSON.stringify(result.result);
   } else {
     console.error("[callWorkersAI] Unexpected result shape:", JSON.stringify(result).slice(0, 200));
-    text = result != null ? JSON.stringify(result) : "";
+    text = result != null ? JSON.stringify(result) : undefined;
   }
 
-  if (!text.trim()) {
+  if (!text || !text.trim()) {
     throw new Error("Workers AI returned an empty response");
   }
   return text;

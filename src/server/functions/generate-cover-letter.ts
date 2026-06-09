@@ -27,7 +27,7 @@ export const generateCoverLetter = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     try {
       const env = getCloudflareEnv();
-      if (!env.DB || !env.R2) {
+      if (!env.DB || !env.R2 || !env.AI) {
         throw new Error("Database and R2 storage not available in development mode. Deploy to Cloudflare Workers.");
       }
 
@@ -97,10 +97,16 @@ export const generateCoverLetter = createServerFn({ method: "POST" })
 
       const jsonMatch = rawResponse.match(/\{[\s\S]*\}/);
       if (!jsonMatch) throw new Error("Failed to parse cover letter content");
-      const letterContent: CoverLetterContent = JSON.parse(jsonMatch[0]);
+      const parsed = JSON.parse(jsonMatch[0]);
 
-      letterContent.candidateName = resume.fullName;
-      letterContent.signoff = resume.fullName;
+      const letterContent: CoverLetterContent = {
+        greeting: parsed.greeting || "Dear Hiring Manager",
+        opening: parsed.opening || "I am writing to express my strong interest in the role.",
+        bullets: Array.isArray(parsed.bullets) ? parsed.bullets.filter((b: any) => b) : [],
+        closing: parsed.closing || "Thank you for considering my application.",
+        candidateName: resume.fullName || "Applicant",
+        signoff: resume.fullName || "Applicant",
+      };
 
       const contactParts = [resume.email, resume.phone, resume.linkedin, resume.website].filter(Boolean);
       const contactInfo = contactParts.join(" | ");

@@ -79,8 +79,8 @@ export const generateResume = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     try {
       const env = getCloudflareEnv();
-      if (!env.DB || !env.R2) {
-        throw new Error("Database and R2 storage not available in development mode. Deploy to Cloudflare Workers.");
+      if (!env.DB || !env.R2 || !env.AI) {
+        throw new Error("Database, R2 storage, and AI binding not available. Please deploy to Cloudflare Workers.");
       }
 
       const db = getDb(env.DB);
@@ -158,7 +158,20 @@ export const generateResume = createServerFn({ method: "POST" })
       const parseResume = (raw: string): AtsResumeContent => {
         const jsonMatch = raw.match(/\{[\s\S]*\}/);
         if (!jsonMatch) throw new Error("Failed to extract JSON from resume generation response");
-        return JSON.parse(jsonrepair(jsonMatch[0])) as AtsResumeContent;
+        const parsed = JSON.parse(jsonrepair(jsonMatch[0])) as AtsResumeContent;
+
+        // Ensure required fields exist with sensible defaults
+        return {
+          nameHeader: parsed.nameHeader || (analysis.title ? `${resume.fullName} - ${analysis.title}` : resume.fullName || "Candidate"),
+          contactInfo: parsed.contactInfo || `${resume.email || ""}${resume.phone ? " | " + resume.phone : ""}`,
+          professionalSummary: parsed.professionalSummary || resume.summary || "",
+          coreCompetencies: Array.isArray(parsed.coreCompetencies) ? parsed.coreCompetencies.filter((c) => c) : [],
+          technicalSkills: Array.isArray(parsed.technicalSkills) ? parsed.technicalSkills.filter((cat) => cat?.skills?.length > 0) : [],
+          experience: Array.isArray(parsed.experience) ? parsed.experience.filter((exp) => exp?.title && exp?.company) : [],
+          education: Array.isArray(parsed.education) ? parsed.education.filter((edu) => edu?.institution) : [],
+          certifications: Array.isArray(parsed.certifications) ? parsed.certifications.filter((c) => c) : [],
+          personalProjects: Array.isArray(parsed.personalProjects) ? parsed.personalProjects.filter((p) => p?.name) : [],
+        };
       };
 
       const isResumeContentSparse = (content: AtsResumeContent): boolean => {
