@@ -236,10 +236,17 @@ export const aiParseResume = createServerFn({ method: "POST" })
           if (sessionUser) {
             const now = new Date().toISOString();
 
+            // Transform flat tools array into categorized technical_skills
+            const transformToolsToCategories = (tools: string[]) => {
+              if (!Array.isArray(tools) || tools.length === 0) return [];
+              // Group tools into a single "Tools & Technologies" category
+              return [{ category: "Tools & Technologies", skills: tools }];
+            };
+
             const sectionMap: Record<string, [SectionType, any]> = {
               summary: ["professional_summary", parsed_data.summary ?? ""],
               competencies: ["core_competencies", parsed_data.competencies ?? []],
-              tools: ["technical_skills", parsed_data.tools ?? []],
+              tools: ["technical_skills", transformToolsToCategories(parsed_data.tools ?? [])],
               experience: ["professional_experience", parsed_data.experience ?? []],
               personalProjects: ["personal_projects", parsed_data.personalProjects ?? []],
               education: ["education", parsed_data.education ?? []],
