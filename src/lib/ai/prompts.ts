@@ -152,7 +152,7 @@ a) Maximum 2 pages.Use standard headers, no tables, and no graphics.
 
     c) Professional Summary:
        - WORD LIMIT: 80 words maximum. Count every word. Stop at 80. Do not exceed this under any circumstances.
-       - SENTENCE LIMIT: 4 sentences maximum.
+       - SENTENCE LIMIT: 3 sentences maximum.
        - TAILOR strictly to the Job Description: summarize the candidate's matching skills from the source resume and explicitly state why they are a fit for this specific role.
        - No padding, no filler, no lists of every skill — be selective and specific.
 
