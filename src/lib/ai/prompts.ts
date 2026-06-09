@@ -139,9 +139,8 @@ Return this exact JSON shape:
     {
       "title": "string",
       "company": "string",
-      "startDate": "string",
-      "endDate": "string or null",
-      "description": "string"
+      "dates": "string (e.g., 'Jan 2020 - Dec 2021')",
+      "bullets": ["string"]
     }
   ],
   "education": [
@@ -166,11 +165,15 @@ Return this exact JSON shape:
 
 Rules:
 - competencies: high-level skills and domain areas (e.g. "Project Management", "DevOps", "AI/ML")
-- tools: specific tools, platforms, technologies (e.g. "Jira", "AWS", "NetSuite")
-- experience: include ALL roles found, preserve exact company names, titles, and dates
+- tools: specific tools, platforms, technologies (e.g. "Jira", "AWS", "NetSuite") — extract ALL tools listed
+- experience: include ALL roles found, preserve exact company names and titles
+  * dates: format as "Month Year - Month Year" (e.g., "Jan 2020 - Dec 2021") or "Jan 2020 - Present"
+  * bullets: extract ALL bullet points for each role, preserve the actual accomplishments
+- education: include ALL entries found
 - personalProjects: look for sections labeled "Personal Projects", "Projects", "Side Projects", "Open Source" or similar — include ALL entries found
 - certifications: include every certification (PMP, CompTIA, AWS, CCNA, etc.)
 - awards: honors, recognitions, and achievement awards (distinguish from certifications)
+- CRITICAL: Extract ALL items from each section — do not truncate or limit results
 - Return null for missing string fields, empty arrays for missing array fields`;
 
 export const RESUME_TAILOR_PROMPT = `Act as an 'Executive Resume Strategist and ATS Optimizer'. Your goal is to tailor a Master Resume and Cover Letter to the job's specific Job Description (JD)

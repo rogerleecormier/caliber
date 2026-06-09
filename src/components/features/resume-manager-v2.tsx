@@ -179,6 +179,7 @@ export function ResumeManagerV2({ initial }: { initial: ResumeData | null }) {
       setParseStatus('done')
       setTimeout(() => setParseStatus('idle'), 3000)
 
+      console.log('[handleParse] Resume parsed and sections saved:', newSections)
       toast.success('Resume parsed successfully!', {
         id: toastId,
         description: 'All sections extracted and saved to database.',

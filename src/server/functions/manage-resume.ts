@@ -207,7 +207,10 @@ export const aiParseResume = createServerFn({ method: "POST" })
       );
 
       const jsonMatch = raw.match(/\{[\s\S]*\}/);
-      if (!jsonMatch) return {};
+      if (!jsonMatch) {
+        console.error('[aiParseResume] No JSON found in response');
+        return {};
+      }
 
       let parsed: any;
       try {
@@ -216,16 +219,37 @@ export const aiParseResume = createServerFn({ method: "POST" })
         parsed = JSON.parse(jsonrepair(jsonMatch[0]));
       }
 
+      // Normalize experience entries: ensure they have the correct field names
+      const normalizeExperience = (exp: any[]): ExperienceEntry[] => {
+        return exp.map(e => ({
+          title: e.title || '',
+          company: e.company || '',
+          dates: e.dates || (e.startDate || '') + (e.endDate ? ` - ${e.endDate}` : ''),
+          bullets: Array.isArray(e.bullets) ? e.bullets : (e.description ? [e.description] : []),
+        }));
+      };
+
       const parsed_data: Partial<ResumeData> = {
         summary: parsed.summary ?? undefined,
-        competencies: Array.isArray(parsed.competencies) ? parsed.competencies : undefined,
-        tools: Array.isArray(parsed.tools) ? parsed.tools : undefined,
-        experience: Array.isArray(parsed.experience) ? parsed.experience : undefined,
-        education: Array.isArray(parsed.education) ? parsed.education : undefined,
-        certifications: Array.isArray(parsed.certifications) ? parsed.certifications : undefined,
-        awards: Array.isArray(parsed.awards) ? parsed.awards : undefined,
-        personalProjects: Array.isArray(parsed.personalProjects) ? parsed.personalProjects : undefined,
+        competencies: Array.isArray(parsed.competencies) ? parsed.competencies.filter((c: any) => c) : undefined,
+        tools: Array.isArray(parsed.tools) ? parsed.tools.filter((t: any) => t) : undefined,
+        experience: Array.isArray(parsed.experience) ? normalizeExperience(parsed.experience) : undefined,
+        education: Array.isArray(parsed.education) ? parsed.education.filter((e: any) => e.degree && e.institution) : undefined,
+        certifications: Array.isArray(parsed.certifications) ? parsed.certifications.filter((c: any) => c) : undefined,
+        awards: Array.isArray(parsed.awards) ? parsed.awards.filter((a: any) => a) : undefined,
+        personalProjects: Array.isArray(parsed.personalProjects) ? parsed.personalProjects.filter((p: any) => p.name) : undefined,
       };
+
+      console.log('[aiParseResume] Parsed data:', {
+        summary: parsed_data.summary ? '✓' : '✗',
+        competencies: parsed_data.competencies?.length ?? 0,
+        tools: parsed_data.tools?.length ?? 0,
+        experience: parsed_data.experience?.length ?? 0,
+        education: parsed_data.education?.length ?? 0,
+        certifications: parsed_data.certifications?.length ?? 0,
+        awards: parsed_data.awards?.length ?? 0,
+        personalProjects: parsed_data.personalProjects?.length ?? 0,
+      });
 
       // Write to the new section-based structure
       try {
@@ -239,7 +263,8 @@ export const aiParseResume = createServerFn({ method: "POST" })
             // Transform flat tools array into categorized technical_skills
             const transformToolsToCategories = (tools: string[]) => {
               if (!Array.isArray(tools) || tools.length === 0) return [];
-              // Group tools into a single "Tools & Technologies" category
+              // Group tools into a single "Tools & Technologies" category for now
+              // (More sophisticated categorization can be added later)
               return [{ category: "Tools & Technologies", skills: tools }];
             };
 
@@ -254,36 +279,34 @@ export const aiParseResume = createServerFn({ method: "POST" })
             };
 
             for (const [key, [sectionType, content]] of Object.entries(sectionMap)) {
-              if (key in parsed_data) {
-                const serialized = serializeSectionContent(sectionType, content);
+              const serialized = serializeSectionContent(sectionType, content);
 
-                const existing = await db
-                  .select()
-                  .from(resumeSections)
-                  .where(
-                    and(
-                      eq(resumeSections.userId, sessionUser.id),
-                      eq(resumeSections.sectionType, sectionType),
-                    ),
-                  )
-                  .limit(1);
+              const existing = await db
+                .select()
+                .from(resumeSections)
+                .where(
+                  and(
+                    eq(resumeSections.userId, sessionUser.id),
+                    eq(resumeSections.sectionType, sectionType),
+                  ),
+                )
+                .limit(1);
 
-                if (existing.length > 0) {
-                  await db
-                    .update(resumeSections)
-                    .set({
-                      content: serialized,
-                      updatedAt: now,
-                    })
-                    .where(eq(resumeSections.id, existing[0].id));
-                } else {
-                  await db.insert(resumeSections).values({
-                    userId: sessionUser.id,
-                    sectionType,
+              if (existing.length > 0) {
+                await db
+                  .update(resumeSections)
+                  .set({
                     content: serialized,
                     updatedAt: now,
-                  });
-                }
+                  })
+                  .where(eq(resumeSections.id, existing[0].id));
+              } else {
+                await db.insert(resumeSections).values({
+                  userId: sessionUser.id,
+                  sectionType,
+                  content: serialized,
+                  updatedAt: now,
+                });
               }
             }
           }
