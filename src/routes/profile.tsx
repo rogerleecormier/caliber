@@ -1,7 +1,7 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import { getResume } from "@/server/functions/manage-resume";
 import { FileUser } from "lucide-react";
-import { ResumeManager } from "@/components/features/resume-manager";
+import { ResumeManagerV2 } from "@/components/features/resume-manager-v2";
 import { PageHero, PageSection } from "@caliber/ui-kit";
 
 export const Route = createFileRoute("/profile")({
@@ -29,7 +29,7 @@ function ProfilePage() {
         title="Master Resume"
         description="Keep one high-quality source resume here so analysis and document generation stay grounded in the same profile."
       >
-        <ResumeManager initial={data} />
+        <ResumeManagerV2 initial={data} />
       </PageSection>
     </div>
   );

@@ -12,6 +12,7 @@ export interface ExperienceEntry {
   company: string
   startDate?: string
   endDate?: string
+  dates?: string
   description?: string
   bullets?: string[]
 }
