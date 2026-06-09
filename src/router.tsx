@@ -1,5 +1,4 @@
 import { createRouter } from "@tanstack/react-router";
-import type { AppLoadContext } from "../app/ssr";
 
 // Import the generated route tree
 import { routeTree } from "./routeTree.gen";
@@ -12,7 +11,7 @@ export const getRouter = () => {
     defaultPreloadStaleTime: 0,
     context: {
       cloudflare: undefined!,
-    } as AppLoadContext,
+    } as any,
   });
 
   return router;

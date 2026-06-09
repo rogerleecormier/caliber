@@ -72,7 +72,7 @@ async function extractVerifiedToken(signedValue: string, secret: string): Promis
 
 async function resolveRole(
   userId: string,
-  email: string,
+  _email: string,
   hintedRole?: string | null,
 ): Promise<"admin" | "user"> {
   const env = getCloudflareEnv();

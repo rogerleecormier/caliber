@@ -20,7 +20,7 @@ export function AnalysisModal({
   jobTitle,
   jobUrl,
   onClose,
-  isFromExistingJob = false,
+  isFromExistingJob: _isFromExistingJob = false,
   storedAnalysis = null,
   pipelineJobId,
   onAnalysisComplete,

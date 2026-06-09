@@ -8,7 +8,6 @@
 import { 
   asyncThrottle,
   AsyncQueuer,
-  type AsyncThrottlerOptions
 } from '@tanstack/pacer'
 
 /**
@@ -62,6 +61,7 @@ export function createThrottledFetcher(config: ThrottledFetcherConfig = {}) {
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
       try {
         const response = await throttledFn(url, options)
+        if (!response) { throw new Error("No response"); }
         
         // Handle rate limiting
         if (response.status === 429) {
@@ -246,17 +246,16 @@ export function createWriteQueue<T>(
 ) {
   const { concurrency = 1, wait = 50, maxSize = 100 } = options
   
-  const queue = new AsyncQueuer<T>({
-    concurrency,
-    wait,
-    maxSize
-  })
-  
+  const queue = new AsyncQueuer<T>(
+    (item: T) => writeFn(item),
+    { concurrency, wait, maxSize }
+  )
+
   return {
-    add: (item: T) => queue.add(async () => writeFn(item)),
-    onIdle: () => queue.onIdle(),
-    size: () => queue.size,
-    isPending: () => queue.isPending
+    add: (item: T) => queue.addItem(item),
+    onIdle: () => queue.flush(),
+    size: () => queue.peekPendingItems().length,
+    isPending: () => queue.peekPendingItems().length > 0,
   }
 }
 

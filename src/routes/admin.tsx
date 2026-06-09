@@ -9,7 +9,7 @@ import {
 import { PageHero, PageSection } from "@caliber/ui-kit";
 import { Clock, Shield, Trash2 } from "lucide-react";
 
-type AdminUser = { id: string; email: string; role: string; createdAt: string };
+type AdminUser = { id: string; email: string; role: string | null; createdAt: string | Date };
 type LinkedinSettings = Awaited<ReturnType<typeof getLinkedinAdminSettings>>;
 
 export const Route = createFileRoute("/admin")({

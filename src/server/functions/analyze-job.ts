@@ -1,7 +1,7 @@
 'use server';
 import { createServerFn } from "@tanstack/react-start";
 import { and, eq } from "drizzle-orm";
-import { getCloudflareEnv } from "@/lib/cloudflare";
+import { getCloudflareEnv, type CloudflareEnv } from "@/lib/cloudflare";
 import { getDb } from "@/db/db";
 import { masterResume, pipelineJobs } from "@/db/schema";
 import { resolveSessionUser } from "@/lib/resolve-user";
@@ -188,7 +188,7 @@ export const analyzeJob = createServerFn({ method: "POST" })
       level: 'success',
     }).catch(() => {});
 
-    aggregateAnalytics(env, user.id).catch((e) => console.error("[analyzeJob] aggregateAnalytics error:", e));
+    aggregateAnalytics(env as CloudflareEnv, user.id).catch((e) => console.error("[analyzeJob] aggregateAnalytics error:", e));
 
     return { id: insertedId, ...analysis, ...scoreResult };
   });

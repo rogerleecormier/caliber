@@ -3,7 +3,7 @@
  * Provides priority-based queueing, rate limiting, and retry logic
  */
 
-import { asyncThrottle, AsyncThrottler } from '@tanstack/pacer'
+import { asyncThrottle } from '@tanstack/pacer'
 
 // ============================================
 // Types

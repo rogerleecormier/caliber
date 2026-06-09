@@ -41,14 +41,12 @@ function getCompanyList(): string[] {
 const throttledFetch = createThrottledRateLimitedFetcher({
   throttle: {
     wait: 1000, // Increased to 1000ms for stability
-    trailing: true,
     maxRetries: 3,
     retryDelay: 1000,
   },
   rateLimit: {
     maxRequests: 120,
     windowMs: 60000, // 1 minute
-    sliding: true,
   },
 })
 

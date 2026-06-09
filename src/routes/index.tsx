@@ -48,20 +48,6 @@ function MockScoreBadge({ score, label, size = "md" }: { score: number; label?: 
   );
 }
 
-// Mirrors ScoreMiniRow from score-badge.tsx
-function MockScoreMiniRow({ label, score }: { label: string; score: number }) {
-  const barColor = score >= 80 ? "bg-emerald-400" : score >= 60 ? "bg-amber-400" : "bg-red-400";
-  const text     = score >= 80 ? "text-emerald-700" : score >= 60 ? "text-amber-700" : "text-red-700";
-  return (
-    <div className="flex items-center gap-1.5">
-      <div className="h-1.5 w-14 rounded-full bg-slate-100 overflow-hidden">
-        <div className={`h-full rounded-full ${barColor}`} style={{ width: `${score}%` }} />
-      </div>
-      <span className={`text-[9px] font-semibold tabular-nums ${text}`}>{label} {score}</span>
-    </div>
-  );
-}
-
 // Mirrors actual JobCard layout
 function MockJobCard() {
   return (
@@ -398,7 +384,7 @@ function JobsHome() {
         <div className="flex flex-wrap items-center justify-center gap-3">
           <Link
             to="/jobs"
-            search={{ analyzedOnly: false }}
+            search={(prev: any) => ({ ...prev, analyzedOnly: false })}
             className="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-6 py-3 text-sm font-semibold text-white hover:text-amber-400 border border-slate-700 shadow-sm transition hover:bg-slate-800"
           >
             <Zap className="h-4 w-4 text-amber-400" />
@@ -406,7 +392,7 @@ function JobsHome() {
           </Link>
           <Link
             to="/jobs"
-            search={{ analyze: true }}
+            search={(prev: any) => ({ ...prev, analyze: true })}
             className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-6 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 hover:border-slate-300"
           >
             <Briefcase className="h-4 w-4" />
@@ -674,7 +660,7 @@ function JobsHome() {
           <div className="flex flex-wrap items-center justify-center gap-3">
             <Link
               to="/jobs"
-              search={{ analyzedOnly: false }}
+              search={(prev: any) => ({ ...prev, analyzedOnly: false })}
               className="inline-flex items-center gap-2 rounded-xl bg-slate-900 border border-slate-700 text-white hover:text-amber-400 px-6 py-3 text-sm font-semibold shadow-sm transition hover:bg-slate-800"
             >
               <Zap className="h-4 w-4 text-amber-400" />

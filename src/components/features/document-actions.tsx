@@ -1,6 +1,7 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Button, Textarea } from "@caliber/ui-kit";
 import { FileText, Mail, Loader2, Download, RefreshCw, Wand2 } from "lucide-react";
+import { toast } from "sonner";
 import { useState, cloneElement } from "react";
 import { generateResume } from "@/server/functions/generate-resume";
 import { generateCoverLetter } from "@/server/functions/generate-cover-letter";
@@ -33,7 +34,7 @@ export function DocumentActions({ analysisId, applied = false, onDocumentGenerat
   const { data: docs } = useQuery({
     queryKey: ["documents", analysisId],
     queryFn: () => getDocumentsForAnalysis({ data: { analysisId } }),
-    staleTime: Infinity, // documents don't change behind the scenes
+    staleTime: 0,
   });
 
   const resumeResult: DocResult | null = docs?.resume ?? null;
@@ -41,8 +42,31 @@ export function DocumentActions({ analysisId, applied = false, onDocumentGenerat
 
   // ── Generate resume ───────────────────────────────────────────────
   const resumeMutation = useMutation({
-    mutationFn: () =>
-      generateResume({ data: { analysisId, extraGuidance: extraGuidance.trim() || undefined } }),
+    mutationFn: () => {
+      const toastId = toast.loading("Generating your resume…", {
+        description: "Tailoring to the job description. You can leave this page.",
+      });
+      return generateResume({ data: { analysisId, extraGuidance: extraGuidance.trim() || undefined } })
+        .then((result) => {
+          toast.success("Resume ready!", {
+            id: toastId,
+            description: result.fileName ?? "Your tailored resume has been generated.",
+            action: {
+              label: "Download",
+              onClick: () => triggerDownload(result.r2Key, result.fileName ?? "resume.pdf"),
+            },
+            duration: 10000,
+          });
+          return result;
+        })
+        .catch((err) => {
+          toast.error("Resume generation failed", {
+            id: toastId,
+            description: err instanceof Error ? err.message : "Something went wrong.",
+          });
+          throw err;
+        });
+    },
     onSuccess: () => onDocumentGenerated?.(),
   });
 
@@ -57,7 +81,6 @@ export function DocumentActions({ analysisId, applied = false, onDocumentGenerat
   const resumeDownloadMutation = useMutation({
     mutationFn: (doc: DocResult) => triggerDownload(doc.r2Key, doc.fileName ?? "resume.pdf"),
     onError: (error) => {
-      const message = error instanceof Error ? error.message : "Failed to download resume";
       console.error("Resume download failed:", error);
     },
   });
@@ -65,7 +88,6 @@ export function DocumentActions({ analysisId, applied = false, onDocumentGenerat
   const coverDownloadMutation = useMutation({
     mutationFn: (doc: DocResult) => triggerDownload(doc.r2Key, doc.fileName ?? "cover-letter.pdf"),
     onError: (error) => {
-      const message = error instanceof Error ? error.message : "Failed to download cover letter";
       console.error("Cover letter download failed:", error);
     },
   });
@@ -240,7 +262,7 @@ function DocPanel({
             {generating ? (
               <Loader2 className="animate-spin h-3.5 w-3.5" />
             ) : (
-              cloneElement(icon, { className: "h-4 w-4" })
+              cloneElement(icon as React.ReactElement<{ className?: string }>, { className: "h-4 w-4" })
             )}
             {generating ? "Creating…" : generateLabel}
           </Button>

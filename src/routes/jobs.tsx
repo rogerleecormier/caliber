@@ -1,4 +1,4 @@
-import { createFileRoute, useRouter, Link } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import type { ChangeEvent } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -138,7 +138,7 @@ function JobsPage() {
   const { hasResume, fullName, savedSearches: loaderSavedSearches, rows, total, statusCounts, canViewAllUsers, cronStartHour, cronFrequency } =
     Route.useLoaderData();
   const navigate = Route.useNavigate();
-  const router = useRouter();
+  // const router = useRouter(); // available if needed
 
   const searchParams = { page, query, remote, sortBy, status: activeStatus, analyzedOnly };
   const jobsQuery = useJobsQuery({ searchParams });

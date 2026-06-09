@@ -1,5 +1,5 @@
 import { linkedinJobResults, pipelineJobs } from '@/db/schema'
-import { sql, inArray } from 'drizzle-orm'
+import { inArray } from 'drizzle-orm'
 import type { DrizzleD1Database } from '@/db/db'
 
 function isUSLocation(location: string | null): boolean {

@@ -1,4 +1,4 @@
-import { sql, and, or, ne } from 'drizzle-orm'
+import { sql } from 'drizzle-orm'
 import type { DrizzleD1Database } from '../db/db'
 import { schema } from '../db/db'
 
@@ -72,6 +72,7 @@ export async function deduplicateJobs(options: DeduplicateOptions): Promise<Dedu
     if (processedIds.has(job1.id)) continue
 
     const duplicates: typeof allJobs = [job1]
+    let reason = ''
 
     for (let j = i + 1; j < allJobs.length; j++) {
       const job2 = allJobs[j]
@@ -79,7 +80,7 @@ export async function deduplicateJobs(options: DeduplicateOptions): Promise<Dedu
       if (processedIds.has(job2.id)) continue
 
       let isDuplicate = true
-      let reason = ''
+      reason = ''
       let totalScore = 0
       let scoreCount = 0
 

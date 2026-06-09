@@ -87,8 +87,8 @@ async function testCompany(slug: string, retries = 2): Promise<Omit<TestResult, 
         }
       }
       
-      const data = await response.json()
-      
+      const data = await response.json() as any
+
       if (!data.jobs || !Array.isArray(data.jobs)) {
         return {
           company: slug,

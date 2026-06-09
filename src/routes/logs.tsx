@@ -8,7 +8,6 @@ import {
   FileText,
   Search,
   Download,
-  RefreshCw,
   Info,
   CheckCircle,
   AlertTriangle,
@@ -416,7 +415,7 @@ function ApiHealthTab({ run }: { run: any }) {
     ? run.events.map((e: any) => ({ message: e.message, timestamp: e.createdAt, type: e.level }))
     : (run.metadata.workerLogs || []);
 
-  const { totalCalls, successCalls, errorCalls, apiCalls } = parseApiIntegrationData(logs);
+  const { totalCalls, successCalls, apiCalls } = parseApiIntegrationData(logs);
 
   if (totalCalls === 0) {
     return (
@@ -607,7 +606,7 @@ function LogsPage() {
     }
   }, [deferredAgentName, navigate, search.agentName]);
 
-  const { data, isPending, refetch } = useQuery({
+  const { data } = useQuery({
     queryKey: ["logs", search.page, search.eventType, search.platform, search.level, search.agentName],
     queryFn: () =>
       getSearchLogs({

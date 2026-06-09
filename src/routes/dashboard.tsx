@@ -7,7 +7,6 @@ import {
   FileText,
   Gauge,
   Sparkles,
-  Target,
   TrendingUp,
   ChevronRight,
   X,
@@ -19,7 +18,6 @@ import {
   ArrowUpDown,
   ChevronLeft,
   ChevronRight as ChevronRightIcon,
-  RefreshCw,
   Building2,
   Calendar,
 } from "lucide-react";
@@ -398,7 +396,7 @@ function DashboardPage() {
                 <YAxis stroke="#94a3b8" fontSize={11} />
                 <RechartsTooltip content={<ChartTooltip />} cursor={{ fill: "rgba(148, 163, 184, 0.06)" }} />
                 <Bar dataKey="count" name="Jobs" radius={[6, 6, 0, 0]} onClick={handleScoreClick} cursor="pointer">
-                  {data.matchScoreDistribution.map((entry, idx) => {
+                  {data.matchScoreDistribution.map((_entry, idx) => {
                     const fills = [
                       "var(--color-success-500)", // Strong
                       "var(--color-warning-500)", // Moderate
@@ -434,9 +432,9 @@ function DashboardPage() {
                   nameKey="type"
                   onClick={handleWorkplaceClick}
                   cursor="pointer"
-                  label={({ type, percent }) => `${type} (${Math.round(percent * 100)}%)`}
+                  label={({ type, percent }: any) => `${type} (${Math.round((percent ?? 0) * 100)}%)`}
                 >
-                  {data.workplaceTypeDistribution.map((entry, idx) => {
+                  {data.workplaceTypeDistribution.map((_entry, idx) => {
                     const colors = ["#6366f1", "#10b981", "#ef4444", "#f59e0b"];
                     return <Cell key={`cell-${idx}`} fill={colors[idx % colors.length]} />;
                   })}
@@ -471,7 +469,7 @@ function DashboardPage() {
                 <YAxis dataKey="source" type="category" stroke="#94a3b8" fontSize={11} tickLine={false} />
                 <RechartsTooltip content={<ChartTooltip />} cursor={{ fill: "rgba(148, 163, 184, 0.06)" }} />
                 <Bar dataKey="count" name="Jobs" fill="#8b5cf6" radius={[0, 6, 6, 0]} onClick={handleSourceClick} cursor="pointer">
-                  {data.sourceDistribution.map((entry, idx) => {
+                  {data.sourceDistribution.map((_entry, idx) => {
                     const colors = ["#0284c7", "#10b981", "#4f46e5", "#8b5cf6", "#f43f5e"];
                     return <Cell key={`cell-${idx}`} fill={colors[idx % colors.length]} />;
                   })}
@@ -814,7 +812,7 @@ function RecentAnalysesTable({ jobs }: { jobs: any[] }) {
             <div className="flex items-center gap-2 justify-end">
               <Link
                 to="/jobs"
-                search={{ query: row.title, status: row.status }}
+                search={(prev: any) => ({ ...prev, query: row.title, status: row.status })}
                 className="inline-flex h-7 items-center justify-center gap-1 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 px-2 text-xs font-bold text-slate-700 transition"
               >
                 Track
@@ -988,7 +986,7 @@ function DrillDownModal({
             <div className="flex items-center gap-1.5 justify-end">
               <Link
                 to="/jobs"
-                search={{ query: row.title, status: row.status }}
+                search={(prev: any) => ({ ...prev, query: row.title, status: row.status })}
                 onClick={onClose}
                 className="inline-flex h-7 items-center justify-center rounded-lg border border-slate-200 bg-white hover:bg-slate-50 px-2.5 text-xs font-bold text-slate-700 transition"
               >

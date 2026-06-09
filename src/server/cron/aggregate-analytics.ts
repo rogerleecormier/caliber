@@ -61,7 +61,7 @@ function toDisplayTitle(canonicalTitle: string): string {
     .join(" ");
 }
 
-function topN<T extends Record<string, unknown>>(arr: T[], key: keyof T, n: number): T[] {
+function topN<T extends Record<string, unknown>>(arr: T[], _key: keyof T, n: number): T[] {
   return arr
     .sort((a, b) => (b as Record<string, number>).count - (a as Record<string, number>).count)
     .slice(0, n);

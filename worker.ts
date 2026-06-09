@@ -11,6 +11,7 @@ export default {
     ;(globalThis as any).__CF_ENV__ = env
     ;(globalThis as any).__CF_CTX__ = ctx
 
+    // @ts-ignore - built artifact, not in source
     const { default: server } = await import('./dist/server/server.js')
     return server.fetch(request, env, ctx)
   },

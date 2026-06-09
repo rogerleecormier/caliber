@@ -10,7 +10,7 @@ async function cleanDatabase() {
   console.log("🧹 Cleaning database...");
 
   // Delete all jobs from RemoteOK (which have HTML)
-  const deleted = await db
+  await db
     .delete(schema.jobs)
     .where(eq(schema.jobs.sourceName, "RemoteOK"));
 

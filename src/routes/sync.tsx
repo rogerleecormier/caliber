@@ -163,7 +163,7 @@ function SyncDashboardContent() {
   }
 
   const logs = logsData?.logs || []
-  const recentErrors = logsData?.meta?.recentErrors || 0
+  // recentErrors available at logsData?.meta?.recentErrors if needed
 
   return (
     <div className="spx-page space-y-8">

@@ -12,6 +12,7 @@ export interface CloudflareEnv {
   KV: KVNamespace;
   AI: Ai;
   BROWSER: Fetcher;
+  ADMIN_PROMOTION_TOKEN?: string;
 }
 
 export function getCloudflareEnv(): Partial<CloudflareEnv> {

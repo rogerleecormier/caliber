@@ -31,6 +31,7 @@ export const promoteToAdmin = createServerFn({ method: "POST" })
     if (!adminToken || data.token !== adminToken) {
       throw new Error("Invalid token");
     }
+    if (!env.DB) throw new Error("Database not available");
 
     const db = getDb(env.DB);
     const normalizedEmail = data.email.trim().toLowerCase();

@@ -3,7 +3,6 @@ import {
   DrizzleD1Database as DrizzleD1DatabaseType,
 } from "drizzle-orm/d1";
 import * as schema from "./schema";
-import type { AppLoadContext } from "../../app/ssr";
 
 export { schema };
 

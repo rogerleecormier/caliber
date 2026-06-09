@@ -33,7 +33,7 @@ async function searchGreenhouseCompany(query: string): Promise<CompanySearchResu
       return { found: false, error: `HTTP ${response.status}` }
     }
 
-    const data = await response.json()
+    const data = await response.json() as any
 
     if (!data.jobs || !Array.isArray(data.jobs)) {
       return { found: false, error: 'No jobs data in response' }

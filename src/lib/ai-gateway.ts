@@ -1,4 +1,4 @@
-import type { CloudflareEnv } from "./cloudflare";
+
 import { DEFAULT_MODEL } from "./ai/types";
 
 export const WORKERS_AI_CONTEXT_WINDOW_TOKENS = 128_000;
@@ -104,7 +104,7 @@ export function truncateToTokenBudget(
  * Normalizes all Workers AI result shapes to a plain string.
  */
 export async function callWorkersAI(
-  env: Partial<CloudflareEnv>,
+  env: { AI?: any },
   messages: Message[],
   options?: { maxTokens?: number; temperature?: number; topP?: number },
 ): Promise<string> {

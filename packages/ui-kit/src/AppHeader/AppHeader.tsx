@@ -87,7 +87,7 @@ type MenuEntry =
   | MenuDisabledItem
   | MenuActionItem;
 
-function getAppOrigin(app: AppHeaderProps["app"], currentPath: string): string {
+function getAppOrigin(_app: AppHeaderProps["app"], _currentPath: string): string {
   if (typeof window !== "undefined") {
     return window.location.origin;
   }

@@ -27,7 +27,7 @@ async function testCompany(slug: string): Promise<DiscoveredCompany | null> {
       return null;
     }
 
-    const data = await response.json();
+    const data = await response.json() as any;
 
     if (!data.jobs || !Array.isArray(data.jobs) || data.jobs.length === 0) {
       return null;

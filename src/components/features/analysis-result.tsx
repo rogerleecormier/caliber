@@ -14,7 +14,7 @@ import {
   MapPin,
   BarChart3,
 } from "lucide-react";
-import { Badge } from "@caliber/ui-kit";
+
 
 interface GapItem {
   requirement?: string;

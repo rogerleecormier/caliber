@@ -353,7 +353,7 @@ export function JobResultCard({
               ) : (
                 <Link
                   to="/jobs"
-                  search={{ url: hasUrl ? job.sourceUrl : undefined }}
+                  search={(prev: any) => ({ ...prev, url: hasUrl ? job.sourceUrl : undefined })}
                   className="inline-flex h-8 items-center gap-1 whitespace-nowrap rounded-lg border border-amber-200 bg-amber-50 px-2.5 text-xs font-semibold text-amber-700 transition hover:bg-amber-100"
                 >
                   <Sparkles className="h-3.5 w-3.5" />

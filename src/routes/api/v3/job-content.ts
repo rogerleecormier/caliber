@@ -10,7 +10,6 @@ import { getDbFromContext, schema } from '../../../db/db'
 import { eq } from 'drizzle-orm'
 import { sanitizeHtml, decodeHtmlEntities } from '../../../lib/html-utils'
 import { extractSalaryFromDescription } from '../../../lib/job-sources/salary-utils'
-import { syncQueue } from '../../../lib/sync-queue'
 
 export const Route = createFileRoute('/api/v3/job-content')({
   server: {

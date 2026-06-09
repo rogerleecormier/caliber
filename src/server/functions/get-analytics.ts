@@ -3,7 +3,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { getCloudflareEnv } from "@/lib/cloudflare";
 import { getDb } from "@/db/db";
 import { pipelineJobs, generatedDocuments } from "@/db/schema";
-import { eq, and } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { resolveSessionUser } from "@/lib/resolve-user";
 
 export interface AnalyticsSummaryData {
@@ -56,6 +56,7 @@ export interface AnalyticsSummaryData {
     analyzedAt: string | null;
     isUnicorn: boolean;
     keywords: string[];
+    workplaceType: string | null;
   }>;
 }
 
@@ -115,7 +116,7 @@ function toDisplayTitle(canonicalTitle: string): string {
     .join(" ");
 }
 
-function topN<T extends Record<string, unknown>>(arr: T[], key: keyof T, n: number): T[] {
+function topN<T extends Record<string, unknown>>(arr: T[], _key: keyof T, n: number): T[] {
   return arr
     .sort((a, b) => (b as Record<string, number>).count - (a as Record<string, number>).count)
     .slice(0, n);
@@ -140,6 +141,7 @@ const EMPTY = (period: string): AnalyticsSummaryData => ({
   sourceDistribution: [],
   pipelineConversions: [],
   recentAnalyses: [],
+  allJobs: [],
 });
 
 export const getAnalytics = createServerFn({ method: "GET" })
@@ -391,7 +393,7 @@ export const getAnalytics = createServerFn({ method: "GET" })
           postDateText: j.postDateText,
           createdAt: j.createdAt,
           analyzedAt: j.analyzedAt,
-          isUnicorn: j.isUnicorn === 1 || j.isUnicorn === true,
+          isUnicorn: j.isUnicorn === 1,
         }));
 
       return {
@@ -406,7 +408,7 @@ export const getAnalytics = createServerFn({ method: "GET" })
         totalApplied,
         totalPursued,
         totalJobsDiscovered: filteredJobs.length,
-        unicornCount: filteredJobs.filter((j) => j.isUnicorn === 1 || j.isUnicorn === true).length,
+        unicornCount: filteredJobs.filter((j) => j.isUnicorn === 1).length,
         matchScoreDistribution,
         workplaceTypeDistribution,
         sourceDistribution,
@@ -432,8 +434,9 @@ export const getAnalytics = createServerFn({ method: "GET" })
             postDateText: j.postDateText,
             createdAt: j.createdAt,
             analyzedAt: j.analyzedAt,
-            isUnicorn: j.isUnicorn === 1 || j.isUnicorn === true,
+            isUnicorn: j.isUnicorn === 1,
             keywords: parsedKeywords,
+            workplaceType: j.workplaceType ?? null,
           };
         }),
         updatedAt: new Date().toISOString(),

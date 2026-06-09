@@ -38,7 +38,7 @@ function saveCache(jobs: JobWithCategory[], queries: string[]) {
   localStorage.setItem(CACHE_KEY, JSON.stringify(cache));
 }
 
-export default function UnicornJobs({ onJobClick, onCompanyClick, onOpenSkillsModal }: UnicornJobsProps) {
+export default function UnicornJobs({ onCompanyClick, onOpenSkillsModal }: UnicornJobsProps) {
   const [state, setState] = useState<
     | { status: "idle" }
     | { status: "no-profile" }

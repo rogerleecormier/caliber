@@ -9,7 +9,6 @@ import { resolveSessionUser } from "@/lib/resolve-user";
 import { aggregateAnalytics } from "@/server/cron/aggregate-analytics";
 import {
   type PipelineStatus,
-  PIPELINE_STATUSES,
   normalizePipelineStatus,
 } from "@/lib/pipeline-constants";
 import { type PipelineCounts, EMPTY_PIPELINE_COUNTS, STATUS_TO_KEY } from "@/lib/pipeline-constants";
@@ -196,11 +195,12 @@ export const getDocumentsForAnalysis = createServerFn({ method: "GET" })
 
     const db = getDb(env.DB);
 
-    // Check both legacy job_analysis_id and new pipeline_job_id
+    // Check both legacy job_analysis_id and new pipeline_job_id, newest first
     const docs = await db
       .select()
       .from(generatedDocuments)
-      .where(sql`${generatedDocuments.pipelineJobId} = ${data.analysisId} OR ${generatedDocuments.jobAnalysisId} = ${data.analysisId}`);
+      .where(sql`${generatedDocuments.pipelineJobId} = ${data.analysisId} OR ${generatedDocuments.jobAnalysisId} = ${data.analysisId}`)
+      .orderBy(desc(generatedDocuments.id));
 
     const resume = docs.find((d) => d.docType === "resume");
     const coverLetter = docs.find((d) => d.docType === "cover_letter");

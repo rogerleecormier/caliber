@@ -1,5 +1,5 @@
 export default {
-  async scheduled(event: any, env: any, ctx: any) {
+  async scheduled(_event: any, _env: any, _ctx: any) {
     console.log("Cron triggered - running batch sync");
     try {
       const response = await fetch("https://caliber.rcormier.dev/api/v2/sync-batch", {

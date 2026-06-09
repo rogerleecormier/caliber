@@ -1,5 +1,4 @@
-import { Link } from "@tanstack/react-router";
-import { ExternalLink, Sparkles, MessageSquareText, Archive, Trash2 } from "lucide-react";
+import { ExternalLink, Sparkles } from "lucide-react";
 import type { JobResultCardJob, JobStatus } from "./job-result-card";
 import { getScoreBorderColor } from "@/lib/scoreUtils";
 import type { ChangeEvent } from "react";

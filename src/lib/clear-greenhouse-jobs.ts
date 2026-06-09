@@ -10,7 +10,7 @@ async function clearGreenhouseJobs() {
   console.log("🧹 Clearing old Greenhouse jobs from database...");
 
   try {
-    const result = await db
+    await db
       .delete(schema.jobs)
       .where(eq(schema.jobs.sourceName, "Greenhouse"));
 

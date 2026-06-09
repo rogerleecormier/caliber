@@ -1,4 +1,4 @@
-import { DEFAULT_MODEL, type AIEnv } from './types';
+import { type AIEnv } from './types';
 import { JOB_INSIGHTS_PROMPT, SEMANTIC_SEARCH_PROMPT } from './prompts';
 import { callWorkersAI } from '@/lib/ai-gateway';
 import type { CloudflareEnv } from '@/lib/cloudflare';

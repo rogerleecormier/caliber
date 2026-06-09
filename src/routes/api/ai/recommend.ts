@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { json } from "@tanstack/react-start";
-import { parseSearchQuery, getAIFromContext, type AIEnv } from "../../../lib/ai";
+import { getAIFromContext, type AIEnv } from "../../../lib/ai";
 import { getDbFromContext, schema } from "../../../db/db";
 import { like, or, desc } from "drizzle-orm";
 
@@ -25,7 +25,7 @@ export const Route = createFileRoute("/api/ai/recommend")({
           if (ai) {
             try {
               const env: AIEnv = { AI: ai };
-              const response = await fetch("/api/ai/search", {
+              await fetch("/api/ai/search", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ query: body.query }),
