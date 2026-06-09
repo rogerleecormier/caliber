@@ -32,7 +32,7 @@ export const AI_MODELS = {
 } as const;
 
 // Default model for general job analysis tasks
-export const DEFAULT_MODEL = AI_MODELS.LLAMA_3_3_70B;
+export const DEFAULT_MODEL = AI_MODELS.LLAMA_4_SCOUT;
 
 // Faster MoE model for batch scoring (3.3B active params, native function calling)
 export const SCORING_MODEL = AI_MODELS.QWEN3_30B_A3B;
