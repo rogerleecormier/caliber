@@ -68,6 +68,54 @@ export async function generateResumePdf(content: AtsResumeContent): Promise<Uint
     }
   }
 
+  function drawPrefixedText(
+    prefix: string,
+    text: string,
+    options: {
+      x?: number;
+      size?: number;
+      prefixFont?: typeof fontRegular;
+      textFont?: typeof fontRegular;
+      color?: typeof black;
+    } = {},
+  ) {
+    const x = options.x ?? MARGIN;
+    const size = options.size ?? 10;
+    const prefixFont = options.prefixFont ?? fontBold;
+    const textFont = options.textFont ?? fontRegular;
+    const color = options.color ?? black;
+
+    const prefixWidth = prefixFont.widthOfTextAtSize(prefix, size);
+
+    ensureSpace(LINE_HEIGHT);
+    page.drawText(prefix, { x, y, size, font: prefixFont, color });
+
+    const words = text.split(" ");
+    let line = "";
+    let isFirstLine = true;
+    const maxWidth = CONTENT_WIDTH - (x - MARGIN);
+    for (const word of words) {
+      const test = line ? `${line} ${word}` : word;
+      const lineMaxWidth = isFirstLine ? maxWidth - prefixWidth : maxWidth - prefixWidth;
+      const width = textFont.widthOfTextAtSize(test, size);
+      if (width > lineMaxWidth && line) {
+        const lineX = isFirstLine ? x + prefixWidth : x + prefixWidth;
+        page.drawText(line, { x: lineX, y, size, font: textFont, color });
+        y -= LINE_HEIGHT;
+        ensureSpace(LINE_HEIGHT);
+        line = word;
+        isFirstLine = false;
+      } else {
+        line = test;
+      }
+    }
+    if (line) {
+      const lineX = x + prefixWidth;
+      page.drawText(line, { x: lineX, y, size, font: textFont, color });
+      y -= LINE_HEIGHT;
+    }
+  }
+
   function drawSection(title: string) {
     y -= SECTION_GAP;
     ensureSpace(LINE_HEIGHT * 2);
@@ -107,8 +155,7 @@ export async function generateResumePdf(content: AtsResumeContent): Promise<Uint
     for (const skillGroup of content.technicalSkills) {
       if (typeof skillGroup === "object" && "category" in skillGroup) {
         const skills = Array.isArray(skillGroup.skills) ? skillGroup.skills.join(", ") : "";
-        drawText(`${skillGroup.category}:`, { x: MARGIN + 10, font: fontBold, size: 10 });
-        drawText(skills, { x: MARGIN + 25 });
+        drawPrefixedText(`${skillGroup.category}:  `, skills, { x: MARGIN + 10, size: 10 });
       }
     }
   }
@@ -131,9 +178,6 @@ export async function generateResumePdf(content: AtsResumeContent): Promise<Uint
       const titleLine = project.url ? `${project.name}  —  ${project.url}` : project.name;
       drawText(titleLine, { font: fontBold, size: 10 });
       drawText(project.description);
-      if (project.technologies && project.technologies.length > 0) {
-        drawText(`Technologies: ${project.technologies.join(", ")}`, { size: 9, color: darkGray });
-      }
       y -= 4;
     }
   }
@@ -143,7 +187,7 @@ export async function generateResumePdf(content: AtsResumeContent): Promise<Uint
     const degreeLine = edu.fieldOfStudy
       ? `${edu.degree} in ${edu.fieldOfStudy}  —  ${edu.institution}  (${edu.year})`
       : `${edu.degree}  —  ${edu.institution}  (${edu.year})`;
-    drawText(degreeLine);
+    drawText(`•  ${degreeLine}`, { x: MARGIN + 10, hangingIndent: bulletIndent });
   }
 
   if (content.certifications.length > 0) {

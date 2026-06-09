@@ -96,7 +96,8 @@ Guidelines:
 - For each role, keep the title and company exactly as stated
 - For dates: combine startDate and endDate (or use startDate only if endDate is missing)
   Example: "Jan 2020 - Dec 2021" or "Jan 2020 - Present"
-- Rewrite exactly 6 bullets per role using JD language and patterns (if the role has fewer than 6 source bullets, expand by splitting compound bullets into distinct, specific bullets — do not fabricate)
+- Rewrite exactly 5 bullets per role using JD language and patterns (if the role has fewer than 5 source bullets, expand by splitting compound bullets into distinct, specific bullets — do not fabricate)
+- Each bullet MUST be 15-20 words
 - Bullet format: [Action Verb] + [Context/Tool] + [Quantifiable Result] + [Metric if available]
 - Surface real metrics from the resume text (%, $, time, team size) — never fabricate
 - If no metric exists, state the strongest factual result

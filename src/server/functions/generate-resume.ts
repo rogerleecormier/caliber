@@ -19,6 +19,7 @@ import {
   parseSectionResponse,
   getDefaultSectionValue,
   enforceGuardrails,
+  formatPhoneNumber,
 } from "@/lib/resume-section-parsing";
 import {
   SECTION_PROMPT_PROFESSIONAL_SUMMARY,
@@ -210,7 +211,7 @@ export const generateResume = createServerFn({ method: "POST" })
       // Format contact info with all available details
       const contactParts: string[] = [];
       if (resume?.email) contactParts.push(resume.email);
-      if (resume?.phone) contactParts.push(resume.phone);
+      if (resume?.phone) contactParts.push(formatPhoneNumber(resume.phone));
       if (resume?.linkedin) contactParts.push(resume.linkedin);
       if (resume?.website) contactParts.push(resume.website);
       const contactInfo = contactParts.join(" | ");

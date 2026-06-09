@@ -8,6 +8,22 @@ import {
 } from "@/lib/resume-sections";
 
 /**
+ * Formats a US phone number as (###) ###-####.
+ * Strips a leading "1" country code if present. Returns the original
+ * input unchanged if it doesn't contain exactly 10 (or 11 with leading 1) digits.
+ */
+export function formatPhoneNumber(phone: string | null | undefined): string {
+  if (!phone) return "";
+
+  const digits = phone.replace(/\D/g, "");
+  const tenDigits = digits.length === 11 && digits.startsWith("1") ? digits.slice(1) : digits;
+
+  if (tenDigits.length !== 10) return phone;
+
+  return `(${tenDigits.slice(0, 3)}) ${tenDigits.slice(3, 6)}-${tenDigits.slice(6)}`;
+}
+
+/**
  * Best-effort extraction of section content from a plaintext (non-JSON) model response.
  * Used when the model ignores the "JSON only" instruction (common with smaller/instruct models).
  */
@@ -121,14 +137,28 @@ export function enforceGuardrails(sectionType: SectionType, content: any): any {
       return skills;
     }
     case "professional_experience": {
-      // Enforce up to 6 bullets per role
+      // Enforce 5 bullets per role, each ideally 15-20 words.
+      // Word-count violations are logged (the prompt is responsible for rewording
+      // bullets to fit) but bullets are never truncated, since that mangles content.
       const roles = Array.isArray(content) ? content : [];
       return roles.map((role: any) => {
-        const bullets = Array.isArray(role?.bullets) ? role.bullets.filter((b: any) => typeof b === "string" && b.trim().length > 0) : [];
-        if (bullets.length > 6) {
-          console.warn(`[enforceGuardrails] role "${role?.title}" has ${bullets.length} bullets, trimming to 6`);
+        let bullets: string[] = Array.isArray(role?.bullets) ? role.bullets.filter((b: any) => typeof b === "string" && b.trim().length > 0) : [];
+
+        for (const bullet of bullets) {
+          const wordCount = bullet.split(/\s+/).filter(Boolean).length;
+          if (wordCount < 15 || wordCount > 20) {
+            console.warn(`[enforceGuardrails] role "${role?.title}" bullet has ${wordCount} words, expected 15-20: "${bullet}"`);
+          }
         }
-        return { ...role, bullets: bullets.slice(0, 6) };
+
+        if (bullets.length > 5) {
+          console.warn(`[enforceGuardrails] role "${role?.title}" has ${bullets.length} bullets, trimming to 5`);
+          bullets = bullets.slice(0, 5);
+        } else if (bullets.length < 5) {
+          console.warn(`[enforceGuardrails] role "${role?.title}" has ${bullets.length} bullets, expected 5`);
+        }
+
+        return { ...role, bullets };
       });
     }
     case "personal_projects": {

@@ -4,7 +4,36 @@ import {
   parseSectionResponse,
   getDefaultSectionValue,
   enforceGuardrails,
+  formatPhoneNumber,
 } from "./resume-section-parsing";
+
+describe("formatPhoneNumber", () => {
+  it("formats a plain 10-digit number", () => {
+    expect(formatPhoneNumber("5858086213")).toBe("(585) 808-6213");
+  });
+
+  it("formats a number with dashes/dots/spaces", () => {
+    expect(formatPhoneNumber("585-808-6213")).toBe("(585) 808-6213");
+    expect(formatPhoneNumber("585.808.6213")).toBe("(585) 808-6213");
+    expect(formatPhoneNumber("585 808 6213")).toBe("(585) 808-6213");
+  });
+
+  it("strips a leading US country code (11 digits starting with 1)", () => {
+    expect(formatPhoneNumber("15858086213")).toBe("(585) 808-6213");
+    expect(formatPhoneNumber("+1 (585) 808-6213")).toBe("(585) 808-6213");
+  });
+
+  it("returns empty string for null/undefined/empty input", () => {
+    expect(formatPhoneNumber(null)).toBe("");
+    expect(formatPhoneNumber(undefined)).toBe("");
+    expect(formatPhoneNumber("")).toBe("");
+  });
+
+  it("returns the original string unchanged if it doesn't have 10 digits", () => {
+    expect(formatPhoneNumber("12345")).toBe("12345");
+    expect(formatPhoneNumber("not a phone number")).toBe("not a phone number");
+  });
+});
 
 describe("getDefaultSectionValue", () => {
   it("returns empty string for professional_summary", () => {
@@ -142,18 +171,20 @@ describe("enforceGuardrails - technical_skills", () => {
 });
 
 describe("enforceGuardrails - professional_experience", () => {
-  it("trims bullets to 6 per role", () => {
+  const words = (n: number, prefix = "word") => Array.from({ length: n }, (_, i) => `${prefix}${i}`).join(" ");
+
+  it("trims bullets to 5 per role", () => {
     const roles = [
       {
         title: "Engineer",
         company: "Acme",
         dates: "2020 - Present",
-        bullets: Array.from({ length: 10 }, (_, i) => `Bullet ${i + 1}`),
+        bullets: Array.from({ length: 10 }, () => words(17)),
       },
     ];
     const result = enforceGuardrails("professional_experience", roles);
-    expect(result[0].bullets).toHaveLength(6);
-    expect(result[0].bullets).toEqual(roles[0].bullets.slice(0, 6));
+    expect(result[0].bullets).toHaveLength(5);
+    expect(result[0].bullets).toEqual(roles[0].bullets.slice(0, 5));
   });
 
   it("filters out non-string/empty bullets", () => {
@@ -162,18 +193,47 @@ describe("enforceGuardrails - professional_experience", () => {
         title: "Engineer",
         company: "Acme",
         dates: "2020 - Present",
-        bullets: ["Valid bullet", "", null, "Another valid bullet"],
+        bullets: [words(17), "", null, words(17, "other")],
       },
     ];
     const result = enforceGuardrails("professional_experience", roles);
-    expect(result[0].bullets).toEqual(["Valid bullet", "Another valid bullet"]);
+    expect(result[0].bullets).toEqual([words(17), words(17, "other")]);
   });
 
-  it("preserves roles with 6 or fewer bullets unchanged", () => {
-    const roles = [
-      { title: "Engineer", company: "Acme", dates: "2020", bullets: ["A", "B", "C"] },
-    ];
+  it("preserves roles with 5 bullets of 15-20 words unchanged", () => {
+    const bullets = Array.from({ length: 5 }, () => words(17));
+    const roles = [{ title: "Engineer", company: "Acme", dates: "2020", bullets }];
     expect(enforceGuardrails("professional_experience", roles)).toEqual(roles);
+  });
+
+  it("warns but does not trim/pad when fewer than 5 bullets", () => {
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const bullets = [words(17), words(17, "other")];
+    const roles = [{ title: "Engineer", company: "Acme", dates: "2020", bullets }];
+    const result = enforceGuardrails("professional_experience", roles);
+    expect(result[0].bullets).toEqual(bullets);
+    expect(warnSpy).toHaveBeenCalled();
+    warnSpy.mockRestore();
+  });
+
+  it("warns but does not modify bullets over 20 words", () => {
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const longBullet = words(30);
+    const roles = [{ title: "Engineer", company: "Acme", dates: "2020", bullets: [longBullet, words(17), words(17, "b"), words(17, "c"), words(17, "d")] }];
+    const result = enforceGuardrails("professional_experience", roles);
+    expect(result[0].bullets[0]).toBe(longBullet);
+    expect(warnSpy).toHaveBeenCalled();
+    warnSpy.mockRestore();
+  });
+
+  it("warns but does not modify bullets under 15 words", () => {
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const shortBullet = words(5);
+    const roles = [{ title: "Engineer", company: "Acme", dates: "2020", bullets: [shortBullet, words(17), words(17, "b"), words(17, "c"), words(17, "d")] }];
+    const result = enforceGuardrails("professional_experience", roles);
+    expect(result[0].bullets[0]).toBe(shortBullet);
+    expect(warnSpy).toHaveBeenCalled();
+    warnSpy.mockRestore();
   });
 
   it("handles non-array input", () => {
@@ -321,18 +381,19 @@ describe("parseSectionResponse", () => {
     ]);
   });
 
-  it("applies guardrails after parsing (e.g. trims experience bullets to 6)", () => {
+  it("applies guardrails after parsing (e.g. trims experience bullets to 5)", () => {
+    const bullet = Array.from({ length: 17 }, (_, i) => `word${i}`).join(" ");
     const raw = JSON.stringify({
       experience: [
         {
           title: "Engineer",
           company: "Acme",
           dates: "2020 - Present",
-          bullets: Array.from({ length: 10 }, (_, i) => `Bullet ${i + 1}`),
+          bullets: Array.from({ length: 10 }, () => bullet),
         },
       ],
     });
     const result = parseSectionResponse(raw, "professional_experience");
-    expect(result[0].bullets).toHaveLength(6);
+    expect(result[0].bullets).toHaveLength(5);
   });
 });
