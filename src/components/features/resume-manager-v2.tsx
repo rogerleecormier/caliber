@@ -147,14 +147,28 @@ export function ResumeManagerV2({ initial }: { initial: ResumeData | null }) {
       }
 
       // Save all sections to DB
+      const saveErrors: string[] = []
       for (const [sectionType, content] of Object.entries(newSections)) {
         try {
-          await upsertResumeSection({
+          console.log(`Saving ${sectionType}:`, content)
+          const result = await upsertResumeSection({
             data: { sectionType: sectionType as SectionType, content },
           })
+          console.log(`Saved ${sectionType}:`, result)
         } catch (err) {
-          console.error(`Failed to save section ${sectionType}:`, err)
+          const errorMsg = err instanceof Error ? err.message : String(err)
+          console.error(`Failed to save section ${sectionType}:`, errorMsg)
+          saveErrors.push(`${sectionType}: ${errorMsg}`)
         }
+      }
+
+      if (saveErrors.length > 0) {
+        console.error('Some sections failed to save:', saveErrors)
+        toast.error('Some sections failed to save', {
+          id: toastId,
+          description: saveErrors.join(', '),
+        })
+        return
       }
 
       setSections(newSections)
