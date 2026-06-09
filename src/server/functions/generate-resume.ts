@@ -49,16 +49,24 @@ function parseSectionResponse<T extends SectionType>(raw: string, sectionType: T
 
     const sectionMap: Record<SectionType, (p: any) => any> = {
       professional_summary: (p) => {
-        const result = p.professionalSummary ?? "";
+        // Try multiple field name variations
+        const result = p.professionalSummary ?? p.summary ?? p.professional_summary ?? "";
         console.log(`[parseSectionResponse] professional_summary result:`, result.substring(0, 100));
         return result;
       },
       core_competencies: (p) => {
-        const filtered = Array.isArray(p.coreCompetencies) ? p.coreCompetencies.filter((c: any) => c) : [];
-        console.log(`[parseSectionResponse] core_competencies filtered:`, filtered.length, "items");
+        // Try multiple field name variations
+        const competencies = p.coreCompetencies ?? p.competencies ?? p.core_competencies ?? [];
+        const filtered = Array.isArray(competencies) ? competencies.filter((c: any) => c) : [];
+        console.log(`[parseSectionResponse] core_competencies filtered:`, filtered.length, "items", filtered.slice(0, 3));
         return filtered;
       },
-      technical_skills: (p) => Array.isArray(p.technicalSkills) ? p.technicalSkills.filter((cat: any) => cat?.skills?.length > 0) : [],
+      technical_skills: (p) => {
+        const skills = p.technicalSkills ?? p.technical_skills ?? p.skills ?? [];
+        const filtered = Array.isArray(skills) ? skills.filter((cat: any) => cat?.skills?.length > 0) : [];
+        console.log(`[parseSectionResponse] technical_skills filtered:`, filtered.length, "categories");
+        return filtered;
+      },
       professional_experience: (p) => Array.isArray(p.experience) ? p.experience.filter((exp: any) => exp?.title && exp?.company) : [],
       personal_projects: (p) => Array.isArray(p.personalProjects) ? p.personalProjects.filter((proj: any) => proj?.name) : [],
       education: (p) => Array.isArray(p.education) ? p.education.filter((edu: any) => edu?.institution) : [],

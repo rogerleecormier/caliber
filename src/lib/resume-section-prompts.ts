@@ -18,9 +18,9 @@ Create a tailored professional summary:
 - No filler: ban "I bring", "I leverage", "innovative", "passionate", "dynamic", "I am qualified"
 - Every sentence must be specific and true
 
-Return this exact JSON structure:
+Return ONLY this exact JSON (no other fields, no markdown):
 {
-  "professionalSummary": "string (the 3-sentence summary)"
+  "professionalSummary": "The 3-sentence summary text goes here"
 }`
 
 export const SECTION_PROMPT_CORE_COMPETENCIES = `You are an Executive Resume Strategist. Tailor core competencies to the target job.
@@ -40,9 +40,9 @@ Guidelines:
 - Order by relevance to THIS specific job
 - Each competency is a single skill/domain area (e.g., "Project Management", "DevOps", "Financial Systems")
 
-Respond with ONLY valid JSON:
+Return ONLY this exact JSON (no other fields, no markdown):
 {
-  "coreCompetencies": ["string", ...]
+  "coreCompetencies": ["Competency 1", "Competency 2", "Competency 3", "Competency 4", "Competency 5", "Competency 6", "Competency 7", "Competency 8"]
 }`
 
 export const SECTION_PROMPT_TECHNICAL_SKILLS = `You are an Executive Resume Strategist. Tailor technical skills to the target job. Respond with ONLY valid JSON, no markdown, no code fences, no extra text.
@@ -62,14 +62,17 @@ Create a tailored technical skills section:
 - Within each category, include 3-5 skills; order by relevance to THIS job
 - Each skill should be a specific tool, platform, or technology name
 
-Return this exact JSON structure:
+Return ONLY this exact JSON (no other fields, no markdown):
 {
   "technicalSkills": [
     {
-      "category": "string (the category name)",
-      "skills": ["string (skill 1)", "string (skill 2)", ...]
+      "category": "Category Name 1",
+      "skills": ["Skill 1", "Skill 2", "Skill 3", "Skill 4", "Skill 5"]
     },
-    ...repeat for each category...
+    {
+      "category": "Category Name 2",
+      "skills": ["Skill 1", "Skill 2", "Skill 3", "Skill 4"]
+    }
   ]
 }`
 
