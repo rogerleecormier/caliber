@@ -29,16 +29,35 @@ import {
 
 function parseSectionResponse<T extends SectionType>(raw: string, sectionType: T): SectionContent[T] {
   try {
+    console.log(`[parseSectionResponse] Parsing ${sectionType}, raw response:`, raw.substring(0, 500));
+
     const jsonMatch = raw.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
       console.warn(`[parseSectionResponse] No JSON found in ${sectionType} response, returning default`);
       return getDefaultSectionValue(sectionType);
     }
-    const parsed = JSON.parse(jsonrepair(jsonMatch[0]));
+
+    let parsed: any;
+    try {
+      parsed = JSON.parse(jsonMatch[0]);
+    } catch (e) {
+      console.log(`[parseSectionResponse] JSON parse failed, attempting repair for ${sectionType}`);
+      parsed = JSON.parse(jsonrepair(jsonMatch[0]));
+    }
+
+    console.log(`[parseSectionResponse] Parsed JSON for ${sectionType}:`, JSON.stringify(parsed).substring(0, 300));
 
     const sectionMap: Record<SectionType, (p: any) => any> = {
-      professional_summary: (p) => p.professionalSummary ?? "",
-      core_competencies: (p) => Array.isArray(p.coreCompetencies) ? p.coreCompetencies.filter((c: any) => c) : [],
+      professional_summary: (p) => {
+        const result = p.professionalSummary ?? "";
+        console.log(`[parseSectionResponse] professional_summary result:`, result.substring(0, 100));
+        return result;
+      },
+      core_competencies: (p) => {
+        const filtered = Array.isArray(p.coreCompetencies) ? p.coreCompetencies.filter((c: any) => c) : [];
+        console.log(`[parseSectionResponse] core_competencies filtered:`, filtered.length, "items");
+        return filtered;
+      },
       technical_skills: (p) => Array.isArray(p.technicalSkills) ? p.technicalSkills.filter((cat: any) => cat?.skills?.length > 0) : [],
       professional_experience: (p) => Array.isArray(p.experience) ? p.experience.filter((exp: any) => exp?.title && exp?.company) : [],
       personal_projects: (p) => Array.isArray(p.personalProjects) ? p.personalProjects.filter((proj: any) => proj?.name) : [],
@@ -47,6 +66,7 @@ function parseSectionResponse<T extends SectionType>(raw: string, sectionType: T
     };
 
     const result = sectionMap[sectionType](parsed);
+    console.log(`[parseSectionResponse] Final result for ${sectionType}:`, JSON.stringify(result).substring(0, 300));
     return result;
   } catch (err) {
     console.error(`[parseSectionResponse] Error parsing ${sectionType}:`, err);
