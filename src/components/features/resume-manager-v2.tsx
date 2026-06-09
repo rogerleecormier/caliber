@@ -547,51 +547,57 @@ export function ResumeManagerV2({ initial }: { initial: ResumeData | null }) {
               onEdit={() => setEditingSection('core_competencies')}
               onCancel={() => setEditingSection(null)}
               onSave={(content) => handleSaveSection('core_competencies', content)}
-              renderContent={(items) => (
-                <div className="flex flex-wrap gap-2">
-                  {items.map((item: string, i: number) => (
-                    <span key={i} className="inline-block bg-primary/10 text-primary text-xs font-medium px-2.5 py-1.5 rounded">
-                      {item}
-                    </span>
-                  ))}
-                </div>
-              )}
-              renderEdit={(items, onChange) => (
-                <div className="space-y-2">
-                  {items.map((item: string, i: number) => (
-                    <div key={i} className="flex gap-2">
-                      <Input
-                        value={item}
-                        onChange={(e) => {
-                          const updated = [...items]
-                          updated[i] = e.target.value
-                          onChange(updated)
-                        }}
-                      />
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => {
-                          const updated = items.filter((_: string, idx: number) => idx !== i)
-                          onChange(updated)
-                        }}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  ))}
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => onChange([...items, ''])}
-                  >
-                    <Plus className="h-4 w-4" />
-                    Add Item
-                  </Button>
-                </div>
-              )}
+              renderContent={(items) => {
+                const safeItems = Array.isArray(items) ? items : []
+                return (
+                  <div className="flex flex-wrap gap-2">
+                    {safeItems.map((item: any, i: number) => (
+                      <span key={i} className="inline-block bg-primary/10 text-primary text-xs font-medium px-2.5 py-1.5 rounded">
+                        {String(item || '')}
+                      </span>
+                    ))}
+                  </div>
+                )
+              }}
+              renderEdit={(items, onChange) => {
+                const safeItems = Array.isArray(items) ? items : []
+                return (
+                  <div className="space-y-2">
+                    {safeItems.map((item: any, i: number) => (
+                      <div key={i} className="flex gap-2">
+                        <Input
+                          value={String(item || '')}
+                          onChange={(e) => {
+                            const updated = [...safeItems]
+                            updated[i] = e.target.value
+                            onChange(updated)
+                          }}
+                        />
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            const updated = safeItems.filter((_: any, idx: number) => idx !== i)
+                            onChange(updated)
+                          }}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ))}
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => onChange([...safeItems, ''])}
+                    >
+                      <Plus className="h-4 w-4" />
+                      Add Item
+                    </Button>
+                  </div>
+                )
+              }}
             />
           )}
 
@@ -606,12 +612,17 @@ export function ResumeManagerV2({ initial }: { initial: ResumeData | null }) {
               onSave={(content) => handleSaveSection('technical_skills', content)}
               renderContent={(categories) => (
                 <div className="space-y-3">
-                  {Array.isArray(categories) && categories.map((cat: any, i: number) => (
-                    <div key={i}>
-                      <p className="text-sm font-medium mb-1">{cat.category}</p>
-                      <p className="text-sm text-muted-foreground">{Array.isArray(cat.skills) ? cat.skills.join(', ') : String(cat.skills || '')}</p>
-                    </div>
-                  ))}
+                  {Array.isArray(categories) && categories.map((cat: any, i: number) => {
+                    const category = cat?.category || 'Unnamed'
+                    const skills = Array.isArray(cat?.skills) ? cat.skills : []
+                    const skillsText = skills.length > 0 ? skills.join(', ') : 'No skills listed'
+                    return (
+                      <div key={i}>
+                        <p className="text-sm font-medium mb-1">{String(category)}</p>
+                        <p className="text-sm text-muted-foreground">{String(skillsText)}</p>
+                      </div>
+                    )
+                  })}
                 </div>
               )}
               renderEdit={(categories, onChange) => (
