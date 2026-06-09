@@ -6,7 +6,7 @@ import { saveResume, parseResumeText, aiParseResume, type ResumeData } from "@/s
 
 export function ResumeManager({ initial }: { initial: ResumeData | null }) {
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [uploadStatus, setUploadStatus] = useState<"idle" | "extracting" | "ai-parsing" | "saving" | "done" | "error">("idle");
+  const [uploadStatus, setUploadStatus] = useState<"idle" | "extracting" | "done" | "error">("idle");
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState(false);
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
@@ -49,7 +49,6 @@ export function ResumeManager({ initial }: { initial: ResumeData | null }) {
       }
       setRawText(text);
 
-      // Step 1: quick regex parse for contact info
       const parsed = await parseResumeText({ data: { text } });
       if (parsed) {
         if (parsed.fullName && !fullName) setFullName(parsed.fullName);
@@ -59,44 +58,8 @@ export function ResumeManager({ initial }: { initial: ResumeData | null }) {
         if (parsed.website && !website) setWebsite(parsed.website);
       }
 
-      // Step 2: AI structured parse
-      setUploadStatus("ai-parsing");
-      const aiToastId = toast.loading("AI is parsing your resume…", {
-        description: "Extracting experience, skills, and projects. You can leave this page.",
-      });
-
-      const aiParsed = await aiParseResume({ data: { text } });
-
-      if (aiParsed && Object.keys(aiParsed).length > 0) {
-        setParsedStructured(aiParsed);
-        setUploadStatus("saving");
-        const currentName = fullName.trim() || parsed?.fullName?.trim() || "";
-        if (currentName) {
-          await saveResume({
-            data: {
-              fullName: currentName,
-              email: (email.trim() || parsed?.email) ?? undefined,
-              phone: (phone.trim() || parsed?.phone) ?? undefined,
-              linkedin: (linkedin.trim() || parsed?.linkedin) ?? undefined,
-              website: (website.trim() || parsed?.website) ?? undefined,
-              rawText: text,
-              ...aiParsed,
-            },
-          });
-          setLastSaved(new Date().toISOString());
-          toast.success("Resume parsed and saved!", {
-            id: aiToastId,
-            description: "Experience, skills, and personal projects have been saved to your profile.",
-          });
-        } else {
-          toast.dismiss(aiToastId);
-        }
-      } else {
-        toast.dismiss(aiToastId);
-      }
-
       setUploadStatus("done");
-      setTimeout(() => setUploadStatus("idle"), 5000);
+      setTimeout(() => setUploadStatus("idle"), 4000);
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Failed to read file";
       setUploadError(msg);
@@ -124,7 +87,23 @@ export function ResumeManager({ initial }: { initial: ResumeData | null }) {
     if (!fullName.trim()) return;
     setSaveStatus("saving");
     setSaveError(null);
+
+    const aiToastId = rawText
+      ? toast.loading("AI is parsing your resume…", {
+          description: "Extracting experience, skills, and projects. You can leave this page.",
+        })
+      : null;
+
     try {
+      let structured = parsedStructured ?? {};
+      if (rawText) {
+        const aiParsed = await aiParseResume({ data: { text: rawText } });
+        if (aiParsed && Object.keys(aiParsed).length > 0) {
+          setParsedStructured(aiParsed);
+          structured = aiParsed;
+        }
+      }
+
       const result = await saveResume({
         data: {
           fullName: fullName.trim(),
@@ -133,15 +112,25 @@ export function ResumeManager({ initial }: { initial: ResumeData | null }) {
           linkedin: linkedin.trim() || undefined,
           website: website.trim() || undefined,
           rawText: rawText || undefined,
-          ...(parsedStructured ?? {}),
+          ...structured,
         },
       });
+
       setLastSaved(result.updatedAt);
       setSaveStatus("saved");
       setTimeout(() => setSaveStatus("idle"), 3000);
+
+      if (aiToastId) {
+        toast.success("Resume parsed and saved!", {
+          id: aiToastId,
+          description: "Experience, skills, and personal projects have been saved to your profile.",
+        });
+      }
     } catch (err) {
-      setSaveError(err instanceof Error ? err.message : "Save failed");
+      const msg = err instanceof Error ? err.message : "Save failed";
+      setSaveError(msg);
       setSaveStatus("error");
+      if (aiToastId) toast.error("Save failed", { id: aiToastId, description: msg });
     }
   }
 
@@ -187,17 +176,13 @@ export function ResumeManager({ initial }: { initial: ResumeData | null }) {
             <div className="text-center">
               <p className="text-sm font-medium">
                 {uploadStatus === "extracting" ? "Reading file…" :
-                 uploadStatus === "ai-parsing" ? "AI is parsing your resume…" :
-                 uploadStatus === "saving" ? "Saving parsed data…" :
-                 uploadStatus === "done" ? "Resume parsed and saved!" :
+                 uploadStatus === "done" ? "File ready — click Save Resume to parse and save." :
                  uploadStatus === "error" ? "Failed to read file" :
                  "Click to upload or drag & drop"}
               </p>
               <p className="text-xs text-muted-foreground mt-1">
                 {uploadStatus === "extracting" ? "Extracting text from your file…" :
-                 uploadStatus === "ai-parsing" ? "Extracting experience, skills, projects — this may take a moment…" :
-                 uploadStatus === "saving" ? "Writing structured data to your profile…" :
-                 uploadStatus === "done" ? "All sections including Personal Projects have been saved." :
+                 uploadStatus === "done" ? "Contact info auto-filled. AI will parse all sections on save." :
                  uploadStatus === "error" ? uploadError ?? "" :
                  "PDF, DOCX, or TXT"}
               </p>
