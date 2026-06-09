@@ -1,5 +1,5 @@
 'use client'
-import { useState, useRef, useCallback, useMemo } from 'react'
+import { useState, useRef, useCallback, useEffect } from 'react'
 import { Button, Input, Card, CardContent, CardDescription, CardHeader, CardTitle } from '@caliber/ui-kit'
 import { CheckCircle2, Loader2, Upload, AlertCircle, Edit2, Save, X, Plus, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
@@ -49,11 +49,9 @@ export function ResumeManagerV2({ initial }: { initial: ResumeData | null }) {
   }, [])
 
   // Load sections on mount
-  useMemo(() => {
-    if (!loadingResumeSections && Object.keys(sections).length === 0) {
-      loadSections()
-    }
-  }, [])
+  useEffect(() => {
+    loadSections()
+  }, [loadSections])
 
   const parseFile = useCallback(async (file: File) => {
     setUploadStatus('extracting')
@@ -136,15 +134,28 @@ export function ResumeManagerV2({ initial }: { initial: ResumeData | null }) {
         throw new Error('No data extracted from resume')
       }
 
-      // Update local sections
-      const newSections: Partial<Record<SectionType, any>> = {}
-      if (aiParsed.summary) newSections.professional_summary = aiParsed.summary
-      if (aiParsed.competencies) newSections.core_competencies = aiParsed.competencies
-      if (aiParsed.tools) newSections.technical_skills = aiParsed.tools
-      if (aiParsed.experience) newSections.professional_experience = aiParsed.experience
-      if (aiParsed.education) newSections.education = aiParsed.education
-      if (aiParsed.personalProjects) newSections.personal_projects = aiParsed.personalProjects
-      if (aiParsed.awards) newSections.awards = aiParsed.awards
+      // Update local sections - initialize all sections with defaults
+      // Note: aiParsed.certifications maps to awards section
+      const newSections: Partial<Record<SectionType, any>> = {
+        professional_summary: aiParsed.summary || '',
+        core_competencies: aiParsed.competencies || [],
+        technical_skills: aiParsed.tools || [],
+        professional_experience: aiParsed.experience || [],
+        education: aiParsed.education || [],
+        personal_projects: aiParsed.personalProjects || [],
+        awards: aiParsed.awards || aiParsed.certifications || [],
+      }
+
+      // Save all sections to DB
+      for (const [sectionType, content] of Object.entries(newSections)) {
+        try {
+          await upsertResumeSection({
+            data: { sectionType: sectionType as SectionType, content },
+          })
+        } catch (err) {
+          console.error(`Failed to save section ${sectionType}:`, err)
+        }
+      }
 
       setSections(newSections)
       setParseStatus('done')
@@ -152,7 +163,7 @@ export function ResumeManagerV2({ initial }: { initial: ResumeData | null }) {
 
       toast.success('Resume parsed successfully!', {
         id: toastId,
-        description: 'All sections extracted. Review and edit below, then save.',
+        description: 'All sections extracted and saved to database.',
       })
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Parse failed'
@@ -464,18 +475,18 @@ export function ResumeManagerV2({ initial }: { initial: ResumeData | null }) {
         </CardContent>
       </Card>
 
-      {/* Resume Sections */}
-      {loadingResumeSections ? (
-        <Card>
-          <CardContent className="flex items-center justify-center py-8">
-            <Loader2 className="animate-spin h-5 w-5 text-muted-foreground" />
-            <span className="ml-2 text-sm text-muted-foreground">Loading resume sections…</span>
-          </CardContent>
-        </Card>
-      ) : Object.keys(sections).length > 0 ? (
-        <div className="space-y-4">
-          <h3 className="text-lg font-semibold">Resume Sections</h3>
-          {sections.professional_summary && (
+      {/* Resume Sections - Always Show */}
+      <div className="space-y-4">
+        <h3 className="text-lg font-semibold">Resume Sections</h3>
+        {loadingResumeSections && (
+          <Card>
+            <CardContent className="flex items-center justify-center py-8">
+              <Loader2 className="animate-spin h-5 w-5 text-muted-foreground" />
+              <span className="ml-2 text-sm text-muted-foreground">Loading resume sections…</span>
+            </CardContent>
+          </Card>
+        )}
+          {sections.professional_summary !== undefined && (
             <SectionCard
               title="Professional Summary"
               type="professional_summary"
@@ -495,7 +506,7 @@ export function ResumeManagerV2({ initial }: { initial: ResumeData | null }) {
             />
           )}
 
-          {sections.core_competencies && (
+          {sections.core_competencies !== undefined && (
             <SectionCard
               title="Core Competencies"
               type="core_competencies"
@@ -552,7 +563,7 @@ export function ResumeManagerV2({ initial }: { initial: ResumeData | null }) {
             />
           )}
 
-          {sections.technical_skills && (
+          {sections.technical_skills !== undefined && (
             <SectionCard
               title="Technical Skills"
               type="technical_skills"
@@ -628,7 +639,7 @@ export function ResumeManagerV2({ initial }: { initial: ResumeData | null }) {
             />
           )}
 
-          {sections.professional_experience && (
+          {sections.professional_experience !== undefined && (
             <SectionCard
               title="Professional Experience"
               type="professional_experience"
@@ -693,7 +704,7 @@ export function ResumeManagerV2({ initial }: { initial: ResumeData | null }) {
             />
           )}
 
-          {sections.education && (
+          {sections.education !== undefined && (
             <SectionCard
               title="Education"
               type="education"
@@ -749,7 +760,7 @@ export function ResumeManagerV2({ initial }: { initial: ResumeData | null }) {
             />
           )}
 
-          {sections.personal_projects && sections.personal_projects.length > 0 && (
+          {sections.personal_projects !== undefined && (
             <SectionCard
               title="Personal Projects"
               type="personal_projects"
@@ -831,9 +842,9 @@ export function ResumeManagerV2({ initial }: { initial: ResumeData | null }) {
             />
           )}
 
-          {sections.awards && sections.awards.length > 0 && (
+          {sections.awards !== undefined && (
             <SectionCard
-              title="Awards"
+              title="Certifications & Awards"
               type="awards"
               content={sections.awards}
               isEditing={editingSection === 'awards'}
@@ -881,14 +892,13 @@ export function ResumeManagerV2({ initial }: { initial: ResumeData | null }) {
                     onClick={() => onChange([...items, ''])}
                   >
                     <Plus className="h-4 w-4" />
-                    Add Award
+                    Add Certification / Award
                   </Button>
                 </div>
               )}
             />
           )}
-        </div>
-      ) : null}
+      </div>
     </div>
   )
 }
