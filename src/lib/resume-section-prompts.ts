@@ -88,7 +88,9 @@ Description: {jobDescription}
 
 Guidelines:
 - Preserve ALL roles from the resume exactly as provided (no omissions, no merges)
-- For each role, keep the title, company, and dates exactly as stated
+- For each role, keep the title and company exactly as stated
+- For dates: combine startDate and endDate (or use startDate only if endDate is missing)
+  Example: "Jan 2020 - Dec 2021" or "Jan 2020 - Present"
 - Rewrite 4-6 bullets per role using JD language and patterns
 - Bullet format: [Action Verb] + [Context/Tool] + [Quantifiable Result] + [Metric if available]
 - Surface real metrics from the resume text (%, $, time, team size) — never fabricate
@@ -103,7 +105,7 @@ Respond with ONLY valid JSON:
       "title": "string",
       "company": "string",
       "dates": "string (e.g., 'Jan 2020 - Dec 2021')",
-      "bullets": ["string", ...]
+      "bullets": ["string x4-6"]
     },
     ...
   ]

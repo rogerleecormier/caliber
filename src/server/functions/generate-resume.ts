@@ -28,21 +28,44 @@ import {
 
 
 function parseSectionResponse<T extends SectionType>(raw: string, sectionType: T): SectionContent[T] {
-  const jsonMatch = raw.match(/\{[\s\S]*\}/);
-  if (!jsonMatch) throw new Error(`Failed to extract JSON from ${sectionType} response`);
-  const parsed = JSON.parse(jsonrepair(jsonMatch[0]));
+  try {
+    const jsonMatch = raw.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      console.warn(`[parseSectionResponse] No JSON found in ${sectionType} response, returning default`);
+      return getDefaultSectionValue(sectionType);
+    }
+    const parsed = JSON.parse(jsonrepair(jsonMatch[0]));
 
-  const sectionMap: Record<SectionType, (p: any) => any> = {
-    professional_summary: (p) => p.professionalSummary ?? "",
-    core_competencies: (p) => Array.isArray(p.coreCompetencies) ? p.coreCompetencies.filter((c: any) => c) : [],
-    technical_skills: (p) => Array.isArray(p.technicalSkills) ? p.technicalSkills.filter((cat: any) => cat?.skills?.length > 0) : [],
-    professional_experience: (p) => Array.isArray(p.experience) ? p.experience.filter((exp: any) => exp?.title && exp?.company) : [],
-    personal_projects: (p) => Array.isArray(p.personalProjects) ? p.personalProjects.filter((proj: any) => proj?.name) : [],
-    education: (p) => Array.isArray(p.education) ? p.education.filter((edu: any) => edu?.institution) : [],
-    awards: (p) => Array.isArray(p.awards) ? p.awards.filter((a: any) => a) : [],
+    const sectionMap: Record<SectionType, (p: any) => any> = {
+      professional_summary: (p) => p.professionalSummary ?? "",
+      core_competencies: (p) => Array.isArray(p.coreCompetencies) ? p.coreCompetencies.filter((c: any) => c) : [],
+      technical_skills: (p) => Array.isArray(p.technicalSkills) ? p.technicalSkills.filter((cat: any) => cat?.skills?.length > 0) : [],
+      professional_experience: (p) => Array.isArray(p.experience) ? p.experience.filter((exp: any) => exp?.title && exp?.company) : [],
+      personal_projects: (p) => Array.isArray(p.personalProjects) ? p.personalProjects.filter((proj: any) => proj?.name) : [],
+      education: (p) => Array.isArray(p.education) ? p.education.filter((edu: any) => edu?.institution) : [],
+      awards: (p) => Array.isArray(p.awards) ? p.awards.filter((a: any) => a) : [],
+    };
+
+    const result = sectionMap[sectionType](parsed);
+    return result;
+  } catch (err) {
+    console.error(`[parseSectionResponse] Error parsing ${sectionType}:`, err);
+    console.error(`Raw response was:`, raw.substring(0, 500));
+    return getDefaultSectionValue(sectionType);
+  }
+}
+
+function getDefaultSectionValue(sectionType: SectionType): any {
+  const defaults: Record<SectionType, any> = {
+    professional_summary: "",
+    core_competencies: [],
+    technical_skills: [],
+    professional_experience: [],
+    personal_projects: [],
+    education: [],
+    awards: [],
   };
-
-  return sectionMap[sectionType](parsed);
+  return defaults[sectionType];
 }
 
 async function tailorSection(
@@ -79,8 +102,18 @@ async function tailorSection(
     { role: "user", content: prompt },
   ];
 
-  const response = await callClaude(env, messages, { maxTokens: 2048, temperature: 0.2 });
-  return parseSectionResponse(response, sectionType);
+  try {
+    console.log(`[tailorSection] Tailoring ${sectionType}...`);
+    // Increase token budget: experience sections may need more tokens for multiple jobs
+    const maxTokens = sectionType === "professional_experience" ? 4096 : 2048;
+    const response = await callClaude(env, messages, { maxTokens, temperature: 0.2 });
+    const result = parseSectionResponse(response, sectionType);
+    console.log(`[tailorSection] ${sectionType} complete:`, JSON.stringify(result).substring(0, 200));
+    return result;
+  } catch (err) {
+    console.error(`[tailorSection] Error tailoring ${sectionType}:`, err);
+    return getDefaultSectionValue(sectionType);
+  }
 }
 
 export const generateResume = createServerFn({ method: "POST" })
@@ -117,6 +150,7 @@ export const generateResume = createServerFn({ method: "POST" })
 
       if (sections.length > 0) {
         // New section-based structure exists
+        console.log(`[generateResume] Found ${sections.length} resume sections in DB`);
         for (const section of sections) {
           const type = section.sectionType as SectionType;
           sectionData[type] = parseSectionContent(type, section.content);
@@ -126,6 +160,7 @@ export const generateResume = createServerFn({ method: "POST" })
         const [resume] = await db.select().from(masterResume).where(eq(masterResume.userId, user.id)).limit(1);
         if (!resume) throw new Error("No master resume found");
 
+        console.log(`[generateResume] Using legacy masterResume; summary length: ${resume.summary?.length || 0}`);
         sectionData = {
           professional_summary: resume.summary ?? "",
           core_competencies: resume.competencies ? JSON.parse(resume.competencies) : [],
@@ -136,6 +171,8 @@ export const generateResume = createServerFn({ method: "POST" })
           awards: resume.certifications ? JSON.parse(resume.certifications) : [],
         };
       }
+
+      console.log(`[generateResume] Section data prepared:`, Object.keys(sectionData).length, "sections");
 
       // Fetch the master resume for contact info and rawText
       const [resume] = await db.select().from(masterResume).where(eq(masterResume.userId, user.id)).limit(1);
