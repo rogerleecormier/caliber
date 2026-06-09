@@ -72,7 +72,7 @@ export const getResume = createServerFn({ method: "GET" }).handler(
         experience: row.experience ? JSON.parse(row.experience) : [],
         education: row.education ? JSON.parse(row.education) : [],
         certifications: row.certifications ? JSON.parse(row.certifications) : [],
-        personalProjects: row.personalProjects ? JSON.parse(row.personalProjects) : [],
+        personalProjects: row.personalProjects?.startsWith("[") ? JSON.parse(row.personalProjects) : [],
         rawText: row.rawText ?? undefined,
         updatedAt: row.updatedAt ?? undefined,
       };

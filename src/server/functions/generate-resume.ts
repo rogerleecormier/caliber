@@ -122,7 +122,7 @@ export const generateResume = createServerFn({ method: "POST" })
         experience: selectedExperience,
         education: resume.education ? JSON.parse(resume.education) : [],
         certifications: resume.certifications ? JSON.parse(resume.certifications) : [],
-        personalProjects: resume.personalProjects ? JSON.parse(resume.personalProjects) : [],
+        personalProjects: resume.personalProjects?.startsWith("[") ? JSON.parse(resume.personalProjects) : [],
       }, null, 2);
 
       const rawResumeText = resume.rawText ?? "";
