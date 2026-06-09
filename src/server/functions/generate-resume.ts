@@ -73,7 +73,8 @@ function parseSectionResponse<T extends SectionType>(raw: string, sectionType: T
       awards: (p) => Array.isArray(p.awards) ? p.awards.filter((a: any) => a) : [],
     };
 
-    const result = sectionMap[sectionType](parsed);
+    let result = sectionMap[sectionType](parsed);
+    result = enforceGuardrails(sectionType, result);
     console.log(`[parseSectionResponse] Final result for ${sectionType}:`, JSON.stringify(result).substring(0, 300));
     return result;
   } catch (err) {
@@ -91,9 +92,58 @@ function getDefaultSectionValue(sectionType: SectionType): any {
     professional_experience: [],
     personal_projects: [],
     education: [],
+    certifications: [],
     awards: [],
   };
   return defaults[sectionType];
+}
+
+function enforceGuardrails(sectionType: SectionType, content: any): any {
+  switch (sectionType) {
+    case "professional_summary": {
+      // Enforce 3 sentences and ≤60 words
+      let summary = content as string;
+      if (!summary || summary.trim().length === 0) return "";
+
+      // Count words
+      const words = summary.split(/\s+/).filter(w => w.length > 0);
+      if (words.length > 60) {
+        console.warn(`[enforceGuardrails] professional_summary exceeds 60 words (${words.length}), truncating`);
+        summary = words.slice(0, 60).join(" ");
+      }
+
+      // Check sentence count (roughly by periods)
+      const sentences = summary.split(/[.!?]+/).filter(s => s.trim().length > 0);
+      if (sentences.length !== 3) {
+        console.warn(`[enforceGuardrails] professional_summary has ${sentences.length} sentences, expected 3`);
+      }
+
+      return summary;
+    }
+    case "core_competencies": {
+      // Enforce exactly 8 items
+      const comps = Array.isArray(content) ? content : [];
+      if (comps.length !== 8) {
+        console.warn(`[enforceGuardrails] core_competencies has ${comps.length} items, expected 8`);
+        if (comps.length < 8) {
+          // Pad with empty strings if needed
+          return [...comps, ...Array(8 - comps.length).fill("")].slice(0, 8);
+        }
+        return comps.slice(0, 8);
+      }
+      return comps;
+    }
+    case "technical_skills": {
+      // Enforce 5-6 categories
+      const skills = Array.isArray(content) ? content : [];
+      if (skills.length < 5 || skills.length > 6) {
+        console.warn(`[enforceGuardrails] technical_skills has ${skills.length} categories, expected 5-6`);
+      }
+      return skills;
+    }
+    default:
+      return content;
+  }
 }
 
 async function tailorSection(
@@ -224,6 +274,7 @@ export const generateResume = createServerFn({ method: "POST" })
         tailorSection(env, "professional_experience", sectionData.professional_experience || [], jobTitle, company, jobDescription, rawResumeText),
         tailorSection(env, "personal_projects", sectionData.personal_projects || [], jobTitle, company, jobDescription),
         tailorSection(env, "education", sectionData.education || [], jobTitle, company, jobDescription),
+        tailorSection(env, "certifications", sectionData.certifications || [], jobTitle, company, jobDescription),
         tailorSection(env, "awards", sectionData.awards || [], jobTitle, company, jobDescription),
       ]);
 
@@ -243,16 +294,17 @@ export const generateResume = createServerFn({ method: "POST" })
 
       // Assemble tailored sections into AtsResumeContent
       // Use tailored version if it has content, otherwise fall back to original
+      // Tailored sections order: [0]=summary, [1]=competencies, [2]=skills, [3]=experience, [4]=projects, [5]=education, [6]=certifications, [7]=awards
       const resumeContent: AtsResumeContent = {
         nameHeader: resume?.fullName || "Candidate",
         contactInfo: contactInfo,
-        professionalSummary: (tailoredSections[0] as string) || (sectionData.professional_summary || ""),
+        professionalSummary: (tailoredSections[0] as string)?.trim() || (sectionData.professional_summary || ""),
         coreCompetencies: (tailoredSections[1] as string[])?.length > 0 ? (tailoredSections[1] as string[]) : (sectionData.core_competencies || []),
         technicalSkills: (tailoredSections[2] as AtsResumeContent["technicalSkills"])?.length > 0 ? (tailoredSections[2] as AtsResumeContent["technicalSkills"]) : (sectionData.technical_skills || []),
-        experience: tailoredSections[3] as AtsResumeContent["experience"],
-        personalProjects: tailoredSections[4] as AtsResumeContent["personalProjects"],
-        education: tailoredSections[5] as AtsResumeContent["education"],
-        certifications: tailoredSections[6] as string[],
+        experience: (tailoredSections[3] as AtsResumeContent["experience"])?.length > 0 ? (tailoredSections[3] as AtsResumeContent["experience"]) : (sectionData.professional_experience || []),
+        personalProjects: (tailoredSections[4] as AtsResumeContent["personalProjects"])?.length > 0 ? (tailoredSections[4] as AtsResumeContent["personalProjects"]) : (sectionData.personal_projects || []),
+        education: (tailoredSections[5] as AtsResumeContent["education"])?.length > 0 ? (tailoredSections[5] as AtsResumeContent["education"]) : (sectionData.education || []),
+        certifications: (tailoredSections[6] as string[])?.length > 0 ? (tailoredSections[6] as string[]) : (sectionData.certifications || []),
       };
 
       const pdfBytes = await generateResumePdf(resumeContent);

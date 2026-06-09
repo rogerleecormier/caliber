@@ -11,12 +11,13 @@ Company: {company}
 Description: {jobDescription}
 
 Create a tailored professional summary:
-- Exactly 3 sentences, ≤60 words total
-- Sentence 1: candidate's title/years of experience/core domains most relevant to THIS job
-- Sentence 2: specific strength or track record from the resume that directly applies to this role (include metric if one exists naturally)
-- Sentence 3: forward-looking value statement connecting their background to what they'll deliver at this company
-- No filler: ban "I bring", "I leverage", "innovative", "passionate", "dynamic", "I am qualified"
-- Every sentence must be specific and true
+- MUST be exactly 3 sentences, NO MORE, NO LESS
+- MUST be ≤60 words total (count every word — if over 60, remove words)
+- Sentence 1 (~20 words): candidate's title/years of experience/core domains most relevant to THIS job
+- Sentence 2 (~20 words): specific strength or track record from the resume that directly applies to this role (include metric if one exists naturally)
+- Sentence 3 (~20 words): forward-looking value statement connecting their background to what they'll deliver at this company
+- STRICT BAN: "I bring", "I leverage", "innovative", "passionate", "dynamic", "I am qualified", "proven track record", "extensive experience"
+- Every sentence must be specific and true — NO GENERIC LANGUAGE
 
 Return ONLY this exact JSON (no other fields, no markdown):
 {
