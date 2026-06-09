@@ -186,26 +186,6 @@ export const parseResumeText = createServerFn({ method: "POST" })
     return extractBasicFields(data.text);
   });
 
-function calculateTokenBudget(resumeCharacterCount: number): number {
-  // Rough estimate: 1 character ≈ 0.25 tokens
-  // So resumeCharacters / 4 gives us the approximate tokens needed for the input
-  const estimatedInputTokens = Math.ceil(resumeCharacterCount / 4);
-
-  // Output tokens needed for full JSON structured response
-  // Base: ~500 tokens for minimal response structure
-  // Additional: ~2 tokens per 100 input characters for detailed extraction
-  const estimatedOutputTokens = 500 + Math.ceil((resumeCharacterCount / 100) * 2);
-
-  // Total budget with buffer
-  const totalBudget = estimatedInputTokens + estimatedOutputTokens;
-
-  // Clamp between min (4096) and max (16384, safe limit for Workers AI)
-  const minTokens = 4096;
-  const maxTokens = 16384;
-
-  return Math.max(minTokens, Math.min(totalBudget, maxTokens));
-}
-
 export const aiParseResume = createServerFn({ method: "POST" })
   .inputValidator((data: { text: string }) => data)
   .handler(async ({ data }): Promise<Partial<ResumeData>> => {
@@ -213,16 +193,17 @@ export const aiParseResume = createServerFn({ method: "POST" })
     if (!env.AI) return {};
 
     try {
-      const tokenBudget = calculateTokenBudget(data.text.length);
-      console.log(`[aiParseResume] Resume size: ${data.text.length} chars, allocated ${tokenBudget} tokens`);
+      console.log(`[aiParseResume] Parsing resume with ${data.text.length} characters`);
 
+      // Gemma 4 26B supports 256K context
+      // Set output tokens generously for full JSON parsing
       const raw = await callWorkersAI(
         env,
         [
           { role: "system", content: RESUME_PARSE_PROMPT },
           { role: "user", content: data.text },
         ],
-        { maxTokens: tokenBudget, temperature: 0.1 },
+        { maxTokens: 16000, temperature: 0.1 },
       );
 
       const jsonMatch = raw.match(/\{[\s\S]*\}/);
