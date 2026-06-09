@@ -24,6 +24,7 @@ export * from "./ui/dropdown-menu";
 export * from "./ui/sheet";
 export * from "./ui/tooltip";
 export * from "./ui/Toaster";
+export * from "./ui/sonner";
 export * from "./ui/input";
 export * from "./ui/textarea";
 

@@ -1,11 +1,12 @@
 import { useState, useRef, useCallback } from "react";
 import { Button, Input, Card, CardContent, CardDescription, CardHeader, CardTitle } from "@caliber/ui-kit";
 import { CheckCircle2, Loader2, Upload, AlertCircle } from "lucide-react";
+import { toast } from "sonner";
 import { saveResume, parseResumeText, aiParseResume, type ResumeData } from "@/server/functions/manage-resume";
 
 export function ResumeManager({ initial }: { initial: ResumeData | null }) {
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [uploadStatus, setUploadStatus] = useState<"idle" | "parsing" | "done" | "error">("idle");
+  const [uploadStatus, setUploadStatus] = useState<"idle" | "extracting" | "ai-parsing" | "saving" | "done" | "error">("idle");
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState(false);
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
@@ -21,7 +22,7 @@ export function ResumeManager({ initial }: { initial: ResumeData | null }) {
   const [parsedStructured, setParsedStructured] = useState<Partial<ResumeData> | null>(null);
 
   const parseFile = useCallback(async (file: File) => {
-    setUploadStatus("parsing");
+    setUploadStatus("extracting");
     setUploadError(null);
     try {
       let text = "";
@@ -48,11 +49,8 @@ export function ResumeManager({ initial }: { initial: ResumeData | null }) {
       }
       setRawText(text);
 
-      const [parsed, aiParsed] = await Promise.all([
-        parseResumeText({ data: { text } }),
-        aiParseResume({ data: { text } }),
-      ]);
-
+      // Step 1: quick regex parse for contact info
+      const parsed = await parseResumeText({ data: { text } });
       if (parsed) {
         if (parsed.fullName && !fullName) setFullName(parsed.fullName);
         if (parsed.email && !email) setEmail(parsed.email);
@@ -60,9 +58,18 @@ export function ResumeManager({ initial }: { initial: ResumeData | null }) {
         if (parsed.linkedin && !linkedin) setLinkedin(parsed.linkedin);
         if (parsed.website && !website) setWebsite(parsed.website);
       }
+
+      // Step 2: AI structured parse
+      setUploadStatus("ai-parsing");
+      const aiToastId = toast.loading("AI is parsing your resume…", {
+        description: "Extracting experience, skills, and projects. You can leave this page.",
+      });
+
+      const aiParsed = await aiParseResume({ data: { text } });
+
       if (aiParsed && Object.keys(aiParsed).length > 0) {
         setParsedStructured(aiParsed);
-        // Auto-save structured fields immediately — don't wait for manual Save click
+        setUploadStatus("saving");
         const currentName = fullName.trim() || parsed?.fullName?.trim() || "";
         if (currentName) {
           await saveResume({
@@ -77,13 +84,24 @@ export function ResumeManager({ initial }: { initial: ResumeData | null }) {
             },
           });
           setLastSaved(new Date().toISOString());
+          toast.success("Resume parsed and saved!", {
+            id: aiToastId,
+            description: "Experience, skills, and personal projects have been saved to your profile.",
+          });
+        } else {
+          toast.dismiss(aiToastId);
         }
+      } else {
+        toast.dismiss(aiToastId);
       }
+
       setUploadStatus("done");
-      setTimeout(() => setUploadStatus("idle"), 4000);
+      setTimeout(() => setUploadStatus("idle"), 5000);
     } catch (err) {
-      setUploadError(err instanceof Error ? err.message : "Failed to read file");
+      const msg = err instanceof Error ? err.message : "Failed to read file";
+      setUploadError(msg);
       setUploadStatus("error");
+      toast.error("Resume upload failed", { description: msg });
     }
   }, [fullName, email, phone, linkedin, website]);
 
@@ -139,39 +157,49 @@ export function ResumeManager({ initial }: { initial: ResumeData | null }) {
         </CardHeader>
         <CardContent className="space-y-3">
           <div
-            onClick={() => fileInputRef.current?.click()}
+            onClick={() => uploadStatus === "idle" || uploadStatus === "error" ? fileInputRef.current?.click() : undefined}
             onDrop={handleDrop}
             onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
             onDragLeave={() => setDragOver(false)}
             className={[
-              "flex flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed p-10 cursor-pointer transition-colors select-none",
+              "flex flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed p-10 transition-colors select-none",
+              uploadStatus === "idle" || uploadStatus === "error" ? "cursor-pointer" : "cursor-default",
               dragOver
                 ? "border-primary bg-primary/5"
                 : uploadStatus === "error"
                 ? "border-destructive/40 bg-destructive/5"
+                : uploadStatus === "done"
+                ? "border-emerald-500/40 bg-emerald-500/5"
+                : uploadStatus !== "idle"
+                ? "border-primary/40 bg-primary/5"
                 : "border-border hover:border-primary/50 hover:bg-muted/30",
             ].join(" ")}
           >
-            {uploadStatus === "parsing" ? (
-              <Loader2 className="h-8 w-8 text-primary animate-spin" />
-            ) : uploadStatus === "done" ? (
+            {uploadStatus === "done" ? (
               <CheckCircle2 className="h-8 w-8 text-emerald-500" />
             ) : uploadStatus === "error" ? (
               <AlertCircle className="h-8 w-8 text-destructive" />
+            ) : uploadStatus !== "idle" ? (
+              <Loader2 className="h-8 w-8 text-primary animate-spin" />
             ) : (
               <Upload className="h-8 w-8 text-muted-foreground" />
             )}
             <div className="text-center">
               <p className="text-sm font-medium">
-                {uploadStatus === "parsing" ? "Parsing your resume…" :
-                 uploadStatus === "done" ? "Resume imported — review fields below and save." :
+                {uploadStatus === "extracting" ? "Reading file…" :
+                 uploadStatus === "ai-parsing" ? "AI is parsing your resume…" :
+                 uploadStatus === "saving" ? "Saving parsed data…" :
+                 uploadStatus === "done" ? "Resume parsed and saved!" :
                  uploadStatus === "error" ? "Failed to read file" :
                  "Click to upload or drag & drop"}
               </p>
               <p className="text-xs text-muted-foreground mt-1">
-                {uploadStatus === "idle" || uploadStatus === "error" ? "PDF, DOCX, or TXT" :
-                 uploadStatus === "done" ? "Contact info auto-filled — save when ready." :
-                 "Extracting contact information…"}
+                {uploadStatus === "extracting" ? "Extracting text from your file…" :
+                 uploadStatus === "ai-parsing" ? "Extracting experience, skills, projects — this may take a moment…" :
+                 uploadStatus === "saving" ? "Writing structured data to your profile…" :
+                 uploadStatus === "done" ? "All sections including Personal Projects have been saved." :
+                 uploadStatus === "error" ? uploadError ?? "" :
+                 "PDF, DOCX, or TXT"}
               </p>
             </div>
             {(uploadStatus === "idle" || uploadStatus === "error") && (
@@ -182,9 +210,6 @@ export function ResumeManager({ initial }: { initial: ResumeData | null }) {
               </div>
             )}
           </div>
-          {uploadStatus === "error" && uploadError && (
-            <p className="text-sm text-destructive">{uploadError}</p>
-          )}
           <input
             ref={fileInputRef}
             type="file"
