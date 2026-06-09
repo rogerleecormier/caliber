@@ -300,18 +300,18 @@ export const generateResume = createServerFn({ method: "POST" })
       const contactInfo = contactParts.join(" | ");
 
       // Assemble tailored sections into AtsResumeContent
-      // Use tailored version if it has content, otherwise fall back to original
+      // Use ONLY tailored sections (no fallback) to ensure consistent tailoring
       // Tailored sections order: [0]=summary, [1]=competencies, [2]=skills, [3]=experience, [4]=projects, [5]=education, [6]=certifications, [7]=awards
       const resumeContent: AtsResumeContent = {
         nameHeader: resume?.fullName || "Candidate",
         contactInfo: contactInfo,
-        professionalSummary: (tailoredSections[0] as string)?.trim() || (sectionData.professional_summary || ""),
-        coreCompetencies: (tailoredSections[1] as string[])?.length > 0 ? (tailoredSections[1] as string[]) : (sectionData.core_competencies || []),
-        technicalSkills: (tailoredSections[2] as AtsResumeContent["technicalSkills"])?.length > 0 ? (tailoredSections[2] as AtsResumeContent["technicalSkills"]) : (sectionData.technical_skills || []),
-        experience: (tailoredSections[3] as AtsResumeContent["experience"])?.length > 0 ? (tailoredSections[3] as AtsResumeContent["experience"]) : (sectionData.professional_experience || []),
-        personalProjects: (tailoredSections[4] as AtsResumeContent["personalProjects"])?.length > 0 ? (tailoredSections[4] as AtsResumeContent["personalProjects"]) : (sectionData.personal_projects || []),
-        education: (tailoredSections[5] as AtsResumeContent["education"])?.length > 0 ? (tailoredSections[5] as AtsResumeContent["education"]) : (sectionData.education || []),
-        certifications: (tailoredSections[6] as string[])?.length > 0 ? (tailoredSections[6] as string[]) : (sectionData.certifications || []),
+        professionalSummary: (tailoredSections[0] as string) || "",
+        coreCompetencies: (tailoredSections[1] as string[]) || [],
+        technicalSkills: (tailoredSections[2] as AtsResumeContent["technicalSkills"]) || [],
+        experience: (tailoredSections[3] as AtsResumeContent["experience"]) || [],
+        personalProjects: (tailoredSections[4] as AtsResumeContent["personalProjects"]) || [],
+        education: (tailoredSections[5] as AtsResumeContent["education"]) || [],
+        certifications: (tailoredSections[6] as string[]) || [],
       };
 
       const pdfBytes = await generateResumePdf(resumeContent);
