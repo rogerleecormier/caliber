@@ -7,7 +7,7 @@ import { saveResume, parseResumeText, aiParseResume, type ResumeData } from '@/s
 import { getResumeSections, upsertResumeSection } from '@/server/functions/manage-resume-sections'
 import type { SectionType, ExperienceEntry, EducationEntry, PersonalProjectEntry } from '@/lib/resume-sections'
 
-type EditMode = 'professional_summary' | 'core_competencies' | 'technical_skills' | 'professional_experience' | 'education' | 'personal_projects' | 'awards' | null
+type EditMode = 'professional_summary' | 'core_competencies' | 'technical_skills' | 'professional_experience' | 'education' | 'personal_projects' | 'certifications' | 'awards' | null
 type Tab = 'upload' | 'text'
 
 export function ResumeManagerV2({ initial }: { initial: ResumeData | null }) {
@@ -874,9 +874,66 @@ export function ResumeManagerV2({ initial }: { initial: ResumeData | null }) {
             />
           )}
 
+          {sections.certifications !== undefined && (
+            <SectionCard
+              title="Certifications"
+              type="certifications"
+              content={sections.certifications}
+              isEditing={editingSection === 'certifications'}
+              onEdit={() => setEditingSection('certifications')}
+              onCancel={() => setEditingSection(null)}
+              onSave={(content) => handleSaveSection('certifications', content)}
+              renderContent={(items) => (
+                <div className="flex flex-wrap gap-2">
+                  {items.map((cert: string, i: number) => (
+                    <span key={i} className="inline-block bg-blue-500/10 text-blue-700 dark:text-blue-400 text-xs font-medium px-2.5 py-1.5 rounded">
+                      {cert}
+                    </span>
+                  ))}
+                </div>
+              )}
+              renderEdit={(items, onChange) => (
+                <div className="space-y-2">
+                  {items.map((cert: string, i: number) => (
+                    <div key={i} className="flex gap-2">
+                      <Input
+                        value={cert}
+                        onChange={(e) => {
+                          const updated = [...items]
+                          updated[i] = e.target.value
+                          onChange(updated)
+                        }}
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          const updated = items.filter((_: string, idx: number) => idx !== i)
+                          onChange(updated)
+                        }}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ))}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => onChange([...items, ''])}
+                  >
+                    <Plus className="h-4 w-4" />
+                    Add Certification
+                  </Button>
+                </div>
+              )}
+            />
+          )}
+
           {sections.awards !== undefined && (
             <SectionCard
-              title="Certifications & Awards"
+              title="Awards"
               type="awards"
               content={sections.awards}
               isEditing={editingSection === 'awards'}
@@ -924,7 +981,7 @@ export function ResumeManagerV2({ initial }: { initial: ResumeData | null }) {
                     onClick={() => onChange([...items, ''])}
                   >
                     <Plus className="h-4 w-4" />
-                    Add Certification / Award
+                    Add Award
                   </Button>
                 </div>
               )}

@@ -268,12 +268,6 @@ export const aiParseResume = createServerFn({ method: "POST" })
               return [{ category: "Tools & Technologies", skills: tools }];
             };
 
-            // Combine awards and certifications into a single awards section
-            const combinedAwards = [
-              ...(parsed_data.awards ?? []),
-              ...(parsed_data.certifications ?? []),
-            ];
-
             const sectionMap: Record<string, [SectionType, any]> = {
               summary: ["professional_summary", parsed_data.summary ?? ""],
               competencies: ["core_competencies", parsed_data.competencies ?? []],
@@ -281,7 +275,8 @@ export const aiParseResume = createServerFn({ method: "POST" })
               experience: ["professional_experience", parsed_data.experience ?? []],
               personalProjects: ["personal_projects", parsed_data.personalProjects ?? []],
               education: ["education", parsed_data.education ?? []],
-              awards: ["awards", combinedAwards],
+              certifications: ["certifications", parsed_data.certifications ?? []],
+              awards: ["awards", parsed_data.awards ?? []],
             };
 
             for (const [key, [sectionType, content]] of Object.entries(sectionMap)) {

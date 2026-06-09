@@ -157,10 +157,15 @@ export const upsertAllResumeSections = createServerFn({ method: 'POST' })
           sectionType: 'education',
           content: data.education,
         })
-      if (data.awards !== undefined || data.certifications !== undefined)
+      if (data.certifications !== undefined)
+        sections.push({
+          sectionType: 'certifications',
+          content: data.certifications,
+        })
+      if (data.awards !== undefined)
         sections.push({
           sectionType: 'awards',
-          content: data.awards || data.certifications || [],
+          content: data.awards,
         })
 
       // Upsert all sections

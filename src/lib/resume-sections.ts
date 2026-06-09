@@ -5,6 +5,7 @@ export type SectionType =
   | 'professional_experience'
   | 'personal_projects'
   | 'education'
+  | 'certifications'
   | 'awards'
 
 export interface ExperienceEntry {
@@ -43,6 +44,7 @@ export type SectionContent = {
   professional_experience: ExperienceEntry[]
   personal_projects: PersonalProjectEntry[]
   education: EducationEntry[]
+  certifications: string[]
   awards: string[]
 }
 
@@ -92,6 +94,7 @@ function getDefaultSectionContent(type: SectionType): any {
     professional_experience: [],
     personal_projects: [],
     education: [],
+    certifications: [],
     awards: [],
   }
   return defaults[type]
