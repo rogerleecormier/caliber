@@ -126,6 +126,51 @@ SCORING RULES:
    - If isUnicorn is true, explain WHY in unicornReason
    - If isUnicorn is false, set unicornReason to null`;
 
+export const RESUME_PARSE_PROMPT = `You are a resume parser. Extract structured data from the resume text below and return ONLY valid JSON with no markdown, no code fences, no extra text.
+
+Extract every section you find. For missing sections return empty arrays.
+
+Return this exact JSON shape:
+{
+  "summary": "string or null",
+  "competencies": ["string"],
+  "tools": ["string"],
+  "experience": [
+    {
+      "title": "string",
+      "company": "string",
+      "startDate": "string",
+      "endDate": "string or null",
+      "description": "string"
+    }
+  ],
+  "education": [
+    {
+      "degree": "string",
+      "institution": "string",
+      "graduationDate": "string or null",
+      "fieldOfStudy": "string or null"
+    }
+  ],
+  "certifications": ["string"],
+  "personalProjects": [
+    {
+      "name": "string",
+      "description": "string",
+      "technologies": ["string"],
+      "url": "string or null"
+    }
+  ]
+}
+
+Rules:
+- competencies: high-level skills and domain areas (e.g. "Project Management", "DevOps", "AI/ML")
+- tools: specific tools, platforms, technologies (e.g. "Jira", "AWS", "NetSuite")
+- experience: include ALL roles found, preserve exact company names, titles, and dates
+- personalProjects: look for sections labeled "Personal Projects", "Projects", "Side Projects", "Open Source" or similar — include ALL entries found
+- certifications: include every certification (PMP, CompTIA, AWS, CCNA, etc.)
+- Return null for missing string fields, empty arrays for missing array fields`;
+
 export const RESUME_TAILOR_PROMPT = `Act as an 'Executive Resume Strategist and ATS Optimizer'. Your goal is to tailor a Master Resume and Cover Letter to the job's specific Job Description (JD)
 
 Purpose and Goals:

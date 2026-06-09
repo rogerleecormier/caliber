@@ -4,6 +4,7 @@ import {
   appSettings,
   pipelineJobs,
   linkedinSavedSearches,
+  generatedDocuments,
   type AppSettings,
   type PipelineJob as LinkedinJobResult,
 } from "@/db/schema";
@@ -636,6 +637,8 @@ export async function bulkDeleteLinkedinJobs(args: {
       .where(whereClause);
     if (rows.length === 0) continue;
 
+    const rowIds = rows.map((r) => r.id);
+    await db.delete(generatedDocuments).where(inArray(generatedDocuments.pipelineJobId, rowIds));
     await db.delete(pipelineJobs).where(whereClause);
     deleted += rows.length;
   }
@@ -824,6 +827,7 @@ export async function pruneDuplicateLinkedinJobResults() {
 
   if (duplicateIds.length > 0) {
     for (const batch of chunkValues(duplicateIds, SQLITE_DELETE_BATCH_SIZE)) {
+      await db.delete(generatedDocuments).where(inArray(generatedDocuments.pipelineJobId, batch));
       await db.delete(pipelineJobs).where(inArray(pipelineJobs.id, batch));
     }
   }
@@ -875,6 +879,7 @@ export async function pruneSemanticDuplicateLinkedinJobResults() {
   if (duplicateIds.length === 0) return 0;
 
   for (const batch of chunkValues(duplicateIds, SQLITE_DELETE_BATCH_SIZE)) {
+    await db.delete(generatedDocuments).where(inArray(generatedDocuments.pipelineJobId, batch));
     await db.delete(pipelineJobs).where(inArray(pipelineJobs.id, batch));
   }
 

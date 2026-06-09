@@ -6,6 +6,8 @@ import { getCloudflareEnv } from "@/lib/cloudflare";
 import { getDb } from "@/db/db";
 import { masterResume } from "@/db/schema";
 import { callWorkersAI } from "@/lib/ai-gateway";
+import { RESUME_PARSE_PROMPT } from "@/lib/ai/prompts";
+import { jsonrepair } from "jsonrepair";
 
 export interface ExperienceEntry {
   title: string;
@@ -179,4 +181,45 @@ export const parseResumeText = createServerFn({ method: "POST" })
   .inputValidator((data: { text: string }) => data)
   .handler(async ({ data }): Promise<Partial<ResumeData>> => {
     return extractBasicFields(data.text);
+  });
+
+export const aiParseResume = createServerFn({ method: "POST" })
+  .inputValidator((data: { text: string }) => data)
+  .handler(async ({ data }): Promise<Partial<ResumeData>> => {
+    const env = getCloudflareEnv();
+    if (!env.AI) return {};
+
+    try {
+      const raw = await callWorkersAI(
+        env,
+        [
+          { role: "system", content: RESUME_PARSE_PROMPT },
+          { role: "user", content: data.text },
+        ],
+        { maxTokens: 4096, temperature: 0.1 },
+      );
+
+      const jsonMatch = raw.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) return {};
+
+      let parsed: any;
+      try {
+        parsed = JSON.parse(jsonMatch[0]);
+      } catch {
+        parsed = JSON.parse(jsonrepair(jsonMatch[0]));
+      }
+
+      return {
+        summary: parsed.summary ?? undefined,
+        competencies: Array.isArray(parsed.competencies) ? parsed.competencies : undefined,
+        tools: Array.isArray(parsed.tools) ? parsed.tools : undefined,
+        experience: Array.isArray(parsed.experience) ? parsed.experience : undefined,
+        education: Array.isArray(parsed.education) ? parsed.education : undefined,
+        certifications: Array.isArray(parsed.certifications) ? parsed.certifications : undefined,
+        personalProjects: Array.isArray(parsed.personalProjects) ? parsed.personalProjects : undefined,
+      };
+    } catch (err) {
+      console.error("[aiParseResume] error:", err);
+      return {};
+    }
   });

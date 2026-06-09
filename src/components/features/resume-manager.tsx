@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback } from "react";
 import { Button, Input, Card, CardContent, CardDescription, CardHeader, CardTitle } from "@caliber/ui-kit";
 import { CheckCircle2, Loader2, Upload, AlertCircle } from "lucide-react";
-import { saveResume, parseResumeText, type ResumeData } from "@/server/functions/manage-resume";
+import { saveResume, parseResumeText, aiParseResume, type ResumeData } from "@/server/functions/manage-resume";
 
 export function ResumeManager({ initial }: { initial: ResumeData | null }) {
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -18,6 +18,7 @@ export function ResumeManager({ initial }: { initial: ResumeData | null }) {
   const [linkedin, setLinkedin] = useState(initial?.linkedin ?? "");
   const [website, setWebsite] = useState(initial?.website ?? "");
   const [rawText, setRawText] = useState(initial?.rawText ?? "");
+  const [parsedStructured, setParsedStructured] = useState<Partial<ResumeData> | null>(null);
 
   const parseFile = useCallback(async (file: File) => {
     setUploadStatus("parsing");
@@ -47,13 +48,20 @@ export function ResumeManager({ initial }: { initial: ResumeData | null }) {
       }
       setRawText(text);
 
-      const parsed = await parseResumeText({ data: { text } });
+      const [parsed, aiParsed] = await Promise.all([
+        parseResumeText({ data: { text } }),
+        aiParseResume({ data: { text } }),
+      ]);
+
       if (parsed) {
         if (parsed.fullName && !fullName) setFullName(parsed.fullName);
         if (parsed.email && !email) setEmail(parsed.email);
         if (parsed.phone && !phone) setPhone(parsed.phone);
         if (parsed.linkedin && !linkedin) setLinkedin(parsed.linkedin);
         if (parsed.website && !website) setWebsite(parsed.website);
+      }
+      if (aiParsed && Object.keys(aiParsed).length > 0) {
+        setParsedStructured(aiParsed);
       }
       setUploadStatus("done");
       setTimeout(() => setUploadStatus("idle"), 4000);
@@ -91,6 +99,7 @@ export function ResumeManager({ initial }: { initial: ResumeData | null }) {
           linkedin: linkedin.trim() || undefined,
           website: website.trim() || undefined,
           rawText: rawText || undefined,
+          ...(parsedStructured ?? {}),
         },
       });
       setLastSaved(result.updatedAt);
