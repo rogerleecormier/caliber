@@ -66,8 +66,8 @@ async function tailorSection(
     .replace("{company}", company)
     .replace("{jobDescription}", jobDescription);
 
-  if (sectionType === "professional_experience" && rawResumeText) {
-    prompt = prompt.replace("{rawResumeText}", rawResumeText);
+  if (sectionType === "professional_experience") {
+    prompt = prompt.replace("{rawResumeText}", rawResumeText && rawResumeText.trim().length > 0 ? rawResumeText : "(not provided)");
   }
 
   const messages: Array<{ role: "system" | "user"; content: string }> = [

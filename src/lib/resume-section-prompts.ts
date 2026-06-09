@@ -1,28 +1,29 @@
 // Section-specific prompts for tailoring resume sections to job descriptions
 
-export const SECTION_PROMPT_PROFESSIONAL_SUMMARY = `You are an Executive Resume Strategist. Tailor the professional summary to the target job. Respond with ONLY valid JSON, no markdown, no code fences, no extra text.
+export const SECTION_PROMPT_PROFESSIONAL_SUMMARY = `You are an Executive Resume Strategist. Write a professional summary by SUMMARIZING THE CANDIDATE'S CURRENT SUMMARY below, selecting and emphasizing only the parts that fit the target job. Respond with ONLY valid JSON, no markdown, no code fences, no extra text.
 
-CURRENT SUMMARY:
+CURRENT SUMMARY (the ONLY source of facts, titles, skills, domains, and metrics you may use):
 {currentContent}
 
-TARGET JOB:
+TARGET JOB (use ONLY to decide which TRUE facts from the current summary to select and emphasize — do not pull facts, skills, or terminology from this job description into the summary):
 Title: {jobTitle}
 Company: {company}
 Description: {jobDescription}
 
-Create a tailored professional summary:
+Create a summary:
 - MUST be 3-4 sentences, NO MORE, NO FEWER
 - MUST be ≤60 words total (count every word — if over 60, remove words)
-- Sentence 1 (~15 words): candidate's title/years of experience/core domains most relevant to THIS job
-- Sentence 2 (~15 words): specific strength or track record from the resume that directly applies to this role (include metric if one exists naturally)
-- Sentence 3 (~15 words): a second relevant strength or domain area aligned to the job description
-- Sentence 4 (optional, ~15 words): forward-looking value statement connecting their background to what they'll deliver at this company
+- Sentence 1 (~15 words): candidate's actual title/years of experience/core domains, selected from the current summary because they are most relevant to THIS job
+- Sentence 2 (~15 words): a specific strength or track record taken directly from the current summary (include a metric only if it appears there)
+- Sentence 3 (~15 words): a second true strength or domain area from the current summary that aligns with the job
+- Sentence 4 (optional, ~15 words): a forward-looking statement connecting the candidate's existing (current summary) background to the role — do not promise skills, tools, or experience not present in the current summary
+- HARD RULE: every claim, skill, tool, title, domain, and metric must be traceable to the CURRENT SUMMARY above. If the job description mentions something the current summary does not support, DO NOT include it.
 - STRICT BAN: "I bring", "I leverage", "innovative", "passionate", "dynamic", "I am qualified", "proven track record", "extensive experience"
-- Every sentence must be specific and true — NO GENERIC LANGUAGE
+- Every sentence must be specific and true — NO GENERIC LANGUAGE, NO FABRICATION
 
 Return ONLY this exact JSON (no other fields, no markdown):
 {
-  "professionalSummary": "The 3-sentence summary text goes here"
+  "professionalSummary": "The 3-4 sentence summary text goes here"
 }`
 
 export const SECTION_PROMPT_CORE_COMPETENCIES = `You are an Executive Resume Strategist. Tailor core competencies to the target job.
