@@ -52,6 +52,24 @@ export function parseSectionContent<T extends SectionType>(
 ): SectionContent[T] {
   try {
     const parsed = JSON.parse(raw)
+
+    // Normalize technical_skills: handle old format (flat array) vs new format (categorized)
+    if (type === 'technical_skills') {
+      if (Array.isArray(parsed)) {
+        if (parsed.length === 0) return parsed as SectionContent[T]
+        // Check if it's old format (array of strings) or new format (array of objects)
+        const isOldFormat = typeof parsed[0] === 'string'
+        if (isOldFormat) {
+          return [{ category: 'Tools & Technologies', skills: parsed }] as SectionContent[T]
+        }
+        // Ensure each category has a skills array
+        return parsed.map((cat: any) => ({
+          category: cat.category || 'Unnamed',
+          skills: Array.isArray(cat.skills) ? cat.skills : [],
+        })) as SectionContent[T]
+      }
+    }
+
     return parsed as SectionContent[T]
   } catch (e) {
     console.error(`[parseSectionContent] Failed to parse ${type}:`, e)

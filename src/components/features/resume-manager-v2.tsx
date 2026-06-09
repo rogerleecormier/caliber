@@ -22,6 +22,7 @@ export function ResumeManagerV2({ initial }: { initial: ResumeData | null }) {
   const [lastSaved, setLastSaved] = useState<string | null>(initial?.updatedAt ?? null)
   const [editingSection, setEditingSection] = useState<EditMode>(null)
   const [loadingResumeSections, setLoadingResumeSections] = useState(false)
+  const [sectionError, setSectionError] = useState<string | null>(null)
 
   // Contact info
   const [fullName, setFullName] = useState(initial?.fullName ?? '')
@@ -37,12 +38,15 @@ export function ResumeManagerV2({ initial }: { initial: ResumeData | null }) {
   // Fetch resume sections on mount
   const loadSections = useCallback(async () => {
     setLoadingResumeSections(true)
+    setSectionError(null)
     try {
       const result = await getResumeSections()
       setSections(result)
     } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Unknown error'
       console.error('Failed to load resume sections:', err)
-      toast.error('Failed to load resume sections')
+      setSectionError(msg)
+      toast.error('Failed to load resume sections', { description: msg })
     } finally {
       setLoadingResumeSections(false)
     }
@@ -492,6 +496,19 @@ export function ResumeManagerV2({ initial }: { initial: ResumeData | null }) {
       {/* Resume Sections - Always Show */}
       <div className="space-y-4">
         <h3 className="text-lg font-semibold">Resume Sections</h3>
+        {sectionError && (
+          <Card className="border-destructive/50 bg-destructive/5">
+            <CardContent className="pt-6">
+              <div className="flex gap-3">
+                <AlertCircle className="h-5 w-5 text-destructive flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-sm font-medium text-destructive">Error loading sections</p>
+                  <p className="text-xs text-muted-foreground mt-1">{sectionError}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
         {loadingResumeSections && (
           <Card>
             <CardContent className="flex items-center justify-center py-8">
@@ -588,23 +605,23 @@ export function ResumeManagerV2({ initial }: { initial: ResumeData | null }) {
               onSave={(content) => handleSaveSection('technical_skills', content)}
               renderContent={(categories) => (
                 <div className="space-y-3">
-                  {categories.map((cat: any, i: number) => (
+                  {Array.isArray(categories) && categories.map((cat: any, i: number) => (
                     <div key={i}>
                       <p className="text-sm font-medium mb-1">{cat.category}</p>
-                      <p className="text-sm text-muted-foreground">{cat.skills.join(', ')}</p>
+                      <p className="text-sm text-muted-foreground">{Array.isArray(cat.skills) ? cat.skills.join(', ') : String(cat.skills || '')}</p>
                     </div>
                   ))}
                 </div>
               )}
               renderEdit={(categories, onChange) => (
                 <div className="space-y-4">
-                  {categories.map((cat: any, i: number) => (
+                  {Array.isArray(categories) && categories.map((cat: any, i: number) => (
                     <div key={i} className="space-y-2 p-3 border rounded-md">
                       <div className="flex gap-2 items-end">
                         <div className="flex-1">
                           <label className="text-xs font-medium">Category</label>
                           <Input
-                            value={cat.category}
+                            value={cat.category || ''}
                             onChange={(e) => {
                               const updated = [...categories]
                               updated[i].category = e.target.value
@@ -627,7 +644,7 @@ export function ResumeManagerV2({ initial }: { initial: ResumeData | null }) {
                       <div>
                         <label className="text-xs font-medium">Skills (comma-separated)</label>
                         <Input
-                          value={cat.skills.join(', ')}
+                          value={Array.isArray(cat.skills) ? cat.skills.join(', ') : String(cat.skills || '')}
                           onChange={(e) => {
                             const updated = [...categories]
                             updated[i].skills = e.target.value.split(',').map((s: string) => s.trim())
