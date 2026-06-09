@@ -1,13 +1,14 @@
 'use server';
 import { createServerFn } from "@tanstack/react-start";
-import { eq } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import { resolveSessionUser } from "@/lib/resolve-user";
 import { getCloudflareEnv } from "@/lib/cloudflare";
 import { getDb } from "@/db/db";
-import { masterResume } from "@/db/schema";
+import { masterResume, resumeSections } from "@/db/schema";
 import { callWorkersAI } from "@/lib/ai-gateway";
 import { RESUME_PARSE_PROMPT } from "@/lib/ai/prompts";
 import { jsonrepair } from "jsonrepair";
+import { type SectionType, serializeSectionContent } from "@/lib/resume-sections";
 
 export interface ExperienceEntry {
   title: string;
@@ -15,6 +16,7 @@ export interface ExperienceEntry {
   startDate?: string;
   endDate?: string;
   description?: string;
+  bullets?: string[];
 }
 
 export interface EducationEntry {
@@ -44,6 +46,7 @@ export interface ResumeData {
   experience?: ExperienceEntry[];
   education?: EducationEntry[];
   certifications?: string[];
+  awards?: string[];
   personalProjects?: PersonalProjectEntry[];
   rawText?: string;
   updatedAt?: string;
@@ -209,15 +212,76 @@ export const aiParseResume = createServerFn({ method: "POST" })
         parsed = JSON.parse(jsonrepair(jsonMatch[0]));
       }
 
-      return {
+      const parsed_data: Partial<ResumeData> = {
         summary: parsed.summary ?? undefined,
         competencies: Array.isArray(parsed.competencies) ? parsed.competencies : undefined,
         tools: Array.isArray(parsed.tools) ? parsed.tools : undefined,
         experience: Array.isArray(parsed.experience) ? parsed.experience : undefined,
         education: Array.isArray(parsed.education) ? parsed.education : undefined,
         certifications: Array.isArray(parsed.certifications) ? parsed.certifications : undefined,
+        awards: Array.isArray(parsed.awards) ? parsed.awards : undefined,
         personalProjects: Array.isArray(parsed.personalProjects) ? parsed.personalProjects : undefined,
       };
+
+      // Write to the new section-based structure
+      try {
+        const env = getCloudflareEnv();
+        if (env.DB) {
+          const db = getDb(env.DB);
+          const sessionUser = await resolveSessionUser();
+          if (sessionUser) {
+            const now = new Date().toISOString();
+
+            const sectionMap: Record<string, [SectionType, any]> = {
+              summary: ["professional_summary", parsed_data.summary ?? ""],
+              competencies: ["core_competencies", parsed_data.competencies ?? []],
+              tools: ["technical_skills", parsed_data.tools ?? []],
+              experience: ["professional_experience", parsed_data.experience ?? []],
+              personalProjects: ["personal_projects", parsed_data.personalProjects ?? []],
+              education: ["education", parsed_data.education ?? []],
+              awards: ["awards", parsed_data.awards ?? parsed_data.certifications ?? []],
+            };
+
+            for (const [key, [sectionType, content]] of Object.entries(sectionMap)) {
+              if (key in parsed_data) {
+                const serialized = serializeSectionContent(sectionType, content);
+
+                const existing = await db
+                  .select()
+                  .from(resumeSections)
+                  .where(
+                    and(
+                      eq(resumeSections.userId, sessionUser.id),
+                      eq(resumeSections.sectionType, sectionType),
+                    ),
+                  )
+                  .limit(1);
+
+                if (existing.length > 0) {
+                  await db
+                    .update(resumeSections)
+                    .set({
+                      content: serialized,
+                      updatedAt: now,
+                    })
+                    .where(eq(resumeSections.id, existing[0].id));
+                } else {
+                  await db.insert(resumeSections).values({
+                    userId: sessionUser.id,
+                    sectionType,
+                    content: serialized,
+                    updatedAt: now,
+                  });
+                }
+              }
+            }
+          }
+        }
+      } catch (err) {
+        console.warn("[aiParseResume] Warning: Failed to write sections, continuing with legacy storage:", err);
+      }
+
+      return parsed_data;
     } catch (err) {
       console.error("[aiParseResume] error:", err);
       return {};

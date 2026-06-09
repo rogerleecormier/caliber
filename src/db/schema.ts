@@ -224,6 +224,19 @@ export const masterResume = sqliteTable('master_resume', {
   updatedAt: text('updated_at'),
 })
 
+// ─── Resume Sections ──────────────────────────────────────────────────────────
+// Section-based resume structure: one row per section per user.
+// sectionType: 'professional_summary' | 'core_competencies' | 'technical_skills'
+//            | 'professional_experience' | 'personal_projects' | 'education' | 'awards'
+// content: JSON-serialized section data (typed per section type)
+export const resumeSections = sqliteTable('resume_sections', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  userId: text('user_id').notNull().references(() => user.id, { onDelete: 'cascade' }),
+  sectionType: text('section_type').notNull(),
+  content: text('content').notNull(), // JSON serialized
+  updatedAt: text('updated_at').notNull(),
+})
+
 // ─── Job Analyses ─────────────────────────────────────────────────────────────
 // One row per job the user has analyzed. Links to generatedDocuments for PDFs.
 export const jobAnalyses = sqliteTable('job_analyses', {
@@ -431,6 +444,8 @@ export type User = typeof user.$inferSelect
 export type NewUser = typeof user.$inferInsert
 export type MasterResume = typeof masterResume.$inferSelect
 export type NewMasterResume = typeof masterResume.$inferInsert
+export type ResumeSection = typeof resumeSections.$inferSelect
+export type NewResumeSection = typeof resumeSections.$inferInsert
 export type JobAnalysis = typeof jobAnalyses.$inferSelect
 export type NewJobAnalysis = typeof jobAnalyses.$inferInsert
 export type GeneratedDocument = typeof generatedDocuments.$inferSelect

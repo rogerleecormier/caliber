@@ -153,6 +153,7 @@ Return this exact JSON shape:
     }
   ],
   "certifications": ["string"],
+  "awards": ["string"],
   "personalProjects": [
     {
       "name": "string",
@@ -169,6 +170,7 @@ Rules:
 - experience: include ALL roles found, preserve exact company names, titles, and dates
 - personalProjects: look for sections labeled "Personal Projects", "Projects", "Side Projects", "Open Source" or similar — include ALL entries found
 - certifications: include every certification (PMP, CompTIA, AWS, CCNA, etc.)
+- awards: honors, recognitions, and achievement awards (distinguish from certifications)
 - Return null for missing string fields, empty arrays for missing array fields`;
 
 export const RESUME_TAILOR_PROMPT = `Act as an 'Executive Resume Strategist and ATS Optimizer'. Your goal is to tailor a Master Resume and Cover Letter to the job's specific Job Description (JD)
