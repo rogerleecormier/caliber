@@ -7,6 +7,7 @@ export const ATS_SECTION_ORDER = [
   "Professional Experience",
   "Education",
   "Certifications",
+  "Personal Projects",
 ] as const;
 
 export type AtsSection = (typeof ATS_SECTION_ORDER)[number];
@@ -33,6 +34,12 @@ export interface AtsResumeContent {
     year: string;
   }>;
   certifications: string[];
+  personalProjects?: Array<{
+    name: string;
+    description: string;
+    technologies?: string[];
+    url?: string;
+  }>;
 }
 
 export interface StrategicAssessment {
@@ -108,6 +115,7 @@ SECTIONS:
   Example without metric: "Led cross-functional stakeholder alignment across engineering, finance, and operations to deliver ERP cutover on schedule."
 - Education: degree type, field of study, institution, year — copied exactly.
 - Certifications: copy every certification — omit none (PMP, CompTIA A+/Network+/Security+, CCNA, AWS, etc.).
+- Personal Projects: include only if present in the candidate's data or raw resume text. Each project must have a name and description (1–2 sentences max). Include technologies array if mentioned. Include url if present. Omit this section entirely if no personal projects exist.
 
 CANDIDATE STRUCTURED DATA:
 {candidateData}
@@ -129,7 +137,8 @@ Respond with valid JSON only:
   "technicalSkills": [{"category": "string", "skills": ["string"]}],
   "experience": [{"title":"string","company":"string","dates":"string","bullets":["string x6"]}],
   "education": [{"degree":"string","fieldOfStudy":"string","institution":"string","year":"string"}],
-  "certifications": ["string"]
+  "certifications": ["string"],
+  "personalProjects": [{"name":"string","description":"string","technologies":["string"],"url":"string"}]
 }`;
 
 export const COVER_LETTER_PROMPT = `You are an Executive Resume Strategist. Write a cover letter as valid JSON only. No fabrication — use only real achievements and metrics from the candidate's resume.

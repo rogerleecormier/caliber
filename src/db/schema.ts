@@ -219,6 +219,7 @@ export const masterResume = sqliteTable('master_resume', {
   experience: text('experience'),     // JSON: { title, company, start, end, bullets[] }[]
   education: text('education'),       // JSON: { school, degree, field, year }[]
   certifications: text('certifications'), // JSON: string[]
+  personalProjects: text('personal_projects'), // JSON: { name, description, technologies?, url? }[]
   rawText: text('raw_text'),          // Original uploaded document text
   updatedAt: text('updated_at'),
 })

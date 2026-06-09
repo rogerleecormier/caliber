@@ -22,6 +22,13 @@ export interface EducationEntry {
   fieldOfStudy?: string;
 }
 
+export interface PersonalProjectEntry {
+  name: string;
+  description: string;
+  technologies?: string[];
+  url?: string;
+}
+
 export interface ResumeData {
   id?: number;
   fullName: string;
@@ -35,6 +42,7 @@ export interface ResumeData {
   experience?: ExperienceEntry[];
   education?: EducationEntry[];
   certifications?: string[];
+  personalProjects?: PersonalProjectEntry[];
   rawText?: string;
   updatedAt?: string;
 }
@@ -64,6 +72,7 @@ export const getResume = createServerFn({ method: "GET" }).handler(
         experience: row.experience ? JSON.parse(row.experience) : [],
         education: row.education ? JSON.parse(row.education) : [],
         certifications: row.certifications ? JSON.parse(row.certifications) : [],
+        personalProjects: row.personalProjects ? JSON.parse(row.personalProjects) : [],
         rawText: row.rawText ?? undefined,
         updatedAt: row.updatedAt ?? undefined,
       };
@@ -106,6 +115,7 @@ export const saveResume = createServerFn({ method: "POST" })
       ...(data.experience !== undefined && { experience: JSON.stringify(data.experience) }),
       ...(data.education !== undefined && { education: JSON.stringify(data.education) }),
       ...(data.certifications !== undefined && { certifications: JSON.stringify(data.certifications) }),
+      ...(data.personalProjects !== undefined && { personalProjects: JSON.stringify(data.personalProjects) }),
     };
 
     try {
