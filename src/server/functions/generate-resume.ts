@@ -193,10 +193,18 @@ export const generateResume = createServerFn({ method: "POST" })
         tailorSection(env, "awards", sectionData.awards || [], jobTitle, company, jobDescription),
       ]);
 
+      // Format contact info with all available details
+      const contactParts: string[] = [];
+      if (resume?.email) contactParts.push(resume.email);
+      if (resume?.phone) contactParts.push(resume.phone);
+      if (resume?.linkedin) contactParts.push(resume.linkedin);
+      if (resume?.website) contactParts.push(resume.website);
+      const contactInfo = contactParts.join(" | ");
+
       // Assemble tailored sections into AtsResumeContent
       const resumeContent: AtsResumeContent = {
         nameHeader: resume?.fullName || "Candidate",
-        contactInfo: `${resume?.email || ""}${resume?.phone ? " | " + resume.phone : ""}`.trim(),
+        contactInfo: contactInfo,
         professionalSummary: tailoredSections[0] as string,
         coreCompetencies: tailoredSections[1] as string[],
         technicalSkills: tailoredSections[2] as AtsResumeContent["technicalSkills"],
