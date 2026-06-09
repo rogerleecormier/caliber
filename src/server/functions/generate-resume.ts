@@ -195,7 +195,7 @@ export const generateResume = createServerFn({ method: "POST" })
 
       // Assemble tailored sections into AtsResumeContent
       const resumeContent: AtsResumeContent = {
-        nameHeader: resume?.fullName ? `${resume.fullName} - ${jobTitle}` : "Candidate",
+        nameHeader: resume?.fullName || "Candidate",
         contactInfo: `${resume?.email || ""}${resume?.phone ? " | " + resume.phone : ""}`.trim(),
         professionalSummary: tailoredSections[0] as string,
         coreCompetencies: tailoredSections[1] as string[],
