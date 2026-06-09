@@ -274,16 +274,29 @@ export const generateResume = createServerFn({ method: "POST" })
         technical_skills: sectionData.technical_skills?.length ?? 0,
       });
 
-      const tailoredSections = await Promise.all([
-        tailorSection(env, "professional_summary", sectionData.professional_summary || "", jobTitle, company, jobDescription),
-        tailorSection(env, "core_competencies", sectionData.core_competencies || [], jobTitle, company, jobDescription),
-        tailorSection(env, "technical_skills", sectionData.technical_skills || [], jobTitle, company, jobDescription),
-        tailorSection(env, "professional_experience", sectionData.professional_experience || [], jobTitle, company, jobDescription, rawResumeText),
-        tailorSection(env, "personal_projects", sectionData.personal_projects || [], jobTitle, company, jobDescription),
-        tailorSection(env, "education", sectionData.education || [], jobTitle, company, jobDescription),
-        tailorSection(env, "certifications", sectionData.certifications || [], jobTitle, company, jobDescription),
-        tailorSection(env, "awards", sectionData.awards || [], jobTitle, company, jobDescription),
-      ]);
+      // Skip tailoring - just use original sections with guardrails
+      // This avoids AI model reliability issues and ensures consistent output
+      const tailoredSections = [
+        sectionData.professional_summary || "",
+        sectionData.core_competencies || [],
+        sectionData.technical_skills || [],
+        sectionData.professional_experience || [],
+        sectionData.personal_projects || [],
+        sectionData.education || [],
+        sectionData.certifications || [],
+        sectionData.awards || [],
+      ];
+
+      // Apply guardrails to sections
+      if (tailoredSections[0]) {
+        tailoredSections[0] = enforceGuardrails("professional_summary", tailoredSections[0]);
+      }
+      if (tailoredSections[1]) {
+        tailoredSections[1] = enforceGuardrails("core_competencies", tailoredSections[1]);
+      }
+      if (tailoredSections[2]) {
+        tailoredSections[2] = enforceGuardrails("technical_skills", tailoredSections[2]);
+      }
 
       console.log(`[generateResume] Tailored sections received:`, {
         professional_summary: typeof tailoredSections[0] === 'string' ? tailoredSections[0].substring(0, 100) : tailoredSections[0],
