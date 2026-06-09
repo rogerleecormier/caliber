@@ -219,6 +219,14 @@ export const aiParseResume = createServerFn({ method: "POST" })
         parsed = JSON.parse(jsonrepair(jsonMatch[0]));
       }
 
+      console.log('[aiParseResume] Raw parsed from AI:', {
+        summaryLength: parsed.summary?.length ?? 0,
+        toolsCount: parsed.tools?.length ?? 0,
+        toolsSample: parsed.tools?.slice(0, 5) ?? [],
+        competenciesCount: parsed.competencies?.length ?? 0,
+        experienceCount: parsed.experience?.length ?? 0,
+      });
+
       // Normalize experience entries: ensure they have the correct field names
       const normalizeExperience = (exp: any[]): ExperienceEntry[] => {
         return exp.map(e => ({
@@ -268,10 +276,16 @@ export const aiParseResume = createServerFn({ method: "POST" })
               return [{ category: "Tools & Technologies", skills: tools }];
             };
 
+            const toolsContent = transformToolsToCategories(parsed_data.tools ?? []);
+            console.log('[aiParseResume] Transformed tools to categories:', {
+              originalCount: parsed_data.tools?.length ?? 0,
+              transformedContent: toolsContent,
+            });
+
             const sectionMap: Record<string, [SectionType, any]> = {
               summary: ["professional_summary", parsed_data.summary ?? ""],
               competencies: ["core_competencies", parsed_data.competencies ?? []],
-              tools: ["technical_skills", transformToolsToCategories(parsed_data.tools ?? [])],
+              tools: ["technical_skills", toolsContent],
               experience: ["professional_experience", parsed_data.experience ?? []],
               personalProjects: ["personal_projects", parsed_data.personalProjects ?? []],
               education: ["education", parsed_data.education ?? []],

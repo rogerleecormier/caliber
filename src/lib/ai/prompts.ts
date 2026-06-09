@@ -163,17 +163,25 @@ Return this exact JSON shape:
   ]
 }
 
-Rules:
-- competencies: high-level skills and domain areas (e.g. "Project Management", "DevOps", "AI/ML")
-- tools: specific tools, platforms, technologies (e.g. "Jira", "AWS", "NetSuite") — extract ALL tools listed
+CRITICAL EXTRACTION RULES:
+- summary: Extract the FULL professional summary or objective section verbatim. DO NOT summarize or condense. Preserve ALL text exactly as written in the resume.
+- competencies: high-level skills and domain areas (e.g. "Project Management", "DevOps", "AI/ML") — extract ALL listed
+- tools: Extract EVERY SINGLE tool, technology, platform, programming language, framework, library, and software mentioned anywhere in the resume (e.g. "Jira", "AWS", "NetSuite", "Python", "React", "PostgreSQL", "Docker", "Kubernetes", "Git", "GitHub", "JavaScript", "Node.js", etc.)
+  * Look for dedicated "Tools & Technologies", "Tech Stack", "Skills", "Technical Skills", "Technologies" sections and extract everything listed
+  * Parse ALL tools mentioned in parentheses or after each experience role description
+  * Extract from ALL bullet points under each role
+  * Extract from education section if technologies are mentioned
+  * Extract from personal projects section if technologies are mentioned
+  * MUST return an array with 10+ items if the resume lists technologies (never return fewer than what's actually listed)
+  * Do NOT summarize, combine, or limit — include EVERY individual tool mentioned
 - experience: include ALL roles found, preserve exact company names and titles
   * dates: format as "Month Year - Month Year" (e.g., "Jan 2020 - Dec 2021") or "Jan 2020 - Present"
   * bullets: extract ALL bullet points for each role, preserve the actual accomplishments
 - education: include ALL entries found
 - personalProjects: look for sections labeled "Personal Projects", "Projects", "Side Projects", "Open Source" or similar — include ALL entries found
-- certifications: include every certification (PMP, CompTIA, AWS, CCNA, etc.)
+- certifications: include EVERY certification (PMP, CompTIA, AWS, CCNA, etc.) listed separately
 - awards: honors, recognitions, and achievement awards (distinguish from certifications)
-- CRITICAL: Extract ALL items from each section — do not truncate or limit results
+- CRITICAL: Extract ALL items from each section — do not truncate, limit, or omit results
 - Return null for missing string fields, empty arrays for missing array fields`;
 
 export const RESUME_TAILOR_PROMPT = `Act as an 'Executive Resume Strategist and ATS Optimizer'. Your goal is to tailor a Master Resume and Cover Letter to the job's specific Job Description (JD)
