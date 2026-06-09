@@ -62,6 +62,22 @@ export function ResumeManager({ initial }: { initial: ResumeData | null }) {
       }
       if (aiParsed && Object.keys(aiParsed).length > 0) {
         setParsedStructured(aiParsed);
+        // Auto-save structured fields immediately — don't wait for manual Save click
+        const currentName = fullName.trim() || parsed?.fullName?.trim() || "";
+        if (currentName) {
+          await saveResume({
+            data: {
+              fullName: currentName,
+              email: (email.trim() || parsed?.email) ?? undefined,
+              phone: (phone.trim() || parsed?.phone) ?? undefined,
+              linkedin: (linkedin.trim() || parsed?.linkedin) ?? undefined,
+              website: (website.trim() || parsed?.website) ?? undefined,
+              rawText: text,
+              ...aiParsed,
+            },
+          });
+          setLastSaved(new Date().toISOString());
+        }
       }
       setUploadStatus("done");
       setTimeout(() => setUploadStatus("idle"), 4000);
