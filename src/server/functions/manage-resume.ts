@@ -221,9 +221,10 @@ export const aiParseResume = createServerFn({ method: "POST" })
 
       console.log('[aiParseResume] Raw parsed from AI:', {
         summaryLength: parsed.summary?.length ?? 0,
-        toolsCount: parsed.tools?.length ?? 0,
-        toolsSample: parsed.tools?.slice(0, 5) ?? [],
         competenciesCount: parsed.competencies?.length ?? 0,
+        competencies: parsed.competencies ?? [],
+        toolsCount: parsed.tools?.length ?? 0,
+        toolsSample: parsed.tools?.slice(0, 10) ?? [],
         experienceCount: parsed.experience?.length ?? 0,
       });
 
@@ -249,9 +250,11 @@ export const aiParseResume = createServerFn({ method: "POST" })
       };
 
       console.log('[aiParseResume] Parsed data:', {
-        summary: parsed_data.summary ? '✓' : '✗',
+        summary: parsed_data.summary ? `✓ (${parsed_data.summary.length} chars)` : '✗',
         competencies: parsed_data.competencies?.length ?? 0,
+        competenciesList: parsed_data.competencies ?? [],
         tools: parsed_data.tools?.length ?? 0,
+        toolsList: parsed_data.tools?.slice(0, 15) ?? [],
         experience: parsed_data.experience?.length ?? 0,
         education: parsed_data.education?.length ?? 0,
         certifications: parsed_data.certifications?.length ?? 0,
