@@ -276,7 +276,7 @@ export function ResumeManagerV2({ initial }: { initial: ResumeData | null }) {
                     {uploadStatus === 'extracting'
                       ? 'Reading file…'
                       : uploadStatus === 'done'
-                        ? 'File ready — click Parse Resume button below'
+                        ? 'File ready — click Parse Resume below'
                         : uploadStatus === 'error'
                           ? 'Failed to read file'
                           : 'Click to upload or drag & drop'}
@@ -285,7 +285,7 @@ export function ResumeManagerV2({ initial }: { initial: ResumeData | null }) {
                     {uploadStatus === 'extracting'
                       ? 'Extracting text from your file…'
                       : uploadStatus === 'done'
-                        ? 'File extracted. Switch to Resume Text tab to parse.'
+                        ? 'File extracted. Ready to parse!'
                         : uploadStatus === 'error'
                           ? uploadError ?? ''
                           : 'PDF, DOCX, or TXT'}
@@ -329,38 +329,49 @@ export function ResumeManagerV2({ initial }: { initial: ResumeData | null }) {
               {rawText && (
                 <p className="text-xs text-muted-foreground tabular-nums">{rawText.length.toLocaleString()} characters</p>
               )}
-
-              {/* Parse Button */}
-              <div className="flex items-center justify-between pt-2">
-                <div className="text-sm text-muted-foreground">
-                  {parseStatus === 'done' && '✓ Parsed successfully'}
-                  {parseStatus === 'error' && parseError && `✗ ${parseError}`}
-                </div>
-                <Button
-                  onClick={handleParse}
-                  disabled={parseStatus === 'parsing' || !rawText.trim()}
-                  className="min-w-32"
-                >
-                  {parseStatus === 'parsing' ? (
-                    <>
-                      <Loader2 className="animate-spin h-4 w-4" />
-                      Parsing…
-                    </>
-                  ) : parseStatus === 'done' ? (
-                    <>
-                      <CheckCircle2 className="h-4 w-4" />
-                      Parsed!
-                    </>
-                  ) : (
-                    'Parse Resume'
-                  )}
-                </Button>
-              </div>
             </CardContent>
             </Card>
           </div>
         )}
       </div>
+
+      {/* Parse Resume Card - Always Visible */}
+      {rawText && (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base">Parse Resume</CardTitle>
+            <CardDescription>Extract sections from your resume text using AI</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center justify-between">
+              <div className="text-sm text-muted-foreground">
+                {parseStatus === 'done' && '✓ Parsed successfully'}
+                {parseStatus === 'error' && parseError && `✗ ${parseError}`}
+              </div>
+              <Button
+                onClick={handleParse}
+                disabled={parseStatus === 'parsing' || !rawText.trim()}
+                size="lg"
+                className="min-w-40"
+              >
+                {parseStatus === 'parsing' ? (
+                  <>
+                    <Loader2 className="animate-spin h-4 w-4" />
+                    Parsing…
+                  </>
+                ) : parseStatus === 'done' ? (
+                  <>
+                    <CheckCircle2 className="h-4 w-4" />
+                    Parsed!
+                  </>
+                ) : (
+                  'Parse Resume'
+                )}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Contact Information Card */}
       <Card>
