@@ -106,7 +106,7 @@ export function truncateToTokenBudget(
 export async function callWorkersAI(
   env: Partial<CloudflareEnv>,
   messages: Message[],
-  options?: { maxTokens?: number },
+  options?: { maxTokens?: number; temperature?: number; topP?: number },
 ): Promise<string> {
   if (!env.AI) {
     throw new Error("Workers AI binding not available in development mode.");
@@ -116,6 +116,8 @@ export async function callWorkersAI(
   const result: any = await env.AI.run(DEFAULT_MODEL as any, {
     messages,
     max_tokens: options?.maxTokens ?? 4096,
+    temperature: options?.temperature,
+    top_p: options?.topP,
     stream: false,
   } as any);
 

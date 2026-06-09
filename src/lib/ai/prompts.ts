@@ -150,7 +150,11 @@ a) Maximum 2 pages.Use standard headers, no tables, and no graphics.
 
   b) Header: Include Name, formatted Phone, Location, LinkedIn URL, and Website/Portfolio URL (only if provided in source).
 
-    c) Professional Summary: HARD LIMIT — 80 words maximum, count every word and stop at 80. 3 sentences maximum. No exceptions, no padding. TAILOR strictly to the Job Description: summarize the candidate's matching skills from the source resume and explicitly state why they are a fit for this specific role.
+    c) Professional Summary:
+       - WORD LIMIT: 80 words maximum. Count every word. Stop at 80. Do not exceed this under any circumstances.
+       - SENTENCE LIMIT: 4 sentences maximum.
+       - TAILOR strictly to the Job Description: summarize the candidate's matching skills from the source resume and explicitly state why they are a fit for this specific role.
+       - No padding, no filler, no lists of every skill — be selective and specific.
 
       d) Core Competencies: 8 strategic buckets.
 

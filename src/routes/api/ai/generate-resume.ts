@@ -47,7 +47,7 @@ User Name: ${userName || "[Candidate Name]"}`;
               { role: "system", content: RESUME_TAILOR_PROMPT },
               { role: "user", content: userContent },
             ],
-            { maxTokens: 4000 },
+            { maxTokens: 4000, temperature: 0.2, topP: 0.9 },
           );
 
           const jsonMatch = rawResponse.match(/\{[\s\S]*\}/);
