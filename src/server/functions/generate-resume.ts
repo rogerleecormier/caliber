@@ -242,12 +242,13 @@ export const generateResume = createServerFn({ method: "POST" })
       const contactInfo = contactParts.join(" | ");
 
       // Assemble tailored sections into AtsResumeContent
+      // Use tailored version if it has content, otherwise fall back to original
       const resumeContent: AtsResumeContent = {
         nameHeader: resume?.fullName || "Candidate",
         contactInfo: contactInfo,
-        professionalSummary: tailoredSections[0] as string,
-        coreCompetencies: tailoredSections[1] as string[],
-        technicalSkills: tailoredSections[2] as AtsResumeContent["technicalSkills"],
+        professionalSummary: (tailoredSections[0] as string) || (sectionData.professional_summary || ""),
+        coreCompetencies: (tailoredSections[1] as string[])?.length > 0 ? (tailoredSections[1] as string[]) : (sectionData.core_competencies || []),
+        technicalSkills: (tailoredSections[2] as AtsResumeContent["technicalSkills"])?.length > 0 ? (tailoredSections[2] as AtsResumeContent["technicalSkills"]) : (sectionData.technical_skills || []),
         experience: tailoredSections[3] as AtsResumeContent["experience"],
         personalProjects: tailoredSections[4] as AtsResumeContent["personalProjects"],
         education: tailoredSections[5] as AtsResumeContent["education"],
