@@ -1,4 +1,5 @@
 import { env as cfEnv } from "cloudflare:workers";
+import type { JobIngestionMessage } from "@/lib/job-ingestion-queue";
 
 export interface SessionUser {
   id: string;
@@ -12,6 +13,7 @@ export interface CloudflareEnv {
   KV: KVNamespace;
   AI: Ai;
   BROWSER: Fetcher;
+  JOB_INGESTION_QUEUE?: Queue<JobIngestionMessage>;
   ADMIN_PROMOTION_TOKEN?: string;
   BETTER_AUTH_SECRET?: string;
   BETTER_AUTH_URL?: string;

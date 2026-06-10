@@ -11,6 +11,7 @@ import {
 import { getCloudflareEnv } from "@/lib/cloudflare";
 import type { SessionUser } from "@/lib/cloudflare";
 import type { LinkedInScrapedJob, LinkedInSearchParams } from "@/lib/linkedin-search";
+import { enqueueJobIngestion, type PipelineJobMessage } from "@/lib/job-ingestion-queue";
 
 export type LinkedinCronFrequency = "hourly" | "every_2_hours" | "every_4_hours" | "every_8_hours" | "every_12_hours" | "daily";
 export type LinkedinJobStatus = "Analyzed" | "Prepped" | "Applied" | "Interviewed" | "Hired" | "Archived";
@@ -260,56 +261,22 @@ export async function upsertLinkedinJobResults(args: {
       .where(and(eq(pipelineJobs.userId, args.userId), eq(pipelineJobs.canonicalSourceUrl, canonicalSourceUrl)))
       .limit(1);
 
-    if (existing) {
-      const shouldBackfillWorkplaceType = !existing.workplaceType && job.workplaceType;
-      const shouldRefreshLastSeenAt = existing.lastSeenAt !== now;
-      if (shouldBackfillWorkplaceType || shouldRefreshLastSeenAt) {
-        await db
-          .update(pipelineJobs)
-          .set({
-            workplaceType: shouldBackfillWorkplaceType ? job.workplaceType : existing.workplaceType,
-            lastSeenAt: now,
-            updatedAt: now,
-          })
-          .where(eq(pipelineJobs.id, existing.id));
+    const shouldBackfillWorkplaceType = existing && !existing.workplaceType && job.workplaceType;
+
+    if (env.JOB_INGESTION_QUEUE) {
+      const message: PipelineJobMessage = {
+        type: 'pipeline_job',
+        userId: args.userId,
+        savedSearchId: args.savedSearchId ?? null,
+        searchUrl: args.searchUrl,
+        criteria: args.criteria,
+        job,
+        shouldBackfillWorkplaceType: shouldBackfillWorkplaceType ? true : undefined,
       }
-      continue;
+      await enqueueJobIngestion(env.JOB_INGESTION_QUEUE, message)
+    } else {
+      console.warn('[linkedin-persistence] JOB_INGESTION_QUEUE not available, skipping job ingestion')
     }
-
-    const values = {
-      userId: args.userId,
-      savedSearchId: args.savedSearchId ?? null,
-      externalJobId: job.id,
-      title: job.title,
-      company: job.company,
-      location: job.location,
-      sourceUrl: job.sourceUrl,
-      canonicalSourceUrl,
-      sourceName: job.sourceName,
-      searchUrl: args.searchUrl,
-      criteria: JSON.stringify(args.criteria),
-      salary: job.salary ?? null,
-      snippet: job.snippet ?? null,
-      description: job.description ?? null,
-      postDateText: job.postDateText ?? null,
-      workplaceType: job.workplaceType ?? null,
-      atsScore: job.score?.atsScore ?? null,
-      careerScore: job.score?.careerScore ?? null,
-      outlookScore: job.score?.outlookScore ?? null,
-      masterScore: job.score?.masterScore ?? null,
-      atsReason: job.score?.atsReason ?? null,
-      careerReason: job.score?.careerReason ?? null,
-      outlookReason: job.score?.outlookReason ?? null,
-      isUnicorn: job.score?.isUnicorn ? 1 : 0,
-      unicornReason: job.score?.unicornReason ?? null,
-      status: "Discovered" as const,
-      firstSeenAt: now,
-      lastSeenAt: now,
-      createdAt: now,
-      updatedAt: now,
-    };
-
-    await db.insert(pipelineJobs).values(values);
   }
 
   if (args.savedSearchId) {

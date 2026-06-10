@@ -8,9 +8,11 @@
 import { drizzle } from 'drizzle-orm/d1'
 import * as schema from '../db/schema'
 import { syncAtsCompany } from '../lib/worker-sync-logic'
+import type { JobIngestionMessage } from '../lib/job-ingestion-queue'
 
 export interface Env {
   DB: D1Database;
+  JOB_INGESTION_QUEUE?: Queue<JobIngestionMessage>;
 }
 
 export default {
@@ -24,10 +26,10 @@ export default {
     const db = drizzle(env.DB, { schema })
     
     try {
-      const result = await syncAtsCompany(db, timeStr)
-      
+      const result = await syncAtsCompany(db, timeStr, env)
+
       if (result.success) {
-        console.log(`[${timeStr}] ✅ ${result.source}/${result.company}: +${result.jobsAdded} added, ${result.jobsUpdated} updated (${result.duration}ms)`)
+        console.log(`[${timeStr}] ✅ ${result.source}/${result.company}: +${result.jobsQueued} queued for ingestion (${result.duration}ms)`)
       } else {
         console.log(`[${timeStr}] ⚠️ ATS sync returned: ${result.error || 'no error message'}`)
       }

@@ -1,6 +1,6 @@
 /**
  * Worker Sync Logic
- * 
+ *
  * Shared sync logic for Cloudflare Workers that bypasses the HTTP layer
  * and writes directly to D1. This eliminates cold start issues from
  * hitting the TanStack website.
@@ -11,6 +11,7 @@ import * as schema from '../db/schema'
 import { sql, eq, inArray } from 'drizzle-orm'
 import { determineCategoryId } from './job-sources'
 import { decodeHtmlEntities } from './html-utils'
+import { enqueueJobIngestion, type AtsJobMessage, type JobIngestionMessage } from './job-ingestion-queue'
 
 // Import company lists
 import greenhouseCompanies from './job-sources/greenhouse-companies.json'
@@ -32,6 +33,7 @@ export interface SyncResult {
   tag?: string
   jobsAdded: number
   jobsUpdated: number
+  jobsQueued: number
   error?: string
   duration: number
 }
@@ -138,7 +140,8 @@ export async function markSyncFailed(
 
 export async function syncAtsCompany(
   db: DrizzleD1Database,
-  timeStr: string
+  timeStr: string,
+  env?: { JOB_INGESTION_QUEUE?: Queue<JobIngestionMessage> },
 ): Promise<SyncResult> {
   const syncId = crypto.randomUUID()
   const startTime = Date.now()
@@ -225,6 +228,7 @@ export async function syncAtsCompany(
 
     let jobsAdded = 0
     let jobsUpdated = 0
+    let jobsQueued = 0
 
     // Fetch jobs from source
     let apiUrl: string
@@ -307,6 +311,7 @@ export async function syncAtsCompany(
           company,
           jobsAdded: 0,
           jobsUpdated: 0,
+          jobsQueued: 0,
           error: 'Rate limit hit (429)',
           duration: Date.now() - startTime
         }
@@ -366,7 +371,7 @@ export async function syncAtsCompany(
 
         log('info', `Remote jobs filtered: ${remoteJobs.length}/${jobs.length}`)
 
-        // Process jobs
+        // Enqueue jobs for ingestion (async, non-blocking)
         for (const job of remoteJobs) {
           let sourceUrl: string | undefined
           switch (source) {
@@ -383,12 +388,6 @@ export async function syncAtsCompany(
 
           if (!sourceUrl) continue
 
-          // Check if exists
-          const existing = await db.select()
-            .from(schema.jobs)
-            .where(eq(schema.jobs.sourceUrl, sourceUrl))
-            .limit(1)
-
           let title: string
           let description: string
 
@@ -403,49 +402,36 @@ export async function syncAtsCompany(
               break
             case 'workable':
               title = job.title
-              description = '' // Workable widget API doesn't include description
+              description = ''
               break
           }
 
-          // Extract post date from API response
-          let postDate: Date | null = null
+          let postDate: string | null = null
           if (source === 'greenhouse' && job.updated_at) {
-            // Greenhouse uses ISO-8601 format
-            postDate = new Date(job.updated_at)
+            postDate = job.updated_at
           } else if (source === 'lever' && job.createdAt) {
-            // Lever uses Unix timestamp in milliseconds
-            postDate = new Date(job.createdAt)
+            postDate = new Date(job.createdAt).toISOString()
           } else if (source === 'workable' && job.created_at) {
-            // Workable uses ISO-8601 format
-            postDate = new Date(job.created_at)
+            postDate = job.created_at
           }
 
-          const categoryId = determineCategoryId(title, description, [])
+          const sourceName = source === 'greenhouse' ? 'Greenhouse' : source === 'lever' ? 'Lever' : 'Workable'
 
-          if (existing.length > 0) {
-            await db.update(schema.jobs).set({
-              title,
+          if (env?.JOB_INGESTION_QUEUE) {
+            const message: AtsJobMessage = {
+              type: 'ats_job',
+              source,
               company,
-              descriptionRaw: description,
-              isCleansed: 0,
-              updatedAt: new Date(),
-              postDate: postDate || existing[0].postDate,  // Keep existing if no new date
-              categoryId
-            }).where(eq(schema.jobs.id, existing[0].id))
-            jobsUpdated++
-          } else {
-            await db.insert(schema.jobs).values({
-              title,
-              company,
-              descriptionRaw: description,
-              isCleansed: 0,
-              sourceUrl,
-              sourceName: source === 'greenhouse' ? 'Greenhouse' : source === 'lever' ? 'Lever' : 'Workable',
-              postDate: postDate || new Date(),  // Use current date as fallback
-              categoryId,
-              remoteType: 'fully_remote'
-            })
-            jobsAdded++
+              payload: {
+                title,
+                description,
+                sourceUrl,
+                sourceName: sourceName as 'Greenhouse' | 'Lever' | 'Workable',
+                postDate,
+              },
+            }
+            await enqueueJobIngestion(env.JOB_INGESTION_QUEUE, message)
+            jobsQueued++
           }
         }
 
@@ -476,8 +462,9 @@ export async function syncAtsCompany(
       success: true,
       source,
       company,
-      jobsAdded,
-      jobsUpdated,
+      jobsAdded: 0,
+      jobsUpdated: 0,
+      jobsQueued,
       duration: Date.now() - startTime
     }
 
@@ -504,6 +491,7 @@ export async function syncAtsCompany(
         company,
         jobsAdded: 0,
         jobsUpdated: 0,
+        jobsQueued: 0,
         error: errorMsg,
         duration: Date.now() - startTime
       }
@@ -917,6 +905,7 @@ export async function syncAggregator(
       tag: currentTag || undefined,
       jobsAdded,
       jobsUpdated,
+      jobsQueued: 0,
       duration: Date.now() - startTime
     }
 

@@ -11,5 +11,10 @@ binding = "DB"
 database_name = "caliber-db"
 database_id = "55a19e36-ed5b-4a31-83db-56ec83dd9a71"
 
+# Job Ingestion Queue producer
+[[queues.producers]]
+binding = "JOB_INGESTION_QUEUE"
+queue = "job-ingestion-queue"
+
 [observability]
 enabled = true
