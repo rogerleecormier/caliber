@@ -11,6 +11,7 @@ import {
   Search,
   Table2,
   Trash2,
+  Sparkles,
 } from "lucide-react";
 import {
   Button,
@@ -29,6 +30,8 @@ import { AgentsSearchDrawer } from "@/components/features/agents-search-drawer";
 import { AnalysisModal } from "@/components/features/analysis-modal";
 import type { AnalysisData } from "@/components/features/analysis-form";
 import { JobTableView } from "@/components/features/job-table-view";
+import { EnhancedJobSearch } from "@/components/features/enhanced-job-search";
+import { AggregatedJobsResults } from "@/components/features/aggregated-jobs-results";
 import { getResume } from "@/server/functions/manage-resume";
 import {
   archivePipelineJobs,
@@ -135,9 +138,12 @@ function JobsPage() {
   const loaderData = Route.useLoaderData() as any;
   const { hasResume, fullName, savedSearches: loaderSavedSearches, cronStartHour, cronFrequency, jobHistory } = loaderData;
   const navigate = Route.useNavigate();
-  // const router = useRouter(); // available if needed
 
+  const [activeTab, setActiveTab] = useState("pipeline");
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [aggregatedSearchOpen, setAggregatedSearchOpen] = useState(false);
+  const [aggregatedResults, setAggregatedResults] = useState<any>(null);
+  const [savedAggregatedJobIds, setSavedAggregatedJobIds] = useState<Set<string>>(new Set());
   const [searchWarnings, setSearchWarnings] = useState<string[]>([]);
   const [cronNewCount, setCronNewCount] = useState(0);
   const [analysisModalOpen, setAnalysisModalOpen] = useState(false);
@@ -178,6 +184,14 @@ function JobsPage() {
             </button>
             <button
               type="button"
+              onClick={() => setAggregatedSearchOpen(true)}
+              className="inline-flex items-center gap-2 rounded-lg bg-green-600 border border-green-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-green-700"
+            >
+              <Sparkles className="h-4 w-4" />
+              Quick Search
+            </button>
+            <button
+              type="button"
               onClick={() => setDrawerOpen(true)}
               className="inline-flex items-center gap-2 rounded-lg bg-amber-600 border border-amber-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-amber-700"
             >
@@ -193,17 +207,123 @@ function JobsPage() {
         }
       />
 
-      <Suspense fallback={<JobsListSkeleton />}>
-        <JobsListContentWrapper
-          jobHistoryPromise={jobHistory}
-          hasResume={hasResume}
-          fullName={fullName}
-          savedSearches={loaderSavedSearches}
-          cronStartHour={cronStartHour}
-          cronFrequency={cronFrequency}
-          canViewAllUsers={loaderData.canViewAllUsers}
-        />
-      </Suspense>
+      {/* Tab Navigation - Simple Implementation */}
+      <div className="px-4 md:px-6">
+        <div className="flex gap-2 border-b mb-6">
+          <button
+            onClick={() => setActiveTab("pipeline")}
+            className={`flex items-center gap-2 px-4 py-3 font-medium text-sm border-b-2 transition ${
+              activeTab === "pipeline"
+                ? "border-blue-600 text-blue-600"
+                : "border-transparent text-gray-600 hover:text-gray-900"
+            }`}
+          >
+            <BookMarked className="h-4 w-4" />
+            Pipeline
+            {cronNewCount > 0 && (
+              <span className="ml-2 rounded-full bg-green-500 text-white text-xs font-bold px-2 py-0.5">
+                +{cronNewCount}
+              </span>
+            )}
+          </button>
+          <button
+            onClick={() => setActiveTab("quick-search")}
+            className={`flex items-center gap-2 px-4 py-3 font-medium text-sm border-b-2 transition ${
+              activeTab === "quick-search"
+                ? "border-blue-600 text-blue-600"
+                : "border-transparent text-gray-600 hover:text-gray-900"
+            }`}
+          >
+            <Sparkles className="h-4 w-4" />
+            Quick Search
+          </button>
+        </div>
+
+        {/* Pipeline Tab */}
+        {activeTab === "pipeline" && (
+          <Suspense fallback={<JobsListSkeleton />}>
+            <JobsListContentWrapper
+              jobHistoryPromise={jobHistory}
+              hasResume={hasResume}
+              fullName={fullName}
+              savedSearches={loaderSavedSearches}
+              cronStartHour={cronStartHour}
+              cronFrequency={cronFrequency}
+              canViewAllUsers={loaderData.canViewAllUsers}
+            />
+          </Suspense>
+        )}
+
+        {/* Quick Search Tab */}
+        {activeTab === "quick-search" && (
+          <div className="space-y-4">
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+              <h3 className="font-semibold text-blue-900 mb-1">Quick Job Search</h3>
+              <p className="text-sm text-blue-800">
+                Search across Adzuna, Jooble, and Remotive simultaneously. Results are cached for 1 hour.
+              </p>
+            </div>
+
+            {aggregatedResults ? (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-lg font-semibold">
+                    {aggregatedResults.jobs.length} jobs found
+                  </h3>
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setAggregatedResults(null);
+                      setAggregatedSearchOpen(true);
+                    }}
+                  >
+                    <Search className="h-4 w-4 mr-2" />
+                    New Search
+                  </Button>
+                </div>
+                <AggregatedJobsResults
+                  jobs={aggregatedResults.jobs}
+                  onSaveJob={async (job) => {
+                    setSavedAggregatedJobIds((prev) =>
+                      new Set([...prev, `${job.source}-${job.id}`])
+                    );
+                    // Optional: save to database
+                    try {
+                      await fetch('/api/saved-jobs', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(job),
+                      });
+                    } catch (error) {
+                      console.error('Failed to save job:', error);
+                    }
+                  }}
+                  onAnalyzeJob={async (job) => {
+                    setSelectedJobForAnalysis({
+                      title: job.title,
+                      company: job.company,
+                      sourceUrl: job.jobUrl,
+                    } as any);
+                    setAnalysisModalOpen(true);
+                  }}
+                  savedJobIds={savedAggregatedJobIds}
+                />
+              </div>
+            ) : (
+              <div className="text-center py-12">
+                <Sparkles className="h-12 w-12 text-gray-300 mx-auto mb-4" />
+                <p className="text-gray-600 mb-4">
+                  No search results yet. Click the Quick Search button to get started.
+                </p>
+                <Button onClick={() => setAggregatedSearchOpen(true)}>
+                  <Sparkles className="h-4 w-4 mr-2" />
+                  Start Search
+                </Button>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
 
       <AnalysisModal
         isOpen={analysisModalOpen}
@@ -219,6 +339,16 @@ function JobsPage() {
         pipelineJobId={selectedJobForAnalysis?.id}
         onAnalysisComplete={() => {}}
         onDocumentGenerated={() => {}}
+      />
+
+      <EnhancedJobSearch
+        open={aggregatedSearchOpen}
+        onOpenChange={setAggregatedSearchOpen}
+        onSearchComplete={(result) => {
+          setAggregatedResults(result);
+          setAggregatedSearchOpen(false);
+          setActiveTab("quick-search");
+        }}
       />
 
       <AgentsSearchDrawer
