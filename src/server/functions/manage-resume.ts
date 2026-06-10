@@ -7,6 +7,7 @@ import { getDb } from "@/db/db";
 import { masterResume, resumeSections } from "@/db/schema";
 import { callWorkersAI } from "@/lib/ai-gateway";
 import {
+  JSON_ONLY_DIRECTIVE,
   RESUME_PARSE_AWARDS_PROMPT,
   RESUME_PARSE_CERTIFICATIONS_PROMPT,
   RESUME_PARSE_COMPETENCIES_PROMPT,
@@ -17,7 +18,7 @@ import {
 } from "@/lib/ai/prompts";
 import { type SectionType, serializeSectionContent, type TechnicalSkillCategory } from "@/lib/resume-sections";
 import { splitResumeIntoSections } from "@/lib/resume-section-splitter";
-import { parseSectionResponse, type SectionLabel } from "@/lib/resume-ai-response-parser";
+import { parseSectionResponse, SECTION_JSON_SCHEMAS, type SectionLabel } from "@/lib/resume-ai-response-parser";
 
 export interface ExperienceEntry {
   title: string;
@@ -224,10 +225,17 @@ async function parseSectionWithAI(
     const raw = await callWorkersAI(
       env,
       [
-        { role: "system", content: systemPrompt },
+        { role: "system", content: `${JSON_ONLY_DIRECTIVE}\n${systemPrompt}` },
         { role: "user", content: sectionText },
       ],
-      { maxTokens, temperature: 0.1 },
+      {
+        maxTokens,
+        temperature: 0.1,
+        responseFormat: {
+          type: "json_schema",
+          json_schema: SECTION_JSON_SCHEMAS[label],
+        },
+      },
     );
 
     const result = parseSectionResponse(raw, label);

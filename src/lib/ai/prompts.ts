@@ -126,6 +126,17 @@ SCORING RULES:
    - If isUnicorn is true, explain WHY in unicornReason
    - If isUnicorn is false, set unicornReason to null`;
 
+// Zero-tolerance JSON-only directive prepended to every resume-parse prompt.
+// Gemma responds well to explicit, absolute formatting constraints and an
+// instruction NOT to emit any reasoning / thinking before the JSON.
+export const JSON_ONLY_DIRECTIVE = `You are a JSON-only extraction API. You MUST respond with a single valid JSON object and NOTHING else.
+ABSOLUTE RULES:
+- Do NOT output any reasoning, thinking, planning, self-correction, commentary, notes, or explanation.
+- Do NOT output markdown, code fences, headings, or bullet characters.
+- Do NOT restate the task, rules, or schema.
+- Your entire response must be ONLY the JSON object, starting with "{" and ending with "}".
+`;
+
 export const RESUME_PARSE_TECHNICAL_SKILLS_PROMPT = `You are a resume parser. The text below is ONLY the "Technical Skills" / "Technical Proficiencies" / "Tools & Technologies" section of a resume. Extract it into JSON with no markdown, no code fences, no extra text.
 
 Return ONLY valid JSON with this exact shape, replacing every value below with the REAL category names and skills found in the text — do not return the literal example values:

@@ -20,29 +20,241 @@ export type SectionLabel =
 
 const BULLET_PREFIX_REGEX = /^[•·●○◦▪︎\-*]\s*/;
 
+/** The JSON top-level key each section's response is expected to contain. */
+const EXPECTED_KEY: Record<SectionLabel, string> = {
+  experience: "experience",
+  personalProjects: "personalProjects",
+  education: "education",
+  technicalSkills: "technicalSkills",
+  competencies: "competencies",
+  certifications: "certifications",
+  awards: "awards",
+};
+
+const stringArray = { type: "array", items: { type: "string" } };
+
+/**
+ * JSON schemas for Cloudflare Workers AI constrained decoding. Forcing the
+ * model to match a schema is the most reliable way to stop Gemma from
+ * emitting chain-of-thought instead of structured output.
+ */
+export const SECTION_JSON_SCHEMAS: Record<SectionLabel, any> = {
+  experience: {
+    type: "object",
+    properties: {
+      experience: {
+        type: "array",
+        items: {
+          type: "object",
+          properties: {
+            title: { type: "string" },
+            company: { type: "string" },
+            dates: { type: "string" },
+            bullets: stringArray,
+          },
+          required: ["title", "company", "dates", "bullets"],
+        },
+      },
+    },
+    required: ["experience"],
+  },
+  personalProjects: {
+    type: "object",
+    properties: {
+      personalProjects: {
+        type: "array",
+        items: {
+          type: "object",
+          properties: {
+            name: { type: "string" },
+            description: { type: "string" },
+            technologies: stringArray,
+            url: { type: ["string", "null"] },
+          },
+          required: ["name", "description", "technologies"],
+        },
+      },
+    },
+    required: ["personalProjects"],
+  },
+  education: {
+    type: "object",
+    properties: {
+      education: {
+        type: "array",
+        items: {
+          type: "object",
+          properties: {
+            degree: { type: "string" },
+            institution: { type: "string" },
+            graduationDate: { type: ["string", "null"] },
+            fieldOfStudy: { type: ["string", "null"] },
+          },
+          required: ["degree", "institution"],
+        },
+      },
+    },
+    required: ["education"],
+  },
+  technicalSkills: {
+    type: "object",
+    properties: {
+      technicalSkills: {
+        type: "array",
+        items: {
+          type: "object",
+          properties: {
+            category: { type: "string" },
+            skills: stringArray,
+          },
+          required: ["category", "skills"],
+        },
+      },
+    },
+    required: ["technicalSkills"],
+  },
+  competencies: {
+    type: "object",
+    properties: { competencies: stringArray },
+    required: ["competencies"],
+  },
+  certifications: {
+    type: "object",
+    properties: { certifications: stringArray },
+    required: ["certifications"],
+  },
+  awards: {
+    type: "object",
+    properties: { awards: stringArray },
+    required: ["awards"],
+  },
+};
+
+/**
+ * Gemma's "thinking mode" emits chain-of-thought wrapped in control tokens
+ * (e.g. <|channel|>thought ... <|channel|>, <think>...</think>,
+ * <start_of_turn>...). When this leaks into the response it must be stripped
+ * before we look for the real JSON payload, which comes AFTER the reasoning.
+ */
+function stripThinkingTokens(raw: string): string {
+  return raw
+    // <|channel|>thought ... <|channel|>final  (Gemma channel tokens)
+    .replace(/<\|?channel\|?>[\s\S]*?<\|?channel\|?>/gi, " ")
+    .replace(/<\|?(?:channel|message|start|end)[^>]*\|?>/gi, " ")
+    // <think>...</think> / <thought>...</thought>
+    .replace(/<think(?:ing)?>[\s\S]*?<\/think(?:ing)?>/gi, " ")
+    .replace(/<thought>[\s\S]*?<\/thought>/gi, " ")
+    // <start_of_turn> / <end_of_turn> markers
+    .replace(/<\/?(?:start|end)_of_turn>/gi, " ");
+}
+
 function stripCodeFences(raw: string): string {
   const fenceMatch = raw.match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
   return fenceMatch ? fenceMatch[1] : raw;
 }
 
 /**
- * Tries to find and parse a JSON object in the raw text. Returns null if no
- * JSON object could be found or parsed (even after jsonrepair).
+ * Scans the text for every balanced {...} block and returns them in order.
+ * Uses brace-depth counting (string-aware) so nested objects don't confuse
+ * the boundaries.
  */
-function tryExtractJson(raw: string): any | null {
-  const unfenced = stripCodeFences(raw);
-  const jsonMatch = unfenced.match(/\{[\s\S]*\}/);
-  if (!jsonMatch) return null;
+function findBalancedJsonObjects(text: string): string[] {
+  const objects: string[] = [];
+  let depth = 0;
+  let start = -1;
+  let inString = false;
+  let escaped = false;
 
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+
+    if (inString) {
+      if (escaped) {
+        escaped = false;
+      } else if (ch === "\\") {
+        escaped = true;
+      } else if (ch === '"') {
+        inString = false;
+      }
+      continue;
+    }
+
+    if (ch === '"') {
+      inString = true;
+    } else if (ch === "{") {
+      if (depth === 0) start = i;
+      depth++;
+    } else if (ch === "}") {
+      depth--;
+      if (depth === 0 && start !== -1) {
+        objects.push(text.slice(start, i + 1));
+        start = -1;
+      }
+    }
+  }
+
+  return objects;
+}
+
+/**
+ * Parses a candidate JSON string, attempting jsonrepair on failure.
+ */
+function parseJsonCandidate(candidate: string): any | null {
   try {
-    return JSON.parse(jsonMatch[0]);
+    return JSON.parse(candidate);
   } catch {
     try {
-      return JSON.parse(jsonrepair(jsonMatch[0]));
+      return JSON.parse(jsonrepair(candidate));
     } catch {
       return null;
     }
   }
+}
+
+/**
+ * Finds the JSON object in the response that actually contains the section's
+ * expected key with array/string data. Prefers the LAST such object, since
+ * reasoning models emit example schemas first and the real payload last.
+ * Returns null if no object with the expected key (and non-trivial data)
+ * is found — this rejects the model's chain-of-thought "example" objects
+ * like {"competencies": ["item1", "item2"]}.
+ */
+function tryExtractJson(raw: string, expectedKey: string): any | null {
+  const cleaned = stripThinkingTokens(raw);
+  const fenced = stripCodeFences(cleaned);
+
+  // Search both the fence-stripped text and the raw cleaned text.
+  const candidates = [
+    ...findBalancedJsonObjects(fenced),
+    ...findBalancedJsonObjects(cleaned),
+  ];
+
+  let best: any | null = null;
+  for (const candidate of candidates) {
+    if (!candidate.includes(`"${expectedKey}"`)) continue;
+    const parsed = parseJsonCandidate(candidate);
+    if (!parsed || typeof parsed !== "object") continue;
+    const value = parsed[expectedKey];
+    if (value === undefined) continue;
+
+    // Reject obvious placeholder/example payloads from chain-of-thought
+    // (e.g. ["string"], ["item1", "item2"]).
+    if (Array.isArray(value)) {
+      const looksPlaceholder =
+        value.length === 0 ||
+        value.every(
+          (v) =>
+            typeof v === "string" &&
+            /^(string|item\d*|category|skill[s]?|\.\.\.)$/i.test(v.trim()),
+        );
+      if (looksPlaceholder) continue;
+    }
+
+    // Keep overwriting so we end up with the LAST valid payload.
+    best = parsed;
+  }
+
+  return best;
 }
 
 /**
@@ -205,6 +417,31 @@ function parseEntriesFallback(raw: string, label: SectionLabel): any {
 }
 
 /**
+ * Detects whether a response is the model's chain-of-thought reasoning
+ * rather than a clean answer. If so, the markdown/prose fallbacks must NOT
+ * run, because they would capture the reasoning text verbatim (e.g. lines
+ * like "Self-Correction:", "Wait, checking item 14 again", "Task:", "Rules:").
+ * Better to return nothing and leave the section untouched than to pollute
+ * it with the model's internal monologue.
+ */
+function looksLikeReasoning(text: string): boolean {
+  const reasoningMarkers = [
+    /\bself-correction\b/i,
+    /\bwait,? (?:let me|checking|looking)/i,
+    /\bre-?count\b/i,
+    /\bre-?read\b/i,
+    /\bfinal (?:check|list|count|json)/i,
+    /\bdouble check\b/i,
+    /^\s*(?:task|rules|input|output|constraints|format)\s*:/im,
+    /\bi will (?:treat|join|provide|split|use|stick)\b/i,
+    /\bthis is correct\b/i,
+    /\bthe prompt says\b/i,
+  ];
+  const hits = reasoningMarkers.filter((re) => re.test(text)).length;
+  return hits >= 2;
+}
+
+/**
  * Detects the format of an AI response (json / markdown / prose) and parses
  * it into the shape expected for the given section. Returns null only if no
  * usable data could be recovered at all.
@@ -212,28 +449,43 @@ function parseEntriesFallback(raw: string, label: SectionLabel): any {
 export function parseSectionResponse(raw: string, label: SectionLabel): any | null {
   if (!raw || !raw.trim()) return null;
 
-  // 1. Try JSON first (with or without code fences) — the happy path.
-  const json = tryExtractJson(raw);
+  const expectedKey = EXPECTED_KEY[label];
+
+  // 1. Try JSON first — strips thinking tokens, finds the LAST balanced JSON
+  //    object containing the expected key (rejecting placeholder examples).
+  const json = tryExtractJson(raw, expectedKey);
   if (json && typeof json === "object") {
     return json;
   }
 
+  // 2. If the response is clearly the model's chain-of-thought (no clean
+  //    JSON payload, just reasoning), do NOT run markdown/prose fallbacks —
+  //    they would extract the reasoning text as if it were resume content.
+  if (looksLikeReasoning(raw)) {
+    console.error(
+      `[parseSectionResponse] ${label} response was reasoning, not a JSON payload — skipping section. Preview:`,
+      raw.slice(0, 200),
+    );
+    return null;
+  }
+
   console.warn(`[parseSectionResponse] JSON extraction failed for ${label}, falling back to markdown/prose parsing`);
 
-  // 2. Fall back to markdown/prose parsing based on the section's expected shape.
+  // 3. Fall back to markdown/prose parsing based on the section's expected shape.
+  const cleaned = stripThinkingTokens(raw);
   switch (label) {
     case "competencies":
-      return { competencies: parseFlatListFallback(raw) };
+      return { competencies: parseFlatListFallback(cleaned) };
     case "certifications":
-      return { certifications: parseFlatListFallback(raw) };
+      return { certifications: parseFlatListFallback(cleaned) };
     case "awards":
-      return { awards: parseFlatListFallback(raw) };
+      return { awards: parseFlatListFallback(cleaned) };
     case "technicalSkills":
-      return parseTechnicalSkillsFallback(raw);
+      return parseTechnicalSkillsFallback(cleaned);
     case "experience":
     case "personalProjects":
     case "education":
-      return parseEntriesFallback(raw, label);
+      return parseEntriesFallback(cleaned, label);
     default:
       return null;
   }

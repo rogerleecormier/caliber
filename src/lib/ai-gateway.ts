@@ -106,27 +106,42 @@ export function truncateToTokenBudget(
 export async function callWorkersAI(
   env: { AI?: any },
   messages: Message[],
-  options?: { maxTokens?: number; temperature?: number; topP?: number; model?: string },
+  options?: {
+    maxTokens?: number;
+    temperature?: number;
+    topP?: number;
+    model?: string;
+    // Cloudflare Workers AI constrained-decoding: forces the model to emit
+    // output matching a JSON schema (eliminates reasoning/markdown leakage).
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    responseFormat?: { type: "json_schema"; json_schema: any } | { type: "json_object" };
+  },
 ): Promise<string> {
   if (!env.AI) {
     throw new Error("Workers AI binding not available in development mode.");
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const runParams: any = {
+    messages,
+    max_tokens: options?.maxTokens ?? 4096,
+    temperature: options?.temperature,
+    top_p: options?.topP,
+    stream: false,
+    // Gemma reasoning models can spend the entire token budget on
+    // chain-of-thought ("reasoning") and never emit "content", hitting
+    // finish_reason "length" with content: null. Disable reasoning so the
+    // full budget goes to the actual output.
+    reasoning: { enabled: false },
+  };
+  if (options?.responseFormat) {
+    runParams.response_format = options.responseFormat;
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let result: any;
   try {
-    result = await env.AI.run((options?.model ?? DEFAULT_MODEL) as any, {
-      messages,
-      max_tokens: options?.maxTokens ?? 4096,
-      temperature: options?.temperature,
-      top_p: options?.topP,
-      stream: false,
-      // Gemma reasoning models can spend the entire token budget on
-      // chain-of-thought ("reasoning") and never emit "content", hitting
-      // finish_reason "length" with content: null. Disable reasoning so the
-      // full budget goes to the actual JSON output.
-      reasoning: { enabled: false },
-    } as any);
+    result = await env.AI.run((options?.model ?? DEFAULT_MODEL) as any, runParams);
   } catch (error) {
     console.error("[callWorkersAI] AI.run() error:", error);
     throw error;
