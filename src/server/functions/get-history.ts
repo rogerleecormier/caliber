@@ -33,12 +33,12 @@ const emptyPipelineCounts: HistoryPipelineCounts = { ...EMPTY_PIPELINE_COUNTS };
 
 export const getHistory = createServerFn({ method: "GET" })
   .inputValidator((data: { page?: number; pageSize?: number; query?: string }) => data)
-  .handler(async ({ data }): Promise<{ rows: HistoryRow[]; total: number; totalApplied: number; totalPursued: number; totalDocuments: number; pipelineCounts: HistoryPipelineCounts }> => {
+  .handler(async ({ data }, { request }): Promise<{ rows: HistoryRow[]; total: number; totalApplied: number; totalPursued: number; totalDocuments: number; pipelineCounts: HistoryPipelineCounts }> => {
     try {
       const env = getCloudflareEnv();
       if (!env.DB) return { rows: [], total: 0, totalApplied: 0, totalPursued: 0, totalDocuments: 0, pipelineCounts: emptyPipelineCounts };
 
-      const user = await resolveSessionUser();
+      const user = await resolveSessionUser(request);
       if (!user) return { rows: [], total: 0, totalApplied: 0, totalPursued: 0, totalDocuments: 0, pipelineCounts: emptyPipelineCounts };
 
       const db = getDb(env.DB);
@@ -186,11 +186,11 @@ export const getDocumentDownload = createServerFn({ method: "GET" })
 
 export const getDocumentsForAnalysis = createServerFn({ method: "GET" })
   .inputValidator((data: { analysisId: number }) => data)
-  .handler(async ({ data }) => {
+  .handler(async ({ data }, { request }) => {
     const env = getCloudflareEnv();
     if (!env.DB) return { resume: null, coverLetter: null };
 
-    const user = await resolveSessionUser();
+    const user = await resolveSessionUser(request);
     if (!user) throw new Error("Not authenticated");
 
     const db = getDb(env.DB);
@@ -213,11 +213,11 @@ export const getDocumentsForAnalysis = createServerFn({ method: "GET" })
 
 export const deleteHistoryItem = createServerFn({ method: "POST" })
   .inputValidator((data: { id: number }) => data)
-  .handler(async ({ data }) => {
+  .handler(async ({ data }, { request }) => {
     const env = getCloudflareEnv();
     if (!env.DB) throw new Error("Database not available");
 
-    const user = await resolveSessionUser();
+    const user = await resolveSessionUser(request);
     if (!user) throw new Error("Not authenticated");
 
     const db = getDb(env.DB);

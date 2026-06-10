@@ -46,14 +46,14 @@ function buildLinkedinJobContext(job: LinkedinCardJobInput) {
   ].filter(Boolean).join("\n\n");
 }
 
-export const getSavedLinkedinSearches = createServerFn({ method: "GET" }).handler(async () => {
-  const user = await resolveSessionUser();
+export const getSavedLinkedinSearches = createServerFn({ method: "GET" }).handler(async (_, { request }) => {
+  const user = await resolveSessionUser(request);
   if (!user) throw new Error("Not authenticated");
   return listSavedLinkedinSearches(user.id);
 });
 
-export const getLinkedinCronInfo = createServerFn({ method: "GET" }).handler(async () => {
-  const user = await resolveSessionUser();
+export const getLinkedinCronInfo = createServerFn({ method: "GET" }).handler(async (_, { request }) => {
+  const user = await resolveSessionUser(request);
   if (!user) throw new Error("Not authenticated");
   const settings = await getLinkedinSettings();
   return {
@@ -72,8 +72,8 @@ export const saveLinkedinSearch = createServerFn({ method: "POST" })
     runIntervalHours?: number;
     sources?: string[];
   }) => data)
-  .handler(async ({ data }) => {
-    const user = await resolveSessionUser();
+  .handler(async ({ data }, { request }) => {
+    const user = await resolveSessionUser(request);
     if (!user) throw new Error("Not authenticated");
     if (!data.name.trim()) throw new Error("Search name is required");
     const id = await saveLinkedinSearchDefinition({
@@ -90,8 +90,8 @@ export const saveLinkedinSearch = createServerFn({ method: "POST" })
 
 export const removeLinkedinSearch = createServerFn({ method: "POST" })
   .inputValidator((data: { id: number }) => data)
-  .handler(async ({ data }) => {
-    const user = await resolveSessionUser();
+  .handler(async ({ data }, { request }) => {
+    const user = await resolveSessionUser(request);
     if (!user) throw new Error("Not authenticated");
     await deleteLinkedinSavedSearch(data.id, user.id);
     return { success: true };
@@ -99,8 +99,8 @@ export const removeLinkedinSearch = createServerFn({ method: "POST" })
 
 export const toggleLinkedinSearchCron = createServerFn({ method: "POST" })
   .inputValidator((data: { id: number; isActive: boolean }) => data)
-  .handler(async ({ data }) => {
-    const user = await resolveSessionUser();
+  .handler(async ({ data }, { request }) => {
+    const user = await resolveSessionUser(request);
     if (!user) throw new Error("Not authenticated");
     await setLinkedinSavedSearchActive(data.id, user.id, data.isActive);
     return { success: true };
@@ -118,8 +118,8 @@ export const getLinkedinJobHistory = createServerFn({ method: "GET" })
       status?: string;
     }) => data,
   )
-  .handler(async ({ data }) => {
-    const user = await resolveSessionUser();
+  .handler(async ({ data }, { request }) => {
+    const user = await resolveSessionUser(request);
     if (!user) throw new Error("Not authenticated");
     return listLinkedinHistory({
       user,
@@ -135,32 +135,32 @@ export const getLinkedinJobHistory = createServerFn({ method: "GET" })
 
 export const setLinkedinJobStatus = createServerFn({ method: "POST" })
   .inputValidator((data: { id: number; status: LinkedinJobStatus }) => data)
-  .handler(async ({ data }) => {
-    const user = await resolveSessionUser();
+  .handler(async ({ data }, { request }) => {
+    const user = await resolveSessionUser(request);
     if (!user) throw new Error("Not authenticated");
     return updateLinkedinJobStatus({ user, id: data.id, status: data.status });
   });
 
 export const archiveLinkedinJobs = createServerFn({ method: "POST" })
   .inputValidator((data: { ids: number[] }) => data)
-  .handler(async ({ data }) => {
-    const user = await resolveSessionUser();
+  .handler(async ({ data }, { request }) => {
+    const user = await resolveSessionUser(request);
     if (!user) throw new Error("Not authenticated");
     return bulkUpdateLinkedinJobStatus({ user, ids: data.ids, status: "Archived" });
   });
 
 export const deleteLinkedinJobs = createServerFn({ method: "POST" })
   .inputValidator((data: { ids: number[] }) => data)
-  .handler(async ({ data }) => {
-    const user = await resolveSessionUser();
+  .handler(async ({ data }, { request }) => {
+    const user = await resolveSessionUser(request);
     if (!user) throw new Error("Not authenticated");
     return bulkDeleteLinkedinJobs({ user, ids: data.ids });
   });
 
 export const getLinkedinInlineInsights = createServerFn({ method: "POST" })
   .inputValidator((data: LinkedinCardJobInput) => data)
-  .handler(async ({ data }) => {
-    const user = await resolveSessionUser();
+  .handler(async ({ data }, { request }) => {
+    const user = await resolveSessionUser(request);
     if (!user) throw new Error("Not authenticated");
     const env = getCloudflareEnv();
     if (!env.AI) throw new Error("Workers AI binding not available.");
@@ -177,8 +177,8 @@ export const getLinkedinInlineInsights = createServerFn({ method: "POST" })
 
 export const generateLinkedinOutreach = createServerFn({ method: "POST" })
   .inputValidator((data: LinkedinCardJobInput) => data)
-  .handler(async ({ data }) => {
-    const user = await resolveSessionUser();
+  .handler(async ({ data }, { request }) => {
+    const user = await resolveSessionUser(request);
     if (!user) throw new Error("Not authenticated");
     const env = getCloudflareEnv();
     if (!env.DB || !env.AI) throw new Error("Database and Workers AI bindings are required.");
@@ -229,8 +229,8 @@ ${truncateToTokenBudget(jobContext, jobBudget, { marker: "\n...[job truncated]..
 
 export const suggestLinkedinSemanticTitles = createServerFn({ method: "POST" })
   .inputValidator((data: { currentTitle?: string; limit?: number }) => data)
-  .handler(async ({ data }) => {
-    const user = await resolveSessionUser();
+  .handler(async ({ data }, { request }) => {
+    const user = await resolveSessionUser(request);
     if (!user) throw new Error("Not authenticated");
     const env = getCloudflareEnv();
     if (!env.DB || !env.AI) throw new Error("Database and Workers AI bindings are required.");
@@ -293,8 +293,8 @@ ${resumeSnippet}`;
 
 export const setSearchAgentRunning = createServerFn({ method: "POST" })
   .inputValidator((data: { id: number; isRunning: boolean }) => data)
-  .handler(async ({ data }) => {
-    const user = await resolveSessionUser();
+  .handler(async ({ data }, { request }) => {
+    const user = await resolveSessionUser(request);
     if (!user) throw new Error("Not authenticated");
     const env = getCloudflareEnv();
     if (!env.KV) return { success: false };

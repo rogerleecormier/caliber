@@ -8,13 +8,13 @@ import { resolveSessionUser } from "@/lib/resolve-user";
 
 export const getAnalysis = createServerFn({ method: "GET" })
   .inputValidator((data: { id: number }) => data)
-  .handler(async ({ data }) => {
+  .handler(async ({ data }, { request }) => {
     try {
       const env = getCloudflareEnv();
       if (!env.DB) throw new Error("Database not available in development mode.");
       const db = getDb(env.DB);
 
-      const user = await resolveSessionUser();
+      const user = await resolveSessionUser(request);
       if (!user) throw new Error("Not authenticated");
 
       const [row] = await db

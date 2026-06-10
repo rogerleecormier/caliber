@@ -22,12 +22,12 @@ export const analyzeJob = createServerFn({ method: "POST" })
     if (data.jdText && data.jdText.trim().length < 50) throw new Error("Job description text is too short");
     return data;
   })
-  .handler(async ({ data }) => {
+  .handler(async ({ data }, { request }) => {
     const env = getCloudflareEnv();
     if (!env.DB) throw new Error("Database not available in development mode. Run with wrangler or deploy to Cloudflare.");
     const db = getDb(env.DB);
 
-    const user = await resolveSessionUser();
+    const user = await resolveSessionUser(request);
     if (!user) throw new Error("Not authenticated");
 
     const cleanedUrl = data.url ? cleanJobUrl(data.url) : "text-input";

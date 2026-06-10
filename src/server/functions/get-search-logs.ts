@@ -81,11 +81,11 @@ export const getSearchLogs = createServerFn({ method: "GET" })
     dateFrom?: string;
     dateTo?: string;
   }) => data)
-  .handler(async ({ data }): Promise<{ rows: GroupedActivityLog[]; total: number; summary: SearchLogsSummary }> => {
+  .handler(async ({ data }, { request }): Promise<{ rows: GroupedActivityLog[]; total: number; summary: SearchLogsSummary }> => {
     const env = getCloudflareEnv();
     if (!env.DB) return { rows: [], total: 0, summary: { totalSearches: 0, totalJobsFound: 0, totalJobsSkipped: 0, totalErrors: 0 } };
 
-    const user = await resolveSessionUser();
+    const user = await resolveSessionUser(request);
     if (!user) throw new Error("Not authenticated");
 
     const db = getDb(env.DB);

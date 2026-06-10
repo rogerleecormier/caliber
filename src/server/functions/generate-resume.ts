@@ -93,7 +93,7 @@ async function tailorSection(
 
 export const generateResume = createServerFn({ method: "POST" })
   .inputValidator((data: { analysisId: number; extraGuidance?: string }) => data)
-  .handler(async ({ data }) => {
+  .handler(async ({ data }, { request }) => {
     try {
       const env = getCloudflareEnv();
       if (!env.DB || !env.R2 || !env.AI) {
@@ -101,7 +101,7 @@ export const generateResume = createServerFn({ method: "POST" })
       }
 
       const db = getDb(env.DB);
-      const user = await resolveSessionUser();
+      const user = await resolveSessionUser(request);
       if (!user) throw new Error("Not authenticated");
 
       const [analysis] = await db
