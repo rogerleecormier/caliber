@@ -162,7 +162,7 @@ export function enforceGuardrails(sectionType: SectionType, content: any): any {
       });
     }
     case "personal_projects": {
-      // Enforce 3-4 projects, each with ≤3 bullet/line-separated points
+      // Enforce 3-4 projects, each with ≤6 bullet/line-separated points
       const projects = Array.isArray(content) ? content.filter((p: any) => p?.name) : [];
       if (projects.length > 4) {
         console.warn(`[enforceGuardrails] personal_projects has ${projects.length} items, trimming to 4`);
@@ -171,14 +171,14 @@ export function enforceGuardrails(sectionType: SectionType, content: any): any {
       return projects.map((p: any) => {
         const desc = (p.description ?? "").trim();
         if (!desc) return p;
-        // Split on bullets or line breaks; keep first 3 lines
+        // Split on bullets or line breaks; keep first 6 lines
         const lines = desc
           .split(/\n+/)
           .map((l: string) => l.replace(/^[\s•\-*]+/, "").trim())
           .filter(Boolean);
-        if (lines.length > 3) {
-          console.warn(`[enforceGuardrails] project "${p.name}" description has ${lines.length} lines, trimming to 3`);
-          return { ...p, description: lines.slice(0, 3).join("\n") };
+        if (lines.length > 6) {
+          console.warn(`[enforceGuardrails] project "${p.name}" description has ${lines.length} lines, trimming to 6`);
+          return { ...p, description: lines.slice(0, 6).join("\n") };
         }
         return p;
       });
