@@ -74,3 +74,15 @@ max_batch_size = 25
 max_batch_timeout = 5
 max_retries = 3
 dead_letter_queue = "job-ingestion-dlq"
+
+# Scrape Request Queue — asynchronous job content fetching from ATS platforms
+[[queues.producers]]
+binding = "SCRAPE_REQUEST_QUEUE"
+queue = "scrape-request-queue"
+
+[[queues.consumers]]
+queue = "scrape-request-queue"
+max_batch_size = 10
+max_batch_timeout = 30
+max_retries = 2
+dead_letter_queue = "scrape-request-dlq"
