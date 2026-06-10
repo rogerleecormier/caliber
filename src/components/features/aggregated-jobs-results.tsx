@@ -75,7 +75,7 @@ export function AggregatedJobsResults({
 
   // Sort jobs
   const sortedJobs = useMemo(() => {
-    const sorted = [...filteredJobs];
+    const sorted = [...filteredJobs].filter(job => job.title && job.company && job.location);
 
     switch (sortBy) {
       case 'salary-high':
@@ -89,10 +89,10 @@ export function AggregatedJobsResults({
         );
         break;
       case 'title':
-        sorted.sort((a, b) => a.title.localeCompare(b.title));
+        sorted.sort((a, b) => (a.title ?? '').localeCompare(b.title ?? ''));
         break;
       case 'company':
-        sorted.sort((a, b) => a.company.localeCompare(b.company));
+        sorted.sort((a, b) => (a.company ?? '').localeCompare(b.company ?? ''));
         break;
       case 'posted-date':
       default:
