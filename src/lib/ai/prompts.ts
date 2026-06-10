@@ -134,7 +134,21 @@ Return this exact JSON shape:
 {
   "summary": "string or null",
   "competencies": ["string"],
-  "tools": ["string"],
+  "technicalSkills": [
+    {
+      "category": "string",
+      "skills": ["string"]
+    }
+  ],
+  "certifications": ["string"],
+  "personalProjects": [
+    {
+      "name": "string",
+      "description": "string",
+      "technologies": ["string"],
+      "url": "string or null"
+    }
+  ],
   "experience": [
     {
       "title": "string",
@@ -151,16 +165,7 @@ Return this exact JSON shape:
       "fieldOfStudy": "string or null"
     }
   ],
-  "certifications": ["string"],
-  "awards": ["string"],
-  "personalProjects": [
-    {
-      "name": "string",
-      "description": "string",
-      "technologies": ["string"],
-      "url": "string or null"
-    }
-  ]
+  "awards": ["string"]
 }
 
 CRITICAL EXTRACTION RULES:
@@ -171,20 +176,17 @@ CRITICAL EXTRACTION RULES:
   * Parse competencies from ALL sections if not in dedicated section
   * MUST return an array with ALL competencies listed in the resume (never return fewer than what's actually listed)
   * Do NOT summarize or combine — include EVERY individual competency mentioned
-- tools: Extract EVERY SINGLE tool, technology, platform, programming language, framework, library, and software mentioned anywhere in the resume (e.g. "Jira", "AWS", "NetSuite", "Python", "React", "PostgreSQL", "Docker", "Kubernetes", "Git", "GitHub", "JavaScript", "Node.js", etc.)
-  * Look for dedicated "Tools & Technologies", "Tech Stack", "Skills", "Technical Skills", "Technologies" sections and extract everything listed
-  * Parse ALL tools mentioned in parentheses or after each experience role description
-  * Extract from ALL bullet points under each role
-  * Extract from education section if technologies are mentioned
-  * Extract from personal projects section if technologies are mentioned
-  * MUST return an array with ALL tools listed in the resume (never return fewer than what's actually listed)
-  * Do NOT summarize, combine, or limit — include EVERY individual tool mentioned
+- technicalSkills: Extract ONLY from the resume's dedicated "Technical Skills", "Tools & Technologies", "Tech Stack", "Skills", or "Technologies" section — do NOT pull skills from job descriptions, project descriptions, education, or anywhere else.
+  * Preserve the EXACT category names/groupings as they appear in that section (e.g. "Languages", "Cloud & DevOps", "Frameworks", "Databases"). Every category object MUST have a non-empty "category" name and a non-empty "skills" array.
+  * If the section has no sub-category headings, use a single category named "Technical Skills" containing all the listed items.
+  * MUST include EVERY item listed in that section — do not summarize, combine, or omit.
 - experience: include ALL roles found, preserve exact company names and titles
   * dates: format as "Month Year - Month Year" (e.g., "Jan 2020 - Dec 2021") or "Jan 2020 - Present"
   * bullets: extract ALL bullet points for each role, preserve the actual accomplishments
 - education: include ALL entries found
-- personalProjects: look for sections labeled "Personal Projects", "Projects", "Side Projects", "Open Source" or similar — include ALL entries found
-- certifications: include EVERY certification (PMP, CompTIA, AWS, CCNA, etc.) listed separately
+- personalProjects: look for sections labeled "Personal Projects", "Projects", "Side Projects", "Open Source" or similar — include EVERY single entry found, no matter how many there are. Do NOT skip, limit, or summarize the list.
+  * technologies: only include technologies explicitly mentioned within that specific project's own description — do not copy items from technicalSkills or other projects.
+- certifications: look for a "Certifications", "Certificates", or "Licenses & Certifications" section and include EVERY certification (PMP, CompTIA, AWS, CCNA, etc.) listed there, each as its own string. If no such section exists, return an empty array.
 - awards: honors, recognitions, and achievement awards (distinguish from certifications)
 - CRITICAL REMINDER: Extract ALL items from EVERY section — do not truncate, limit, summarize, combine, or omit results. Return complete unmodified lists.
 - Return null for missing string fields, empty arrays for missing array fields`;

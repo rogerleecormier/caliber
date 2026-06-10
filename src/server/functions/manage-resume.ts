@@ -7,6 +7,7 @@ import { getDb } from "@/db/db";
 import { masterResume, resumeSections } from "@/db/schema";
 import { callWorkersAI } from "@/lib/ai-gateway";
 import { RESUME_PARSE_PROMPT } from "@/lib/ai/prompts";
+import { AI_MODELS } from "@/lib/ai/types";
 import { jsonrepair } from "jsonrepair";
 import { type SectionType, serializeSectionContent } from "@/lib/resume-sections";
 
@@ -195,7 +196,7 @@ export const aiParseResume = createServerFn({ method: "POST" })
     try {
       console.log(`[aiParseResume] Parsing resume with ${data.text.length} characters`);
 
-      // Gemma 4 26B supports 256K context
+      // Llama 4 Scout supports a large context window
       // Set output tokens generously for full JSON parsing
       const raw = await callWorkersAI(
         env,
@@ -203,7 +204,7 @@ export const aiParseResume = createServerFn({ method: "POST" })
           { role: "system", content: RESUME_PARSE_PROMPT },
           { role: "user", content: data.text },
         ],
-        { maxTokens: 16000, temperature: 0.1 },
+        { maxTokens: 16000, temperature: 0.1, model: AI_MODELS.LLAMA_4_SCOUT },
       );
 
       const jsonMatch = raw.match(/\{[\s\S]*\}/);
@@ -223,9 +224,11 @@ export const aiParseResume = createServerFn({ method: "POST" })
         summaryLength: parsed.summary?.length ?? 0,
         competenciesCount: parsed.competencies?.length ?? 0,
         competencies: parsed.competencies ?? [],
-        toolsCount: parsed.tools?.length ?? 0,
-        toolsSample: parsed.tools?.slice(0, 10) ?? [],
+        technicalSkillsCount: parsed.technicalSkills?.length ?? 0,
+        technicalSkills: parsed.technicalSkills ?? [],
         experienceCount: parsed.experience?.length ?? 0,
+        personalProjectsCount: parsed.personalProjects?.length ?? 0,
+        certificationsCount: parsed.certifications?.length ?? 0,
       });
 
       // Normalize experience entries: ensure they have the correct field names
@@ -238,10 +241,24 @@ export const aiParseResume = createServerFn({ method: "POST" })
         }));
       };
 
+      // Normalize categorized technical skills, ensuring every category has a name and skills list
+      const normalizeTechnicalSkills = (categories: any[]): { category: string; skills: string[] }[] => {
+        return categories
+          .filter((cat) => cat && Array.isArray(cat.skills) && cat.skills.length > 0)
+          .map((cat) => ({
+            category: typeof cat.category === 'string' && cat.category.trim() ? cat.category.trim() : 'Technical Skills',
+            skills: cat.skills.filter((s: any) => typeof s === 'string' && s.trim()),
+          }));
+      };
+
+      const technicalSkills = Array.isArray(parsed.technicalSkills)
+        ? normalizeTechnicalSkills(parsed.technicalSkills)
+        : [];
+
       const parsed_data: Partial<ResumeData> = {
         summary: parsed.summary ?? undefined,
         competencies: Array.isArray(parsed.competencies) ? parsed.competencies.filter((c: any) => c) : undefined,
-        tools: Array.isArray(parsed.tools) ? parsed.tools.filter((t: any) => t) : undefined,
+        tools: technicalSkills.flatMap((cat) => cat.skills),
         experience: Array.isArray(parsed.experience) ? normalizeExperience(parsed.experience) : undefined,
         education: Array.isArray(parsed.education) ? parsed.education.filter((e: any) => e.degree && e.institution) : undefined,
         certifications: Array.isArray(parsed.certifications) ? parsed.certifications.filter((c: any) => c) : undefined,
@@ -253,8 +270,8 @@ export const aiParseResume = createServerFn({ method: "POST" })
         summary: parsed_data.summary ? `✓ (${parsed_data.summary.length} chars)` : '✗',
         competencies: parsed_data.competencies?.length ?? 0,
         competenciesList: parsed_data.competencies ?? [],
-        tools: parsed_data.tools?.length ?? 0,
-        toolsList: parsed_data.tools?.slice(0, 15) ?? [],
+        technicalSkills: technicalSkills.length,
+        technicalSkillsList: technicalSkills,
         experience: parsed_data.experience?.length ?? 0,
         education: parsed_data.education?.length ?? 0,
         certifications: parsed_data.certifications?.length ?? 0,
@@ -271,24 +288,10 @@ export const aiParseResume = createServerFn({ method: "POST" })
           if (sessionUser) {
             const now = new Date().toISOString();
 
-            // Transform flat tools array into categorized technical_skills
-            const transformToolsToCategories = (tools: string[]) => {
-              if (!Array.isArray(tools) || tools.length === 0) return [];
-              // Group tools into a single "Tools & Technologies" category for now
-              // (More sophisticated categorization can be added later)
-              return [{ category: "Tools & Technologies", skills: tools }];
-            };
-
-            const toolsContent = transformToolsToCategories(parsed_data.tools ?? []);
-            console.log('[aiParseResume] Transformed tools to categories:', {
-              originalCount: parsed_data.tools?.length ?? 0,
-              transformedContent: toolsContent,
-            });
-
             const sectionMap: Record<string, [SectionType, any]> = {
               summary: ["professional_summary", parsed_data.summary ?? ""],
               competencies: ["core_competencies", parsed_data.competencies ?? []],
-              tools: ["technical_skills", toolsContent],
+              tools: ["technical_skills", technicalSkills],
               experience: ["professional_experience", parsed_data.experience ?? []],
               personalProjects: ["personal_projects", parsed_data.personalProjects ?? []],
               education: ["education", parsed_data.education ?? []],
@@ -296,7 +299,7 @@ export const aiParseResume = createServerFn({ method: "POST" })
               awards: ["awards", parsed_data.awards ?? []],
             };
 
-            for (const [key, [sectionType, content]] of Object.entries(sectionMap)) {
+            for (const [, [sectionType, content]] of Object.entries(sectionMap)) {
               const serialized = serializeSectionContent(sectionType, content);
 
               const existing = await db
