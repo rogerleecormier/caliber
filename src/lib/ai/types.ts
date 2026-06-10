@@ -37,7 +37,7 @@ export const AI_MODELS = {
 export const DEFAULT_MODEL = AI_MODELS.GEMMA_4_26B;
 
 // Faster MoE model for batch scoring (3.3B active params, native function calling)
-export const SCORING_MODEL = AI_MODELS.QWEN3_30B_A3B;
+export const SCORING_MODEL = AI_MODELS.GEMMA_4_26B;
 
 // Strong instruction-following for structured JSON output (resume section tailoring)
-export const RESUME_TAILORING_MODEL = AI_MODELS.LLAMA_4_SCOUT;
+export const RESUME_TAILORING_MODEL = AI_MODELS.GEMMA_4_26B;

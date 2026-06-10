@@ -7,7 +7,6 @@ import { getDb } from "@/db/db";
 import { masterResume, resumeSections } from "@/db/schema";
 import { callWorkersAI } from "@/lib/ai-gateway";
 import { RESUME_PARSE_PROMPT } from "@/lib/ai/prompts";
-import { AI_MODELS } from "@/lib/ai/types";
 import { jsonrepair } from "jsonrepair";
 import { type SectionType, serializeSectionContent } from "@/lib/resume-sections";
 
@@ -196,7 +195,7 @@ export const aiParseResume = createServerFn({ method: "POST" })
     try {
       console.log(`[aiParseResume] Parsing resume with ${data.text.length} characters`);
 
-      // Llama 4 Scout supports a large context window
+      // Gemma 4 26B supports 256K context
       // Set output tokens generously for full JSON parsing
       const raw = await callWorkersAI(
         env,
@@ -204,7 +203,7 @@ export const aiParseResume = createServerFn({ method: "POST" })
           { role: "system", content: RESUME_PARSE_PROMPT },
           { role: "user", content: data.text },
         ],
-        { maxTokens: 16000, temperature: 0.1, model: AI_MODELS.LLAMA_4_SCOUT },
+        { maxTokens: 16000, temperature: 0.1 },
       );
 
       const jsonMatch = raw.match(/\{[\s\S]*\}/);
