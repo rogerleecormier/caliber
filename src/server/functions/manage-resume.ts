@@ -13,8 +13,6 @@ import {
   RESUME_PARSE_CERTIFICATIONS_PROMPT,
   RESUME_PARSE_COMPETENCIES_PROMPT,
   RESUME_PARSE_EDUCATION_PROMPT,
-  RESUME_PARSE_EXPERIENCE_PROMPT,
-  RESUME_PARSE_PROJECTS_PROMPT,
   RESUME_PARSE_TECHNICAL_SKILLS_PROMPT,
 } from "@/lib/ai/prompts";
 import { type SectionType, serializeSectionContent, type TechnicalSkillCategory } from "@/lib/resume-sections";
@@ -23,6 +21,7 @@ import {
   splitProjectsIntoChunks,
   splitResumeIntoSections,
 } from "@/lib/resume-section-splitter";
+import { parseExperienceChunk, parseProjectChunk } from "@/lib/resume-entry-parsers";
 import { parseSectionResponse, SECTION_JSON_SCHEMAS, type SectionLabel } from "@/lib/resume-ai-response-parser";
 
 export interface ExperienceEntry {
@@ -255,50 +254,6 @@ async function parseSectionWithAI(
   }
 }
 
-/**
- * Parses a large section by splitting it into smaller chunks (e.g. one role
- * or one project each), parsing every chunk as its own small/fast AI call,
- * and concatenating the resulting arrays. This avoids the request-timeout
- * (AiError 3046) that large single-call extractions hit, and keeps each
- * call well within token limits.
- */
-async function parseChunkedSectionWithAI(
-  env: Parameters<typeof callWorkersAI>[0],
-  systemPrompt: string,
-  sectionText: string | undefined,
-  label: SectionLabel,
-  chunks: string[],
-  arrayKey: string,
-  perChunkMaxTokens = 2048,
-): Promise<any | null> {
-  if (!sectionText || !sectionText.trim()) return null;
-
-  // If there's only one chunk, no benefit to the chunked path.
-  if (chunks.length <= 1) {
-    return parseSectionWithAI(env, systemPrompt, sectionText, label, perChunkMaxTokens + 1024);
-  }
-
-  const results = await Promise.all(
-    chunks.map((chunk) => parseSectionWithAI(env, systemPrompt, chunk, label, perChunkMaxTokens)),
-  );
-
-  const merged: any[] = [];
-  let anySucceeded = false;
-  results.forEach((r, i) => {
-    if (r && Array.isArray(r[arrayKey])) {
-      anySucceeded = true;
-      merged.push(...r[arrayKey]);
-    } else {
-      console.warn(`[aiParseResume] ${label} chunk ${i + 1}/${chunks.length} yielded no items`);
-    }
-  });
-
-  console.log(`[aiParseResume] ${label}: merged ${merged.length} items from ${chunks.length} chunks`);
-
-  if (!anySucceeded) return null;
-  return { [arrayKey]: merged };
-}
-
 export const aiParseResume = createServerFn({ method: "POST" })
   .inputValidator((data: { text: string }) => data)
   .handler(async ({ data }): Promise<Partial<ResumeData>> => {
@@ -312,9 +267,12 @@ export const aiParseResume = createServerFn({ method: "POST" })
 
       console.log('[aiParseResume] Detected sections:', Object.keys(sections));
 
-      // The two large sections (experience, projects) are split into per-role
-      // / per-project chunks and parsed as many small fast calls, then merged
-      // — a single large call hits Workers AI request timeouts (AiError 3046).
+      // Experience and Projects contain long verbatim text (bullets,
+      // descriptions). Parse these DETERMINISTICALLY from the source — keeping
+      // the bullet/description text exactly as written — instead of asking the
+      // LLM to regenerate it (which is slow and hits Workers AI request
+      // timeouts, AiError 3046). The text is copied, not regenerated, so it is
+      // genuinely verbatim.
       const experienceChunks = sections.experience
         ? splitExperienceIntoRoleChunks(sections.experience)
         : [];
@@ -326,27 +284,19 @@ export const aiParseResume = createServerFn({ method: "POST" })
         `[aiParseResume] experience chunks: ${experienceChunks.length}, project chunks: ${projectChunks.length}`,
       );
 
-      const [experienceResult, projectsResult] = await Promise.all([
-        parseChunkedSectionWithAI(
-          env,
-          RESUME_PARSE_EXPERIENCE_PROMPT,
-          sections.experience,
-          "experience",
-          experienceChunks,
-          "experience",
-          3072,
-        ),
-        parseChunkedSectionWithAI(
-          env,
-          RESUME_PARSE_PROJECTS_PROMPT,
-          sections.personalProjects,
-          "personalProjects",
-          projectChunks,
-          "personalProjects",
-          3072,
-        ),
-      ]);
+      const experienceParsed = experienceChunks
+        .map((chunk) => parseExperienceChunk(chunk))
+        .filter((e): e is NonNullable<typeof e> => !!e && (!!e.title || (e.bullets?.length ?? 0) > 0));
 
+      const projectsParsed = projectChunks
+        .map((chunk) => parseProjectChunk(chunk))
+        .filter((p): p is NonNullable<typeof p> => !!p && !!p.name);
+
+      console.log(
+        `[aiParseResume] experience entries: ${experienceParsed.length}, project entries: ${projectsParsed.length}`,
+      );
+
+      // Only the smaller list/structured sections still use the AI extractor.
       const [
         educationResult,
         technicalSkillsResult,
@@ -361,13 +311,11 @@ export const aiParseResume = createServerFn({ method: "POST" })
         parseSectionWithAI(env, RESUME_PARSE_AWARDS_PROMPT, sections.awards, "awards"),
       ]);
 
-      const experience = Array.isArray(experienceResult?.experience)
-        ? normalizeExperience(experienceResult.experience)
+      const experience = experienceParsed.length > 0
+        ? normalizeExperience(experienceParsed)
         : undefined;
 
-      const personalProjects = Array.isArray(projectsResult?.personalProjects)
-        ? projectsResult.personalProjects.filter((p: any) => p.name)
-        : undefined;
+      const personalProjects = projectsParsed.length > 0 ? projectsParsed : undefined;
 
       const education = Array.isArray(educationResult?.education)
         ? educationResult.education.filter((e: any) => e.degree && e.institution)
@@ -437,12 +385,8 @@ export const aiParseResume = createServerFn({ method: "POST" })
               tools: !sections.technicalSkills || technicalSkillsResult
                 ? ["technical_skills", technicalSkills]
                 : null,
-              experience: !sections.experience || experienceResult
-                ? ["professional_experience", experience ?? []]
-                : null,
-              personalProjects: !sections.personalProjects || projectsResult
-                ? ["personal_projects", personalProjects ?? []]
-                : null,
+              experience: ["professional_experience", experience ?? []],
+              personalProjects: ["personal_projects", personalProjects ?? []],
               education: !sections.education || educationResult
                 ? ["education", education ?? []]
                 : null,
