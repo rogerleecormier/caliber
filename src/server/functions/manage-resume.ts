@@ -22,6 +22,7 @@ import {
   splitResumeIntoSections,
 } from "@/lib/resume-section-splitter";
 import { parseExperienceChunk, parseProjectChunk } from "@/lib/resume-entry-parsers";
+import { isStructuredMarkdown, parseMarkdownResume } from "@/lib/resume-markdown-parser";
 import { parseSectionResponse, SECTION_JSON_SCHEMAS, type SectionLabel } from "@/lib/resume-ai-response-parser";
 
 export interface ExperienceEntry {
@@ -254,10 +255,111 @@ async function parseSectionWithAI(
   }
 }
 
+/**
+ * Persists a map of section-type -> content into the resumeSections table for
+ * the current user. Entries whose value is null are skipped (used to avoid
+ * overwriting existing data when an AI extraction failed).
+ */
+async function writeResumeSections(
+  sectionMap: Record<string, [SectionType, any] | null>,
+): Promise<void> {
+  try {
+    const env = getCloudflareEnv();
+    if (!env.DB) return;
+    const db = getDb(env.DB);
+    const sessionUser = await resolveSessionUser();
+    if (!sessionUser) return;
+    const now = new Date().toISOString();
+
+    for (const entry of Object.values(sectionMap)) {
+      if (!entry) continue;
+      const [sectionType, content] = entry;
+      const serialized = serializeSectionContent(sectionType, content);
+
+      const existing = await db
+        .select()
+        .from(resumeSections)
+        .where(
+          and(
+            eq(resumeSections.userId, sessionUser.id),
+            eq(resumeSections.sectionType, sectionType),
+          ),
+        )
+        .limit(1);
+
+      if (existing.length > 0) {
+        await db
+          .update(resumeSections)
+          .set({ content: serialized, updatedAt: now })
+          .where(eq(resumeSections.id, existing[0].id));
+      } else {
+        await db.insert(resumeSections).values({
+          userId: sessionUser.id,
+          sectionType,
+          content: serialized,
+          updatedAt: now,
+        });
+      }
+    }
+  } catch (err) {
+    console.warn("[writeResumeSections] Warning: Failed to write sections:", err);
+  }
+}
+
 export const aiParseResume = createServerFn({ method: "POST" })
   .inputValidator((data: { text: string }) => data)
   .handler(async ({ data }): Promise<Partial<ResumeData>> => {
     const env = getCloudflareEnv();
+
+    // Structured-markdown fast path: if the upload follows the documented
+    // markdown schema (# name, ## sections, ### entries, etc.), parse it
+    // deterministically — no AI, no PDF noise, fully verbatim.
+    if (isStructuredMarkdown(data.text)) {
+      console.log("[aiParseResume] Structured markdown detected — parsing deterministically");
+      const md = parseMarkdownResume(data.text);
+
+      const parsed_data: Partial<ResumeData> = {
+        fullName: md.fullName,
+        email: md.email,
+        phone: md.phone,
+        linkedin: md.linkedin,
+        website: md.website,
+        summary: md.summary,
+        competencies: md.competencies.length > 0 ? md.competencies : undefined,
+        tools: md.technicalSkills.flatMap((c) => c.skills),
+        technicalSkills: md.technicalSkills,
+        experience: md.experience.length > 0 ? md.experience : undefined,
+        education: md.education.length > 0 ? md.education : undefined,
+        certifications: md.certifications.length > 0 ? md.certifications : undefined,
+        awards: md.awards.length > 0 ? md.awards : undefined,
+        personalProjects: md.personalProjects.length > 0 ? md.personalProjects : undefined,
+      };
+
+      console.log("[aiParseResume] Markdown parsed:", {
+        summary: md.summary ? `✓ (${md.summary.length} chars)` : "✗",
+        competencies: md.competencies.length,
+        technicalSkills: md.technicalSkills.length,
+        experience: md.experience.length,
+        education: md.education.length,
+        certifications: md.certifications.length,
+        awards: md.awards.length,
+        personalProjects: md.personalProjects.length,
+      });
+
+      await writeResumeSections({
+        summary: ["professional_summary", md.summary ?? ""],
+        competencies: ["core_competencies", md.competencies],
+        tools: ["technical_skills", md.technicalSkills],
+        experience: ["professional_experience", md.experience],
+        personalProjects: ["personal_projects", md.personalProjects],
+        education: ["education", md.education],
+        certifications: ["certifications", md.certifications],
+        awards: ["awards", md.awards],
+      });
+
+      return parsed_data;
+    }
+
     if (!env.AI) return {};
 
     try {
@@ -364,78 +466,30 @@ export const aiParseResume = createServerFn({ method: "POST" })
         personalProjects: parsed_data.personalProjects?.length ?? 0,
       });
 
-      // Write to the new section-based structure
-      try {
-        const env = getCloudflareEnv();
-        if (env.DB) {
-          const db = getDb(env.DB);
-          const sessionUser = await resolveSessionUser();
-          if (sessionUser) {
-            const now = new Date().toISOString();
-
-            // For AI-derived sections, only write if either the resume had no
-            // such section (legitimately empty) or the AI call succeeded.
-            // Skip writing if the section text existed but the AI call failed
-            // (returned null) — avoids overwriting existing data with [].
-            const sectionMap: Record<string, [SectionType, any] | null> = {
-              summary: ["professional_summary", parsed_data.summary ?? ""],
-              competencies: !sections.competencies || competenciesResult
-                ? ["core_competencies", competencies]
-                : null,
-              tools: !sections.technicalSkills || technicalSkillsResult
-                ? ["technical_skills", technicalSkills]
-                : null,
-              experience: ["professional_experience", experience ?? []],
-              personalProjects: ["personal_projects", personalProjects ?? []],
-              education: !sections.education || educationResult
-                ? ["education", education ?? []]
-                : null,
-              certifications: !sections.certifications || certificationsResult
-                ? ["certifications", certifications]
-                : null,
-              awards: !sections.awards || awardsResult
-                ? ["awards", awards]
-                : null,
-            };
-
-            for (const entry of Object.values(sectionMap)) {
-              if (!entry) continue;
-              const [sectionType, content] = entry;
-              const serialized = serializeSectionContent(sectionType, content);
-
-              const existing = await db
-                .select()
-                .from(resumeSections)
-                .where(
-                  and(
-                    eq(resumeSections.userId, sessionUser.id),
-                    eq(resumeSections.sectionType, sectionType),
-                  ),
-                )
-                .limit(1);
-
-              if (existing.length > 0) {
-                await db
-                  .update(resumeSections)
-                  .set({
-                    content: serialized,
-                    updatedAt: now,
-                  })
-                  .where(eq(resumeSections.id, existing[0].id));
-              } else {
-                await db.insert(resumeSections).values({
-                  userId: sessionUser.id,
-                  sectionType,
-                  content: serialized,
-                  updatedAt: now,
-                });
-              }
-            }
-          }
-        }
-      } catch (err) {
-        console.warn("[aiParseResume] Warning: Failed to write sections, continuing with legacy storage:", err);
-      }
+      // For AI-derived sections, only write if either the resume had no such
+      // section (legitimately empty) or the AI call succeeded — skip writing
+      // when the section text existed but the AI call failed (returned null),
+      // to avoid overwriting existing data with [].
+      await writeResumeSections({
+        summary: ["professional_summary", parsed_data.summary ?? ""],
+        competencies: !sections.competencies || competenciesResult
+          ? ["core_competencies", competencies]
+          : null,
+        tools: !sections.technicalSkills || technicalSkillsResult
+          ? ["technical_skills", technicalSkills]
+          : null,
+        experience: ["professional_experience", experience ?? []],
+        personalProjects: ["personal_projects", personalProjects ?? []],
+        education: !sections.education || educationResult
+          ? ["education", education ?? []]
+          : null,
+        certifications: !sections.certifications || certificationsResult
+          ? ["certifications", certifications]
+          : null,
+        awards: !sections.awards || awardsResult
+          ? ["awards", awards]
+          : null,
+      });
 
       return parsed_data;
     } catch (err) {

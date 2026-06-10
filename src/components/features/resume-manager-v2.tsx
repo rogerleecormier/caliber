@@ -169,6 +169,14 @@ export function ResumeManagerV2({ initial }: { initial: ResumeData | null }) {
         throw new Error('No data extracted from resume')
       }
 
+      // Populate contact fields if the parser found them (e.g. from a
+      // structured markdown upload's @EMAIL / @PHONE / ... meta lines).
+      if (aiParsed.fullName) setFullName(aiParsed.fullName)
+      if (aiParsed.email) setEmail(aiParsed.email)
+      if (aiParsed.phone) setPhone(aiParsed.phone)
+      if (aiParsed.linkedin) setLinkedin(aiParsed.linkedin)
+      if (aiParsed.website) setWebsite(aiParsed.website)
+
       // Update local sections - initialize all sections with defaults
       const newSections: Partial<Record<SectionType, any>> = {
         professional_summary: aiParsed.summary || '',
@@ -296,7 +304,7 @@ export function ResumeManagerV2({ initial }: { initial: ResumeData | null }) {
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-base">Upload Resume</CardTitle>
-              <CardDescription>Upload a PDF, DOCX, or TXT file.</CardDescription>
+              <CardDescription>Upload a Markdown, PDF, DOCX, or TXT file.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
               <div
@@ -349,12 +357,12 @@ export function ResumeManagerV2({ initial }: { initial: ResumeData | null }) {
                         ? 'File extracted. Ready to parse!'
                         : uploadStatus === 'error'
                           ? uploadError ?? ''
-                          : 'PDF, DOCX, or TXT'}
+                          : 'Markdown, PDF, DOCX, or TXT'}
                   </p>
                 </div>
                 {(uploadStatus === 'idle' || uploadStatus === 'error') && (
                   <div className="flex gap-1.5">
-                    {['PDF', 'DOCX', 'TXT'].map((fmt) => (
+                    {['MD', 'PDF', 'DOCX', 'TXT'].map((fmt) => (
                       <span key={fmt} className="text-[10px] bg-muted text-muted-foreground px-2 py-0.5 rounded font-mono">
                         {fmt}
                       </span>
