@@ -15,9 +15,9 @@ import {
   RESUME_PARSE_PROJECTS_PROMPT,
   RESUME_PARSE_TECHNICAL_SKILLS_PROMPT,
 } from "@/lib/ai/prompts";
-import { jsonrepair } from "jsonrepair";
 import { type SectionType, serializeSectionContent, type TechnicalSkillCategory } from "@/lib/resume-sections";
 import { splitResumeIntoSections } from "@/lib/resume-section-splitter";
+import { parseSectionResponse, type SectionLabel } from "@/lib/resume-ai-response-parser";
 
 export interface ExperienceEntry {
   title: string;
@@ -215,7 +215,7 @@ async function parseSectionWithAI(
   env: Parameters<typeof callWorkersAI>[0],
   systemPrompt: string,
   sectionText: string | undefined,
-  label: string,
+  label: SectionLabel,
   maxTokens = 4096,
 ): Promise<any | null> {
   if (!sectionText || !sectionText.trim()) return null;
@@ -230,17 +230,11 @@ async function parseSectionWithAI(
       { maxTokens, temperature: 0.1 },
     );
 
-    const jsonMatch = raw.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) {
-      console.error(`[aiParseResume] No JSON found in ${label} response`);
-      return null;
+    const result = parseSectionResponse(raw, label);
+    if (!result) {
+      console.error(`[aiParseResume] Could not extract data for ${label} from response:`, raw.slice(0, 300));
     }
-
-    try {
-      return JSON.parse(jsonMatch[0]);
-    } catch {
-      return JSON.parse(jsonrepair(jsonMatch[0]));
-    }
+    return result;
   } catch (err) {
     console.error(`[aiParseResume] Failed to parse ${label} section:`, err);
     return null;

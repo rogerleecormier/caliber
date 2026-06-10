@@ -128,13 +128,11 @@ SCORING RULES:
 
 export const RESUME_PARSE_TECHNICAL_SKILLS_PROMPT = `You are a resume parser. The text below is ONLY the "Technical Skills" / "Technical Proficiencies" / "Tools & Technologies" section of a resume. Extract it into JSON with no markdown, no code fences, no extra text.
 
-Return ONLY valid JSON with this exact shape:
+Return ONLY valid JSON with this exact shape, replacing every value below with the REAL category names and skills found in the text — do not return the literal example values:
 {
   "technicalSkills": [
-    {
-      "category": "string",
-      "skills": ["string"]
-    }
+    { "category": "Cloud Platforms", "skills": ["AWS", "Azure", "GCP"] },
+    { "category": "Programming Languages", "skills": ["Python", "TypeScript", "SQL"] }
   ]
 }
 
@@ -147,9 +145,9 @@ RULES:
 
 export const RESUME_PARSE_COMPETENCIES_PROMPT = `You are a resume parser. The text below is ONLY the "Core Competencies" / "Key Skills" / "Areas of Expertise" section of a resume. Extract it into JSON with no markdown, no code fences, no extra text.
 
-Return ONLY valid JSON with this exact shape:
+Return ONLY valid JSON with this exact shape, replacing the example values below with the REAL competencies found in the text — do not return the literal example values:
 {
-  "competencies": ["string"]
+  "competencies": ["Stakeholder Management", "Agile Delivery", "Cross-Functional Leadership"]
 }
 
 RULES:
@@ -161,9 +159,9 @@ RULES:
 
 export const RESUME_PARSE_CERTIFICATIONS_PROMPT = `You are a resume parser. The text below is ONLY the "Certifications" section of a resume. Extract it into JSON with no markdown, no code fences, no extra text.
 
-Return ONLY valid JSON with this exact shape:
+Return ONLY valid JSON with this exact shape, replacing the example value below with the REAL certifications found in the text — do not return the literal example value:
 {
-  "certifications": ["string"]
+  "certifications": ["Project Management Professional (PMP) - Project Management Institute (2025)"]
 }
 
 RULES:
@@ -173,9 +171,9 @@ RULES:
 
 export const RESUME_PARSE_AWARDS_PROMPT = `You are a resume parser. The text below is ONLY the "Awards" / "Honors" section of a resume. Extract it into JSON with no markdown, no code fences, no extra text.
 
-Return ONLY valid JSON with this exact shape:
+Return ONLY valid JSON with this exact shape, replacing the example value below with the REAL awards found in the text — do not return the literal example value:
 {
-  "awards": ["string"]
+  "awards": ["Employee of the Year - Acme Corp (2023)"]
 }
 
 RULES:
@@ -185,14 +183,14 @@ RULES:
 
 export const RESUME_PARSE_EXPERIENCE_PROMPT = `You are a resume parser. The text below is ONLY the "Professional Experience" / "Work Experience" section of a resume. Extract every role into JSON with no markdown, no code fences, no extra text.
 
-Return ONLY valid JSON with this exact shape:
+Return ONLY valid JSON with this exact shape, replacing every value below with the REAL roles, companies, dates, and bullets found in the text — do not return the literal example values:
 {
   "experience": [
     {
-      "title": "string",
-      "company": "string",
-      "dates": "string (e.g., 'Jan 2020 - Dec 2021' or 'Jan 2020 - Present')",
-      "bullets": ["string"]
+      "title": "Senior Project Manager",
+      "company": "Acme Corp",
+      "dates": "Jan 2020 - Present",
+      "bullets": ["Led a cross-functional team of 12 to deliver a $2M ERP migration."]
     }
   ]
 }
@@ -205,14 +203,14 @@ RULES:
 
 export const RESUME_PARSE_PROJECTS_PROMPT = `You are a resume parser. The text below is ONLY the "Personal Projects" / "Projects" / "Side Projects" section of a resume. Extract every project into JSON with no markdown, no code fences, no extra text.
 
-Return ONLY valid JSON with this exact shape:
+Return ONLY valid JSON with this exact shape, replacing every value below with the REAL projects found in the text — do not return the literal example values:
 {
   "personalProjects": [
     {
-      "name": "string",
-      "description": "string",
-      "technologies": ["string"],
-      "url": "string or null"
+      "name": "Job Application Tracker",
+      "description": "Built a full-stack web app to track job applications and automate resume tailoring using AI.",
+      "technologies": ["TypeScript", "React", "Cloudflare Workers"],
+      "url": null
     }
   ]
 }
@@ -225,20 +223,15 @@ RULES:
 
 export const RESUME_PARSE_EDUCATION_PROMPT = `You are a resume parser. The text below is ONLY the "Education" section of a resume. Extract every entry into JSON with no markdown, no code fences, no extra text.
 
-Return ONLY valid JSON with this exact shape:
+Return ONLY valid JSON with this exact shape, replacing every value below with the REAL entries found in the text — do not return the literal example values:
 {
   "education": [
-    {
-      "degree": "string",
-      "institution": "string",
-      "graduationDate": "string or null",
-      "fieldOfStudy": "string or null"
-    }
+    { "degree": "Bachelor of Science", "institution": "State University", "graduationDate": "2015", "fieldOfStudy": "Information Systems" }
   ]
 }
 
 RULES:
-- Include ALL entries found.
+- Include ALL entries found, even if there are several.
 - If the section is empty or contains nothing, return {"education": []}.`;
 
 export const RESUME_TAILOR_PROMPT = `Act as an 'Executive Resume Strategist and ATS Optimizer'. Your goal is to tailor a Master Resume and Cover Letter to the job's specific Job Description (JD)
