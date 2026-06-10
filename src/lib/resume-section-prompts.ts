@@ -133,8 +133,10 @@ Guidelines:
 - Select the 3-4 MOST RELEVANT projects to THIS job (do not include all projects if there are more than 4)
 - Order by relevance to the job description, most relevant first
 - Preserve: name, technologies, url exactly as stated
-- Rewrite description as 4-5 bullet lines or brief sentences (max 6 lines total, each line ≤20 words)
-- Each line should highlight: (1) a key technical skill or outcome, or (2) relevance to the job requirement
+- Rewrite description as 4-6 bullet lines (each line ≤25 words; aim for 4-5 substantive bullets per project)
+- Each bullet should cover ONE distinct achievement or capability: a technical decision, an architecture pattern, a key outcome/metric, or direct relevance to the job
+- DO NOT create bullet lists with multiple topics per line; keep each bullet focused and specific
+- Include: architecture decisions, technologies used, scale/scope achieved, or measurable outcomes where they exist
 - Connect the project's skills/outcomes to job requirements where applicable
 - If a project has no clear relevance, keep description factual without forced connections
 
