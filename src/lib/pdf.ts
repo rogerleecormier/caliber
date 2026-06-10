@@ -37,6 +37,16 @@ function unwrapLink(text: string): string {
   return m ? m[1].trim() : text;
 }
 
+/** Expands YYYY-MM date format to "Month Year" (e.g. "2025-08" → "August 2025"). */
+function formatDateYYYYMM(text: string): string {
+  const m = (text ?? "").match(/(\d{4})-(\d{2})/);
+  if (!m) return text;
+  const [, year, month] = m;
+  const months = ["", "January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+  const monthName = months[parseInt(month, 10)] || month;
+  return text.replace(/\d{4}-\d{2}/, `${monthName} ${year}`);
+}
+
 export async function generateResumePdf(content: AtsResumeContent): Promise<Uint8Array> {
   const doc = await PDFDocument.create();
   const fontRegular = await doc.embedFont(StandardFonts.Helvetica);
@@ -233,7 +243,7 @@ export async function generateResumePdf(content: AtsResumeContent): Promise<Uint
   if (content.certifications.length > 0) {
     drawSection("Certifications");
     for (const cert of content.certifications) {
-      drawText(`•  ${cert}`, { x: MARGIN + 10, hangingIndent: bulletIndent });
+      drawText(`•  ${formatDateYYYYMM(cert)}`, { x: MARGIN + 10, hangingIndent: bulletIndent });
     }
   }
 
