@@ -94,3 +94,69 @@ export function splitResumeIntoSections(text: string): ResumeSections {
 
   return sections;
 }
+
+// Date range like "October 2022 – Present", "Jan 2020 - Dec 2021",
+// "2019–2022", "05/2018 - 09/2020". Used to detect role heading lines so a
+// large Experience section can be split into per-role chunks for parsing.
+const DATE_RANGE_REGEX =
+  /(\b(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?\s*\d{4}\b|\b\d{1,2}\/\d{4}\b|\b\d{4}\b)\s*[–—-]\s*(present|current|\b(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?\s*\d{4}\b|\b\d{1,2}\/\d{4}\b|\b\d{4}\b)/i;
+
+/**
+ * Splits an Experience section into one chunk per role. A new role starts on
+ * a line that contains a date range (the role's employment dates), which in
+ * most resume formats appears on the role's heading line. Bullets and
+ * continuation lines stay with the role above them.
+ *
+ * Falls back to returning the whole section as a single chunk if no role
+ * heading lines are detected.
+ */
+export function splitExperienceIntoRoleChunks(text: string): string[] {
+  const lines = text.split(/\r?\n/);
+  const chunks: string[] = [];
+  let current: string[] = [];
+
+  const isBullet = (l: string) => /^\s*[•·●○◦▪︎\-*]/.test(l);
+
+  for (const line of lines) {
+    const isRoleHeading = DATE_RANGE_REGEX.test(line) && !isBullet(line);
+    if (isRoleHeading && current.some((l) => l.trim())) {
+      chunks.push(current.join("\n").trim());
+      current = [];
+    }
+    current.push(line);
+  }
+  if (current.some((l) => l.trim())) chunks.push(current.join("\n").trim());
+
+  const nonEmpty = chunks.filter(Boolean);
+  return nonEmpty.length > 0 ? nonEmpty : [text];
+}
+
+/**
+ * Splits a Projects section into one chunk per project. Heuristic: a new
+ * project starts on a non-bullet "heading" line (often a name, possibly with
+ * a URL) that follows at least one bullet/detail line of the previous
+ * project. Falls back to the whole section as a single chunk.
+ */
+export function splitProjectsIntoChunks(text: string): string[] {
+  const lines = text.split(/\r?\n/).filter((l) => l.trim());
+  const chunks: string[] = [];
+  let current: string[] = [];
+  let sawDetail = false;
+
+  const isBullet = (l: string) => /^\s*[•·●○◦▪︎\-*]/.test(l);
+
+  for (const line of lines) {
+    const isHeading = !isBullet(line) && line.trim().length > 0 && line.trim().length < 120;
+    if (isHeading && sawDetail && current.length > 0) {
+      chunks.push(current.join("\n").trim());
+      current = [];
+      sawDetail = false;
+    }
+    current.push(line);
+    if (isBullet(line) || current.length > 1) sawDetail = true;
+  }
+  if (current.length > 0) chunks.push(current.join("\n").trim());
+
+  const nonEmpty = chunks.filter(Boolean);
+  return nonEmpty.length > 0 ? nonEmpty : [text];
+}

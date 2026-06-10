@@ -18,7 +18,11 @@ import {
   RESUME_PARSE_TECHNICAL_SKILLS_PROMPT,
 } from "@/lib/ai/prompts";
 import { type SectionType, serializeSectionContent, type TechnicalSkillCategory } from "@/lib/resume-sections";
-import { splitResumeIntoSections } from "@/lib/resume-section-splitter";
+import {
+  splitExperienceIntoRoleChunks,
+  splitProjectsIntoChunks,
+  splitResumeIntoSections,
+} from "@/lib/resume-section-splitter";
 import { parseSectionResponse, SECTION_JSON_SCHEMAS, type SectionLabel } from "@/lib/resume-ai-response-parser";
 
 export interface ExperienceEntry {
@@ -251,6 +255,45 @@ async function parseSectionWithAI(
   }
 }
 
+/**
+ * Parses a large section by splitting it into smaller chunks (e.g. one role
+ * or one project each), parsing every chunk as its own small/fast AI call,
+ * and concatenating the resulting arrays. This avoids the request-timeout
+ * (AiError 3046) that large single-call extractions hit, and keeps each
+ * call well within token limits.
+ */
+async function parseChunkedSectionWithAI(
+  env: Parameters<typeof callWorkersAI>[0],
+  systemPrompt: string,
+  sectionText: string | undefined,
+  label: SectionLabel,
+  chunks: string[],
+  arrayKey: string,
+): Promise<any | null> {
+  if (!sectionText || !sectionText.trim()) return null;
+
+  // If there's only one chunk, no benefit to the chunked path.
+  if (chunks.length <= 1) {
+    return parseSectionWithAI(env, systemPrompt, sectionText, label, 3072);
+  }
+
+  const results = await Promise.all(
+    chunks.map((chunk) => parseSectionWithAI(env, systemPrompt, chunk, label, 2048)),
+  );
+
+  const merged: any[] = [];
+  let anySucceeded = false;
+  for (const r of results) {
+    if (r && Array.isArray(r[arrayKey])) {
+      anySucceeded = true;
+      merged.push(...r[arrayKey]);
+    }
+  }
+
+  if (!anySucceeded) return null;
+  return { [arrayKey]: merged };
+}
+
 export const aiParseResume = createServerFn({ method: "POST" })
   .inputValidator((data: { text: string }) => data)
   .handler(async ({ data }): Promise<Partial<ResumeData>> => {
@@ -264,13 +307,37 @@ export const aiParseResume = createServerFn({ method: "POST" })
 
       console.log('[aiParseResume] Detected sections:', Object.keys(sections));
 
-      // AI calls scoped to only their own section's text — verbatim extraction.
-      // Run the two large sections (experience, projects) in their own batch
-      // with a higher token budget, and the smaller sections in a second
-      // batch — keeping concurrency low avoids Workers AI request timeouts.
+      // The two large sections (experience, projects) are split into per-role
+      // / per-project chunks and parsed as many small fast calls, then merged
+      // — a single large call hits Workers AI request timeouts (AiError 3046).
+      const experienceChunks = sections.experience
+        ? splitExperienceIntoRoleChunks(sections.experience)
+        : [];
+      const projectChunks = sections.personalProjects
+        ? splitProjectsIntoChunks(sections.personalProjects)
+        : [];
+
+      console.log(
+        `[aiParseResume] experience chunks: ${experienceChunks.length}, project chunks: ${projectChunks.length}`,
+      );
+
       const [experienceResult, projectsResult] = await Promise.all([
-        parseSectionWithAI(env, RESUME_PARSE_EXPERIENCE_PROMPT, sections.experience, "experience", 6144),
-        parseSectionWithAI(env, RESUME_PARSE_PROJECTS_PROMPT, sections.personalProjects, "personalProjects", 6144),
+        parseChunkedSectionWithAI(
+          env,
+          RESUME_PARSE_EXPERIENCE_PROMPT,
+          sections.experience,
+          "experience",
+          experienceChunks,
+          "experience",
+        ),
+        parseChunkedSectionWithAI(
+          env,
+          RESUME_PARSE_PROJECTS_PROMPT,
+          sections.personalProjects,
+          "personalProjects",
+          projectChunks,
+          "personalProjects",
+        ),
       ]);
 
       const [
