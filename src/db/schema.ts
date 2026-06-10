@@ -140,6 +140,19 @@ export const duplicateJobs = sqliteTable('duplicate_jobs', {
     .default(sql`(unixepoch())`),
 })
 
+export const greenhouseOrgs = sqliteTable('greenhouse_orgs', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  orgName: text('org_name').notNull().unique(),
+  lastScrapedAt: integer('last_scraped_at', { mode: 'timestamp' }),
+  status: text('status').notNull().default('active'),
+  createdAt: integer('created_at', { mode: 'timestamp' })
+    .notNull()
+    .default(sql`(unixepoch())`),
+  updatedAt: integer('updated_at', { mode: 'timestamp' })
+    .notNull()
+    .default(sql`(unixepoch())`),
+})
+
 export type Category = typeof categories.$inferSelect
 export type NewCategory = typeof categories.$inferInsert
 export type Job = typeof jobs.$inferSelect
@@ -497,3 +510,5 @@ export type PipelineJob = typeof pipelineJobs.$inferSelect
 export type NewPipelineJob = typeof pipelineJobs.$inferInsert
 export type SearchLog = typeof searchLogs.$inferSelect
 export type NewSearchLog = typeof searchLogs.$inferInsert
+export type GreenhouseOrg = typeof greenhouseOrgs.$inferSelect
+export type NewGreenhouseOrg = typeof greenhouseOrgs.$inferInsert

@@ -3,6 +3,7 @@
 
 import { aggregateAnalytics } from './src/server/cron/aggregate-analytics'
 import { runLinkedinSearchMaintenance } from './src/server/cron/linkedin-searches'
+import { runGreenhouseSyncCron } from './src/server/cron/greenhouse-sync'
 import { processJobIngestionBatch } from './src/server/queue/job-ingestion-consumer'
 import { processScrapeRequestBatch } from './src/server/queue/scrape-request-consumer'
 import type { CloudflareEnv } from './src/lib/cloudflare'
@@ -22,7 +23,9 @@ export default {
   },
 
   async scheduled(_event: ScheduledEvent, env: CloudflareEnv, _ctx: ExecutionContext) {
+    const db = getDb(env.DB)
     await runLinkedinSearchMaintenance(env)
+    await runGreenhouseSyncCron(db)
     if (new Date().getUTCHours() % 6 === 0) {
       await aggregateAnalytics(env)
     }

@@ -39,9 +39,17 @@ export interface PipelineJobMessage {
 }
 
 /**
+ * Greenhouse org discovery message — sent when Greenhouse URLs are detected
+ */
+export interface GreenhouseOrgMessage {
+  type: 'greenhouse_org_discovery'
+  payload: string
+}
+
+/**
  * Union type for all job ingestion messages
  */
-export type JobIngestionMessage = AtsJobMessage | PipelineJobMessage
+export type JobIngestionMessage = AtsJobMessage | PipelineJobMessage | GreenhouseOrgMessage
 
 /**
  * Enqueue a job for ingestion. Logs errors but does not throw,
@@ -59,6 +67,33 @@ export async function enqueueJobIngestion(
       `[job-ingestion-queue] Failed to enqueue ${message.type}:`,
       errorMsg,
       { messageType: message.type },
+    )
+  }
+}
+
+/**
+ * Enqueue a Greenhouse org discovery request. Extracts orgs from payload
+ * and queues for async processing by the greenhouse-org-consumer.
+ */
+export async function enqueueGreenhouseOrgDiscovery(
+  queue: Queue<JobIngestionMessage>,
+  payload: string,
+): Promise<void> {
+  if (!payload || payload.trim() === '') {
+    console.warn('[job-ingestion-queue] Empty payload for Greenhouse org discovery, skipping')
+    return
+  }
+
+  try {
+    await enqueueJobIngestion(queue, {
+      type: 'greenhouse_org_discovery',
+      payload,
+    })
+  } catch (error) {
+    const errorMsg = error instanceof Error ? error.message : String(error)
+    console.error(
+      '[job-ingestion-queue] Failed to enqueue Greenhouse org discovery:',
+      errorMsg,
     )
   }
 }

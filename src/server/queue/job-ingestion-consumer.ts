@@ -12,7 +12,8 @@ import { eq, and, sql } from 'drizzle-orm'
 import { determineCategoryId } from '@/lib/job-sources'
 import { canonicalizeLinkedinJobUrl } from '@/lib/linkedin-persistence'
 import { pruneJobDescription } from '@/lib/prune-job-description'
-import type { JobIngestionMessage, AtsJobMessage, PipelineJobMessage } from '@/lib/job-ingestion-queue'
+import type { JobIngestionMessage, AtsJobMessage, PipelineJobMessage, GreenhouseOrgMessage } from '@/lib/job-ingestion-queue'
+import { processGreenhouseOrgMessage } from './greenhouse-org-consumer'
 
 /**
  * Process a batch of job ingestion messages sequentially.
@@ -32,6 +33,8 @@ export async function processJobIngestionBatch(
         await processAtsJobMessage(db, message.body, now)
       } else if (message.body.type === 'pipeline_job') {
         await processPipelineJobMessage(db, message.body, now)
+      } else if (message.body.type === 'greenhouse_org_discovery') {
+        await processGreenhouseOrgMessage(db, message.body as GreenhouseOrgMessage)
       }
       message.ack()
       successCount++
