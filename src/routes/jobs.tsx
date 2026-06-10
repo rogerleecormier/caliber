@@ -250,6 +250,14 @@ function JobsPage() {
             cronStartHour={cronStartHour}
             cronFrequency={cronFrequency}
             canViewAllUsers={loaderData.canViewAllUsers}
+            cronNewCount={cronNewCount}
+            setCronNewCount={setCronNewCount}
+            analysisModalOpen={analysisModalOpen}
+            setAnalysisModalOpen={setAnalysisModalOpen}
+            selectedJobForAnalysis={selectedJobForAnalysis}
+            setSelectedJobForAnalysis={setSelectedJobForAnalysis}
+            storedAnalysis={storedAnalysis}
+            setStoredAnalysis={setStoredAnalysis}
           />
         )}
 
@@ -374,6 +382,14 @@ function JobsListContentWrapper({
   cronStartHour,
   cronFrequency,
   canViewAllUsers,
+  cronNewCount,
+  setCronNewCount,
+  analysisModalOpen,
+  setAnalysisModalOpen,
+  selectedJobForAnalysis,
+  setSelectedJobForAnalysis,
+  storedAnalysis,
+  setStoredAnalysis,
 }: {
   jobHistoryPromise: any;
   hasResume: boolean;
@@ -382,6 +398,14 @@ function JobsListContentWrapper({
   cronStartHour: number;
   cronFrequency: string;
   canViewAllUsers: boolean;
+  cronNewCount: number;
+  setCronNewCount: (count: number) => void;
+  analysisModalOpen: boolean;
+  setAnalysisModalOpen: (open: boolean) => void;
+  selectedJobForAnalysis: any;
+  setSelectedJobForAnalysis: (job: any) => void;
+  storedAnalysis: any;
+  setStoredAnalysis: (analysis: any) => void;
 }): React.ReactElement {
   const { page, query, remote, sortBy, status: activeStatus, analyzedOnly, analyze, url: searchUrl } = Route.useSearch();
   const navigate = Route.useNavigate();
