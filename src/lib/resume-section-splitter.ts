@@ -16,11 +16,11 @@ export type ResumeSectionKey =
 const HEADER_PATTERNS: Array<{ key: ResumeSectionKey; pattern: RegExp }> = [
   { key: "summary", pattern: /^(professional\s+summary|summary|objective|profile|career\s+summary)$/i },
   { key: "competencies", pattern: /^(core\s+competencies|key\s+skills|competencies|areas?\s+of\s+expertise|expertise)$/i },
-  { key: "technicalSkills", pattern: /^(technical\s+skills|tools?\s*&?\s*technologies|tech\s+stack|skills|technologies)$/i },
+  { key: "technicalSkills", pattern: /^(technical\s+(skills|proficiencies)|tools?\s*&?\s*technologies|tech\s+stack|skills|technologies)$/i },
   { key: "experience", pattern: /^(professional\s+experience|work\s+experience|experience|employment\s+history)$/i },
   { key: "education", pattern: /^(education|academic\s+background)$/i },
   { key: "certifications", pattern: /^(certifications?|certificates?|licenses?\s*&?\s*certifications?)$/i },
-  { key: "awards", pattern: /^(awards?|honors?|honors?\s*&?\s*awards?|achievements?)$/i },
+  { key: "awards", pattern: /^(awards?(\s*&?\s*honors?)?|honors?(\s*&?\s*awards?)?|achievements?)$/i },
   { key: "personalProjects", pattern: /^(personal\s+projects|projects|side\s+projects|open\s+source)$/i },
 ];
 
