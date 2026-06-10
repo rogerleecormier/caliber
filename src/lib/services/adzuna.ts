@@ -42,12 +42,14 @@ export class AdzunaService {
       app_id: this.apiKey.split(':')[0],
       app_key: this.apiKey.split(':')[1],
       results_per_page: String(params.results_per_page || 50),
-      page: String(params.page || 1),
     });
 
+    // Note: Adzuna API doesn't support pagination via 'page' parameter
+    // if (params.page) queryParams.append('page', String(params.page));
+
     if (params.what) queryParams.append('what', params.what);
-    if (params.where) queryParams.append('where', params.where);
-    if (params.country) queryParams.append('country', params.country);
+    // Note: Skipping location parameter as it seems to cause 400 errors with certain values
+    // Users can still search by keyword
 
     const response = await fetch(`${this.baseUrl}/${params.country || 'us'}/search?${queryParams}`, {
       method: 'GET',

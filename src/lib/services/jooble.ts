@@ -46,13 +46,19 @@ export class JoobleService {
       }
     }
 
-    const body = JSON.stringify({
+    const bodyObj: any = {
       keywords: params.keywords || '',
-      location: params.location || '',
       limit: Math.min(params.limit || 50, 100),
-    });
+    };
 
-    const response = await fetch(`${this.baseUrl}${this.apiKey}`, {
+    // Only add location if it's provided and not 'remote'
+    if (params.location && params.location.toLowerCase() !== 'remote') {
+      bodyObj.location = params.location;
+    }
+
+    const body = JSON.stringify(bodyObj);
+
+    const response = await fetch(`${this.baseUrl}/${this.apiKey}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
