@@ -22,11 +22,12 @@ export class RemotiveService {
   }
 
   async search(params: RemotiveSearchParams): Promise<UnifiedJob[]> {
-    const cacheKey = `remotive:${await hashQuery(params as Record<string, unknown>)}`;
-
-    // Try cache first
-    const cached = await getCached<UnifiedJob[]>(this.kv, cacheKey);
-    if (cached) return cached;
+    // Try cache first if KV is available
+    if (this.kv) {
+      const cacheKey = `remotive:${await hashQuery(params as Record<string, unknown>)}`;
+      const cached = await getCached<UnifiedJob[]>(this.kv, cacheKey);
+      if (cached) return cached;
+    }
 
     const queryParams = new URLSearchParams({
       limit: String(params.limit || 50),
@@ -51,8 +52,11 @@ export class RemotiveService {
     const data = (await response.json()) as RemotiveResponse;
     const unified = data.jobs.map((job) => this.mapToUnified(job));
 
-    // Cache results
-    await setCached(this.kv, cacheKey, unified, this.cacheTtl);
+    // Cache results if KV is available
+    if (this.kv) {
+      const cacheKey = `remotive:${await hashQuery(params as Record<string, unknown>)}`;
+      await setCached(this.kv, cacheKey, unified, this.cacheTtl);
+    }
 
     return unified;
   }

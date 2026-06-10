@@ -1,6 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { json } from '@tanstack/react-start';
 import { JobAggregatorService } from '@/lib/services';
+import { getCloudflareEnv } from '@/lib/cloudflare';
 
 interface SearchRequestBody {
   keywords?: string;
@@ -41,11 +42,13 @@ export const Route = createFileRoute('/api/jobs/search')({
             );
           }
 
-          // Initialize aggregator with credentials from context
+          // Initialize aggregator with API keys from Cloudflare environment
+          const env = getCloudflareEnv();
+
           const aggregator = new JobAggregatorService(
-            context.KV, // Cloudflare KV binding
-            context.ADZUNA_API_KEY,
-            context.JOOBLE_API_KEY
+            env?.KV,
+            env?.ADZUNA_API_KEY,
+            env?.JOOBLE_API_KEY
           );
 
           // Perform search

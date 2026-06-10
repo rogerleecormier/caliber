@@ -17,6 +17,8 @@ export interface CloudflareEnv {
   ADMIN_PROMOTION_TOKEN?: string;
   BETTER_AUTH_SECRET?: string;
   BETTER_AUTH_URL?: string;
+  ADZUNA_API_KEY?: string;
+  JOOBLE_API_KEY?: string;
 }
 
 let cachedEnv: Partial<CloudflareEnv> | null = null;
@@ -39,6 +41,8 @@ export async function getCloudflareEnvAsync(): Promise<Partial<CloudflareEnv>> {
         R2: proxy.env.R2,
         KV: proxy.env.KV,
         AI: proxy.env.AI,
+        ADZUNA_API_KEY: proxy.env.ADZUNA_API_KEY,
+        JOOBLE_API_KEY: proxy.env.JOOBLE_API_KEY,
         ...proxy.env,
       };
       return cachedEnv;

@@ -27,11 +27,16 @@ export class AdzunaService {
   }
 
   async search(params: AdzunaSearchParams): Promise<UnifiedJob[]> {
-    const cacheKey = `adzuna:${await hashQuery(params as Record<string, unknown>)}`;
+    if (!this.apiKey) {
+      throw new Error('Adzuna API key not configured');
+    }
 
-    // Try cache first
-    const cached = await getCached<UnifiedJob[]>(this.kv, cacheKey);
-    if (cached) return cached;
+    // Try cache first if KV is available
+    if (this.kv) {
+      const cacheKey = `adzuna:${await hashQuery(params as Record<string, unknown>)}`;
+      const cached = await getCached<UnifiedJob[]>(this.kv, cacheKey);
+      if (cached) return cached;
+    }
 
     const queryParams = new URLSearchParams({
       app_id: this.apiKey.split(':')[0],
@@ -55,8 +60,11 @@ export class AdzunaService {
     const data = (await response.json()) as AdzunaResponse;
     const unified = data.results.map((job) => this.mapToUnified(job));
 
-    // Cache results
-    await setCached(this.kv, cacheKey, unified, this.cacheTtl);
+    // Cache results if KV is available
+    if (this.kv) {
+      const cacheKey = `adzuna:${await hashQuery(params as Record<string, unknown>)}`;
+      await setCached(this.kv, cacheKey, unified, this.cacheTtl);
+    }
 
     return unified;
   }

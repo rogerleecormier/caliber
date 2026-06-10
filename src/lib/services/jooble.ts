@@ -26,19 +26,24 @@ export class JoobleService {
   }
 
   async search(params: JoobleSearchParams): Promise<UnifiedJob[]> {
-    const cacheKey = `jooble:${await hashQuery(params as Record<string, unknown>)}`;
+    if (!this.apiKey) {
+      throw new Error('Jooble API key not configured');
+    }
 
-    // Try cache first
-    const cached = await getCached<UnifiedJob[]>(this.kv, cacheKey);
-    if (cached) return cached;
+    // Try cache first if KV is available
+    if (this.kv) {
+      const cacheKey = `jooble:${await hashQuery(params as Record<string, unknown>)}`;
+      const cached = await getCached<UnifiedJob[]>(this.kv, cacheKey);
+      if (cached) return cached;
 
-    // Check rate limit before making API call
-    const rateLimit = await canMakeJoobleRequest(this.kv);
-    if (!rateLimit.allowed) {
-      // Return empty results and log warning instead of failing completely
-      console.warn(`Jooble rate limit check: ${rateLimit.reason}`);
-      // Could throw here for strict mode: throw new Error(rateLimit.reason);
-      return []; // Graceful degradation
+      // Check rate limit before making API call
+      const rateLimit = await canMakeJoobleRequest(this.kv);
+      if (!rateLimit.allowed) {
+        // Return empty results and log warning instead of failing completely
+        console.warn(`Jooble rate limit check: ${rateLimit.reason}`);
+        // Could throw here for strict mode: throw new Error(rateLimit.reason);
+        return []; // Graceful degradation
+      }
     }
 
     const body = JSON.stringify({
@@ -55,8 +60,8 @@ export class JoobleService {
       body,
     });
 
-    // Increment counter on successful call
-    if (response.ok) {
+    // Increment counter on successful call if KV is available
+    if (response.ok && this.kv) {
       await incrementApiCall(this.kv, 'jooble');
 
       // Check if approaching limit and log warning
@@ -75,8 +80,11 @@ export class JoobleService {
     const data = (await response.json()) as JoobleResponse;
     const unified = data.jobs.map((job) => this.mapToUnified(job));
 
-    // Cache results
-    await setCached(this.kv, cacheKey, unified, this.cacheTtl);
+    // Cache results if KV is available
+    if (this.kv) {
+      const cacheKey = `jooble:${await hashQuery(params as Record<string, unknown>)}`;
+      await setCached(this.kv, cacheKey, unified, this.cacheTtl);
+    }
 
     return unified;
   }
