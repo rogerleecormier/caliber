@@ -6,6 +6,7 @@ import {
   WORKERS_AI_CONTEXT_WINDOW_TOKENS,
 } from "@/lib/ai-gateway";
 import { jsonrepair } from "jsonrepair";
+import { StructuredGapAnalysisSchema, type StructuredGapAnalysis } from "@/lib/ai/types";
 
 export interface SalaryAssessment {
   listed: string | null;
@@ -48,7 +49,7 @@ export interface GapItem {
 
 export interface ComprehensiveAnalysis {
   matchScore: number;
-  gapAnalysis: GapItem[];
+  gapAnalysis: GapItem[] | StructuredGapAnalysis;
   recommendations: string[];
   pursue: boolean;
   pursueJustification: string;
@@ -448,7 +449,17 @@ export async function refineGapAnalysisWithEvidence(gapAnalysis: GapItem[], evid
 function clamp(value: number, min: number, max: number): number { return Math.min(max, Math.max(min, value)); }
 
 export function calibrateMatchScore(analysis: ComprehensiveAnalysis): number {
-  const gaps = Array.isArray(analysis.gapAnalysis) ? analysis.gapAnalysis : [];
+  let gaps: GapItem[] = [];
+  if (Array.isArray(analysis.gapAnalysis)) {
+    gaps = analysis.gapAnalysis;
+  } else if (analysis.gapAnalysis && typeof analysis.gapAnalysis === 'object') {
+    try {
+      const validated = StructuredGapAnalysisSchema.parse(analysis.gapAnalysis);
+      gaps = convertStructuredGapAnalysisToLegacy(validated);
+    } catch {
+      gaps = [];
+    }
+  }
   if (gaps.length === 0) return clamp(Math.round(analysis.matchScore || 0), 1, 100);
   let weightedEarned = 0, weightedPossible = 0, requiredMissing = 0, preferredMissing = 0, requiredPartial = 0, preferredPartial = 0;
   for (const item of gaps) {
@@ -490,8 +501,41 @@ export const ANALYSIS_MIN_SECTION_TOKENS = 4_000;
 export function buildAnalysisPrompt(jdSnippet: string, resumeSnippet: string): { system: string; user: string } {
   return {
     system: `You are a JSON-only API. You are an Executive Resume Strategist, ATS Optimizer, and Job Market Analyst. Respond with ONLY a valid JSON object, nothing else. No markdown, no prose, no code fences. Start your response with { and end with }.`,
-    user: `Perform a comprehensive analysis of this job posting against the candidate's resume.\n\nJOB POSTING:\n${jdSnippet}\n\nCANDIDATE RESUME:\n${resumeSnippet}\n\nReturn a JSON object with these exact keys:\n{\n  "jobTitle": "string",\n  "company": "string",\n  "industry": "string",\n  "location": "string",\n  "matchScore": integer 1-100,\n  "gapAnalysis": [{"requirement": "string", "requirementType": "required|preferred", "status": "covered|partial|missing", "suggestion": "string"}],\n  "recommendations": ["string"],\n  "pursue": boolean,\n  "pursueJustification": "string",\n  "keywords": ["string"],\n  "strategyNote": "string",\n  "personalInterest": "string",\n  "careerAnalysis": {"trajectory": "string", "recommendation": "pursue|consider|pass", "reasoning": "string", "salaryAssessment": {"listed": "string|null", "projectedRange": "string", "assessment": "string"}},\n  "insights": {\n    "workLifeBalance": "excellent|good|moderate|demanding|unknown",\n    "remoteFlexibility": "fully_remote|hybrid|office|unknown",\n    "seniorityLevel": "entry|mid|senior|lead|executive|unknown",\n    "cultureSignals": [{"signal": "string", "interpretation": "string", "sentiment": "positive|neutral|warning"}],\n    "redFlags": [{"flag": "string", "reason": "string"}]\n  }\n}\n\nGAP ANALYSIS COVERAGE RULES:\n- Extract a BROAD requirement set from the ENTIRE JD, not just the top 3 themes.\n- Read every section and every paragraph, including narrative copy, logistics, client expectations, travel notes, ways-of-working language, delivery descriptions, and company/context paragraphs when they imply candidate expectations.\n- Capture requirements that are hidden in plain sight, even when they are not in a bullet list or not under headings like \"Requirements\" or \"What You'll Bring\".\n- When the JD contains multiple requirement bullets or multiple implied expectations, reflect that breadth in gapAnalysis.\n- Target 8-12 distinct gapAnalysis items when the JD contains enough requirements.\n- Use explicit qualification bullets, delivery expectations, and implied fit constraints from across the full posting.\n- Include logistical constraints if they are material to fit, such as hybrid/on-site expectations, travel expectations, location/commutable-distance expectations, or required client presence.\n- Do NOT collapse unrelated requirements into one combined row. Keep separate items for distinct concepts like consulting leadership, PMO transformation, healthcare domain, entertainment/hospitality domain, SDLC ownership, cloud platforms, AI-enabled delivery tools, stakeholder management, agile delivery, communication/influence, travel, hybrid work, and client-facing presence.\n- Keep each requirement short, atomic, and specific.\n- Mark each item as required or preferred based on the JD language and context.\n\nMATCH SCORE: 90-100=near-perfect, 75-89=strong, 60-74=moderate, 40-59=weak, 1-39=unqualified. If 3+ required requirements are missing, score cannot exceed 70. If 5+ required requirements are missing, score cannot exceed 50. Preferred requirements should influence score less than required ones.\n\nSTRICT EVIDENCE: Do not infer certifications or named tool experience not explicitly in the resume. For education, if the JD asks for a related/similar degree, treat adjacent degrees as partial rather than missing unless the exact degree is strictly required. For industry/domain background, if the JD asks for similar/related industry experience, treat adjacent domain experience as partial rather than missing.\n\nTRANSFERABLE SKILLS: For non-cert/non-tech items, adjacent evidence = partial (not missing).\n\nINSIGHTS: Limit cultureSignals to 3 max, redFlags to 3 max. Base workLifeBalance and remoteFlexibility on signals in the job description. Set seniorityLevel from title and requirements.`,
+    user: `Perform a comprehensive analysis of this job posting against the candidate's resume.\n\nJOB POSTING:\n${jdSnippet}\n\nCANDIDATE RESUME:\n${resumeSnippet}\n\nReturn a JSON object with these exact keys:\n{\n  "jobTitle": "string",\n  "company": "string",\n  "industry": "string",\n  "location": "string",\n  "matchScore": integer 1-100,\n  "gapAnalysis": {\n    "matched": [{"requirement": "string", "requirementType": "required|preferred", "explanation": "string"}],\n    "partial": [{"requirement": "string", "requirementType": "required|preferred", "explanation": "string"}],\n    "gap": [{"requirement": "string", "requirementType": "required|preferred", "explanation": "string"}]\n  },\n  "recommendations": ["string"],\n  "pursue": boolean,\n  "pursueJustification": "string",\n  "keywords": ["string"],\n  "strategyNote": "string",\n  "personalInterest": "string",\n  "careerAnalysis": {"trajectory": "string", "recommendation": "pursue|consider|pass", "reasoning": "string", "salaryAssessment": {"listed": "string|null", "projectedRange": "string", "assessment": "string"}},\n  "insights": {\n    "workLifeBalance": "excellent|good|moderate|demanding|unknown",\n    "remoteFlexibility": "fully_remote|hybrid|office|unknown",\n    "seniorityLevel": "entry|mid|senior|lead|executive|unknown",\n    "cultureSignals": [{"signal": "string", "interpretation": "string", "sentiment": "positive|neutral|warning"}],\n    "redFlags": [{"flag": "string", "reason": "string"}]\n  }\n}\n\nGAP ANALYSIS STRUCTURE:\nYou MUST organize requirements into three explicit arrays: matched, partial, and gap.\n- matched: Requirements where the candidate fulfills the criteria completely.\n- partial: Requirements where the candidate fulfills the criteria partially (include explanation of the gap).\n- gap: Requirements entirely missing from the candidate's profile.\n\nGAP ANALYSIS COVERAGE RULES:\n- Extract a BROAD requirement set from the ENTIRE JD, not just the top 3 themes.\n- Read every section and every paragraph, including narrative copy, logistics, client expectations, travel notes, ways-of-working language, delivery descriptions, and company/context paragraphs when they imply candidate expectations.\n- Capture requirements that are hidden in plain sight, even when they are not in a bullet list or not under headings like \"Requirements\" or \"What You'll Bring\".\n- When the JD contains multiple requirement bullets or multiple implied expectations, reflect that breadth in gapAnalysis.\n- Target 8-12 distinct requirements across all three arrays when the JD contains enough requirements.\n- Use explicit qualification bullets, delivery expectations, and implied fit constraints from across the full posting.\n- Include logistical constraints if they are material to fit, such as hybrid/on-site expectations, travel expectations, location/commutable-distance expectations, or required client presence.\n- Do NOT collapse unrelated requirements into one combined row. Keep separate items for distinct concepts like consulting leadership, PMO transformation, healthcare domain, entertainment/hospitality domain, SDLC ownership, cloud platforms, AI-enabled delivery tools, stakeholder management, agile delivery, communication/influence, travel, hybrid work, and client-facing presence.\n- Keep each requirement short, atomic, and specific.\n- Mark each item as required or preferred based on the JD language and context.\n\nMATCH SCORE: 90-100=near-perfect, 75-89=strong, 60-74=moderate, 40-59=weak, 1-39=unqualified. If 3+ required requirements are missing, score cannot exceed 70. If 5+ required requirements are missing, score cannot exceed 50. Preferred requirements should influence score less than required ones.\n\nSTRICT EVIDENCE: Do not infer certifications or named tool experience not explicitly in the resume. For education, if the JD asks for a related/similar degree, treat adjacent degrees as partial rather than missing unless the exact degree is strictly required. For industry/domain background, if the JD asks for similar/related industry experience, treat adjacent domain experience as partial rather than missing.\n\nTRANSFERABLE SKILLS: For non-cert/non-tech items, adjacent evidence = partial (not missing).\n\nINSIGHTS: Limit cultureSignals to 3 max, redFlags to 3 max. Base workLifeBalance and remoteFlexibility on signals in the job description. Set seniorityLevel from title and requirements.`,
   };
+}
+
+function convertStructuredGapAnalysisToLegacy(structured: StructuredGapAnalysis): GapItem[] {
+  const legacy: GapItem[] = [];
+
+  for (const item of structured.matched) {
+    legacy.push({
+      requirement: item.requirement,
+      status: "covered",
+      requirementType: item.requirementType,
+      suggestion: item.explanation,
+    });
+  }
+
+  for (const item of structured.partial) {
+    legacy.push({
+      requirement: item.requirement,
+      status: "partial",
+      requirementType: item.requirementType,
+      suggestion: item.explanation,
+    });
+  }
+
+  for (const item of structured.gap) {
+    legacy.push({
+      requirement: item.requirement,
+      status: "missing",
+      requirementType: item.requirementType,
+      suggestion: item.explanation,
+    });
+  }
+
+  return legacy;
 }
 
 export async function runAnalysisPipeline(jdText: string, resumeText: string, resumeEvidenceText: string, env: Partial<CloudflareEnv>): Promise<ComprehensiveAnalysis> {
@@ -507,6 +551,17 @@ export async function runAnalysisPipeline(jdText: string, resumeText: string, re
   let analysis: ComprehensiveAnalysis;
   try { analysis = JSON.parse(jsonSlice) as ComprehensiveAnalysis; }
   catch { analysis = JSON.parse(jsonrepair(jsonSlice)) as ComprehensiveAnalysis; }
+
+  // Convert structured gap analysis to legacy format if needed
+  if (analysis.gapAnalysis && !Array.isArray(analysis.gapAnalysis)) {
+    try {
+      const validated = StructuredGapAnalysisSchema.parse(analysis.gapAnalysis);
+      analysis.gapAnalysis = convertStructuredGapAnalysisToLegacy(validated);
+    } catch (e) {
+      console.error("Failed to parse structured gap analysis, attempting legacy format fallback:", e);
+    }
+  }
+
   if (Array.isArray(analysis.gapAnalysis)) analysis.gapAnalysis = normalizeGapAnalysisItems(analysis.gapAnalysis);
   if (resumeEvidenceText && Array.isArray(analysis.gapAnalysis)) analysis.gapAnalysis = await refineGapAnalysisWithEvidence(analysis.gapAnalysis, resumeEvidenceText, env);
   analysis.matchScore = calibrateMatchScore(analysis);

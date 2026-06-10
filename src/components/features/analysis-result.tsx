@@ -125,10 +125,11 @@ export function AnalysisResult({ analysis, showDocumentActions = true, onDocumen
   const verdict = verdictMap[rec];
   const VerdictIcon = verdict.Icon;
 
-  const covered = analysis.gapAnalysis.filter((g) => g.status === "covered").length;
-  const partial  = analysis.gapAnalysis.filter((g) => g.status === "partial").length;
-  const missing  = analysis.gapAnalysis.filter((g) => g.status === "missing").length;
-  const total    = analysis.gapAnalysis.length;
+  const gapArray = Array.isArray(analysis.gapAnalysis) ? analysis.gapAnalysis : [];
+  const covered = gapArray.filter((g) => g.status === "covered").length;
+  const partial  = gapArray.filter((g) => g.status === "partial").length;
+  const missing  = gapArray.filter((g) => g.status === "missing").length;
+  const total    = gapArray.length;
 
   return (
     <div className="space-y-6">
@@ -201,7 +202,7 @@ export function AnalysisResult({ analysis, showDocumentActions = true, onDocumen
       )}
 
       {/* ── Gap analysis ── */}
-      {analysis.gapAnalysis.length > 0 && (
+      {gapArray.length > 0 && (
         <SectionCard icon={<Target className="h-3.5 w-3.5 text-violet-600" />} title="Requirements Analysis" eyebrow="Gap Analysis">
           {/* progress bar */}
           {total > 0 && (
@@ -219,7 +220,7 @@ export function AnalysisResult({ analysis, showDocumentActions = true, onDocumen
             </div>
           )}
           <div className="space-y-2.5">
-            {analysis.gapAnalysis.map((gap, i) => {
+            {gapArray.map((gap, i) => {
               const s = statusMap[gap.status as keyof typeof statusMap] ?? statusMap.partial;
               const StatusIcon = s.Icon;
               const rowBg = gap.status === "covered" ? "bg-emerald-50/60 border-emerald-100"

@@ -1,4 +1,5 @@
 // Cloudflare Workers AI types and utilities
+import { z } from 'zod';
 
 export interface AIMessage {
   role: 'system' | 'user' | 'assistant';
@@ -22,6 +23,22 @@ export interface AIEnv {
     run: (model: string, options: AIRunOptions) => Promise<AIResponse>;
   };
 }
+
+// Structured Gap Analysis Schema using Zod for strict JSON output
+export const GapItemSchema = z.object({
+  requirement: z.string().describe('The specific requirement from the job description'),
+  requirementType: z.enum(['required', 'preferred']).describe('Whether this is required or preferred'),
+  explanation: z.string().describe('Explanation of the match or gap'),
+});
+
+export const StructuredGapAnalysisSchema = z.object({
+  matched: z.array(GapItemSchema).describe('Requirements where the candidate fulfills the criteria completely'),
+  partial: z.array(GapItemSchema).describe('Requirements where the candidate fulfills the criteria partially'),
+  gap: z.array(GapItemSchema).describe('Requirements entirely missing from the candidate\'s profile'),
+});
+
+export type GapItem = z.infer<typeof GapItemSchema>;
+export type StructuredGapAnalysis = z.infer<typeof StructuredGapAnalysisSchema>;
 
 // Available models
 export const AI_MODELS = {

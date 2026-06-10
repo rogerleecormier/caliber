@@ -153,3 +153,5 @@ export async function parseSearchQuery(
 
 export * from './types';
 export * from './prompts';
+// Structured gap analysis schemas (for AI-02 implementation)
+export { StructuredGapAnalysisSchema, GapItemSchema, type StructuredGapAnalysis, type GapItem } from './types';
