@@ -95,9 +95,9 @@ export function enforceGuardrails(sectionType: SectionType, content: any): any {
       if (!summary || summary.trim().length === 0) return "";
 
       const words = summary.split(/\s+/).filter(w => w.length > 0);
-      if (words.length > 60) {
-        console.warn(`[enforceGuardrails] professional_summary exceeds 60 words (${words.length}), truncating`);
-        summary = words.slice(0, 60).join(" ");
+      if (words.length > 85) {
+        console.warn(`[enforceGuardrails] professional_summary exceeds 85 words (${words.length}), truncating`);
+        summary = words.slice(0, 85).join(" ");
         // Avoid trailing fragment without terminal punctuation
         if (!/[.!?]$/.test(summary)) {
           const lastTerminator = Math.max(summary.lastIndexOf("."), summary.lastIndexOf("!"), summary.lastIndexOf("?"));
@@ -146,8 +146,8 @@ export function enforceGuardrails(sectionType: SectionType, content: any): any {
 
         for (const bullet of bullets) {
           const wordCount = bullet.split(/\s+/).filter(Boolean).length;
-          if (wordCount < 15 || wordCount > 20) {
-            console.warn(`[enforceGuardrails] role "${role?.title}" bullet has ${wordCount} words, expected 15-20: "${bullet}"`);
+          if (wordCount < 18 || wordCount > 24) {
+            console.warn(`[enforceGuardrails] role "${role?.title}" bullet has ${wordCount} words, expected 18-24: "${bullet}"`);
           }
         }
 

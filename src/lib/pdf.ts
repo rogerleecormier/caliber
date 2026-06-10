@@ -22,6 +22,21 @@ function sanitizeText(text: string): string {
     .trim();
 }
 
+/**
+ * Strips markdown backslash-escapes before punctuation (e.g. "Locker \- Vault"
+ * -> "Locker - Vault"). Defensive: resume data may already contain these from
+ * older parses.
+ */
+function cleanInline(text: string): string {
+  return (text ?? "").replace(/\\([-.*_#+()\[\]`])/g, "$1");
+}
+
+/** Unwraps a markdown link "[text](url)" to just the URL; otherwise unchanged. */
+function unwrapLink(text: string): string {
+  const m = (text ?? "").trim().match(/^\[[^\]]*\]\(([^)]+)\)$/);
+  return m ? m[1].trim() : text;
+}
+
 export async function generateResumePdf(content: AtsResumeContent): Promise<Uint8Array> {
   const doc = await PDFDocument.create();
   const fontRegular = await doc.embedFont(StandardFonts.Helvetica);
@@ -189,7 +204,9 @@ export async function generateResumePdf(content: AtsResumeContent): Promise<Uint
     drawSection("Personal Projects");
     for (const project of content.personalProjects) {
       ensureSpace(LINE_HEIGHT * 2);
-      const titleLine = project.url ? `${project.name}  —  ${project.url}` : project.name;
+      const projectName = cleanInline(project.name);
+      const projectUrl = project.url ? unwrapLink(cleanInline(project.url)) : "";
+      const titleLine = projectUrl ? `${projectName}  —  ${projectUrl}` : projectName;
       drawText(titleLine, { font: fontBold, size: 10 });
       drawText(project.description);
       y -= 4;

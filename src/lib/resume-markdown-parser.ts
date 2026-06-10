@@ -62,8 +62,27 @@ function classifySection(title: string): SectionKey {
   return "unknown";
 }
 
+/**
+ * Removes markdown backslash-escapes before punctuation (e.g. "Locker \- Vault"
+ * -> "Locker - Vault"). The structured-markdown source escapes hyphens and other
+ * punctuation; those escapes must not survive into rendered resume content.
+ */
+function stripMdEscapes(s: string): string {
+  return s.replace(/\\([-.*_#+()\[\]`])/g, "$1");
+}
+
+/**
+ * Unwraps a markdown link "[text](url)" to just the URL. If the field is a bare
+ * URL or plain text, returns it unchanged (escapes stripped).
+ */
+function unwrapMarkdownLink(s: string): string {
+  const trimmed = stripMdEscapes(s.trim());
+  const m = trimmed.match(/^\[[^\]]*\]\(([^)]+)\)$/);
+  return m ? m[1].trim() : trimmed;
+}
+
 function splitPipes(s: string): string[] {
-  return s.split("|").map((p) => p.trim());
+  return s.split("|").map((p) => stripMdEscapes(p.trim()));
 }
 
 /** "2020-01 - Present" -> { dates, startDate, endDate } */
@@ -177,11 +196,12 @@ export function parseMarkdownResume(text: string): ParsedMarkdownResume {
         result.experience.push(currentExperience);
       } else if (section === "projects") {
         // Name | Status | URL
+        const projectUrl = fields[2] ? unwrapMarkdownLink(fields[2]) : "";
         currentProject = {
           name: fields[0] ?? "",
           description: "",
           technologies: [],
-          ...(fields[2] ? { url: fields[2] } : {}),
+          ...(projectUrl ? { url: projectUrl } : {}),
         };
         currentProjectDescLines = [];
         result.personalProjects.push(currentProject);

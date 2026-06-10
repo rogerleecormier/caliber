@@ -61,18 +61,18 @@ describe("enforceGuardrails - professional_summary", () => {
     expect(enforceGuardrails("professional_summary", "   ")).toBe("");
   });
 
-  it("passes through a valid 3-sentence summary under 60 words", () => {
+  it("passes through a valid 3-sentence summary under 85 words", () => {
     const summary = "Experienced PM with 15 years in SaaS. Delivered 10+ integrations across finance platforms. Reduced manual work by 40% via automation.";
     expect(enforceGuardrails("professional_summary", summary)).toBe(summary);
   });
 
-  it("truncates summaries over 60 words at the last sentence boundary", () => {
+  it("truncates summaries over 85 words at the last sentence boundary", () => {
     const longSentence = (n: number) => Array.from({ length: n }, (_, i) => `word${i}`).join(" ");
-    const summary = `${longSentence(25)}. ${longSentence(25)}. ${longSentence(25)}.`;
+    const summary = `${longSentence(40)}. ${longSentence(40)}. ${longSentence(40)}.`;
     const result = enforceGuardrails("professional_summary", summary) as string;
 
     const wordCount = result.split(/\s+/).filter(Boolean).length;
-    expect(wordCount).toBeLessThanOrEqual(60);
+    expect(wordCount).toBeLessThanOrEqual(85);
     expect(result.endsWith(".")).toBe(true);
   });
 
