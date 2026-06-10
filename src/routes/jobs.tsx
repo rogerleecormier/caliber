@@ -1,6 +1,6 @@
-import { createFileRoute, Link, defer } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import type { ChangeEvent } from "react";
-import { useEffect, useMemo, useRef, useState, Suspense, use } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Archive,
   BookMarked,
@@ -105,26 +105,27 @@ export const Route = createFileRoute("/jobs")({
     if (!ctx.user) requireLoginRedirect();
   },
   loader: async ({ deps }: { deps: JobSearchParams }) => {
-    const [resume, savedSearches, cronInfo] = await Promise.all([
+    const [resume, savedSearches, cronInfo, jobHistory] = await Promise.all([
       getResume(),
       getSavedPipelineSearches(),
       getPipelineCronInfo(),
-    ]);
-
-    return defer({
-      hasResume: !!resume?.rawText,
-      fullName: resume?.fullName || null,
-      savedSearches,
-      cronStartHour: cronInfo.cronStartHour,
-      cronFrequency: cronInfo.cronFrequency,
-      jobHistory: getPipelineJobHistory({
+      getPipelineJobHistory({
         data: {
           ...deps,
           pageSize: PAGE_SIZE,
           excludeDiscovered: deps.analyzedOnly,
         },
       }),
-    });
+    ]);
+
+    return {
+      hasResume: !!resume?.rawText,
+      fullName: resume?.fullName || null,
+      savedSearches,
+      cronStartHour: cronInfo.cronStartHour,
+      cronFrequency: cronInfo.cronFrequency,
+      jobHistory,
+    };
   },
   component: JobsPage,
 });
@@ -241,17 +242,15 @@ function JobsPage() {
 
         {/* Pipeline Tab */}
         {activeTab === "pipeline" && (
-          <Suspense fallback={<JobsListSkeleton />}>
-            <JobsListContentWrapper
-              jobHistoryPromise={jobHistory}
-              hasResume={hasResume}
-              fullName={fullName}
-              savedSearches={loaderSavedSearches}
-              cronStartHour={cronStartHour}
-              cronFrequency={cronFrequency}
-              canViewAllUsers={loaderData.canViewAllUsers}
-            />
-          </Suspense>
+          <JobsListContentWrapper
+            jobHistoryPromise={jobHistory}
+            hasResume={hasResume}
+            fullName={fullName}
+            savedSearches={loaderSavedSearches}
+            cronStartHour={cronStartHour}
+            cronFrequency={cronFrequency}
+            canViewAllUsers={loaderData.canViewAllUsers}
+          />
         )}
 
         {/* Quick Search Tab */}
@@ -366,7 +365,7 @@ function JobsPage() {
   );
 }
 
-// Wrapper component that awaits the deferred job history
+// Content component for the pipeline tab
 function JobsListContentWrapper({
   jobHistoryPromise,
   hasResume,
@@ -376,7 +375,7 @@ function JobsListContentWrapper({
   cronFrequency,
   canViewAllUsers,
 }: {
-  jobHistoryPromise: Promise<any>;
+  jobHistoryPromise: any;
   hasResume: boolean;
   fullName: string | null;
   savedSearches: any[];
@@ -387,10 +386,9 @@ function JobsListContentWrapper({
   const { page, query, remote, sortBy, status: activeStatus, analyzedOnly } = Route.useSearch();
   const navigate = Route.useNavigate();
 
-  const history = use(jobHistoryPromise);
-  const rows = history.rows;
-  const total = history.total;
-  const statusCounts = history.statusCounts;
+  const rows = jobHistoryPromise.rows;
+  const total = jobHistoryPromise.total;
+  const statusCounts = jobHistoryPromise.statusCounts;
 
   const searchParams = { page, query, remote, sortBy, status: activeStatus, analyzedOnly };
   const jobsQuery = useJobsQuery({ searchParams });
