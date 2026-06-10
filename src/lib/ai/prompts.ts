@@ -126,21 +126,30 @@ SCORING RULES:
    - If isUnicorn is true, explain WHY in unicornReason
    - If isUnicorn is false, set unicornReason to null`;
 
-export const RESUME_PARSE_PROMPT = `You are a resume parser. Extract structured data from the resume text below and return ONLY valid JSON with no markdown, no code fences, no extra text.
+export const RESUME_PARSE_EXPERIENCE_PROMPT = `You are a resume parser. The text below is ONLY the "Professional Experience" / "Work Experience" section of a resume. Extract every role into JSON with no markdown, no code fences, no extra text.
 
-Extract every section you find. For missing sections return empty arrays.
-
-Return this exact JSON shape:
+Return ONLY valid JSON with this exact shape:
 {
-  "summary": "string or null",
-  "competencies": ["string"],
-  "technicalSkills": [
+  "experience": [
     {
-      "category": "string",
-      "skills": ["string"]
+      "title": "string",
+      "company": "string",
+      "dates": "string (e.g., 'Jan 2020 - Dec 2021' or 'Jan 2020 - Present')",
+      "bullets": ["string"]
     }
-  ],
-  "certifications": ["string"],
+  ]
+}
+
+RULES:
+- This is a VERBATIM EXTRACTION task. Copy bullet text exactly as written — do not paraphrase, shorten, merge, or summarize.
+- Include EVERY role found, in order, with exact company names and titles.
+- Include EVERY bullet under each role — if a role has 8 bullets in the source, return all 8.
+- If the section is empty or contains nothing, return {"experience": []}.`;
+
+export const RESUME_PARSE_PROJECTS_PROMPT = `You are a resume parser. The text below is ONLY the "Personal Projects" / "Projects" / "Side Projects" section of a resume. Extract every project into JSON with no markdown, no code fences, no extra text.
+
+Return ONLY valid JSON with this exact shape:
+{
   "personalProjects": [
     {
       "name": "string",
@@ -148,15 +157,19 @@ Return this exact JSON shape:
       "technologies": ["string"],
       "url": "string or null"
     }
-  ],
-  "experience": [
-    {
-      "title": "string",
-      "company": "string",
-      "dates": "string (e.g., 'Jan 2020 - Dec 2021')",
-      "bullets": ["string"]
-    }
-  ],
+  ]
+}
+
+RULES:
+- Include EVERY project entry found, however many there are. Do not skip, limit, or summarize.
+- description: copy verbatim, do not condense.
+- technologies: only technologies explicitly mentioned within that specific project's own text.
+- If the section is empty or contains nothing, return {"personalProjects": []}.`;
+
+export const RESUME_PARSE_EDUCATION_PROMPT = `You are a resume parser. The text below is ONLY the "Education" section of a resume. Extract every entry into JSON with no markdown, no code fences, no extra text.
+
+Return ONLY valid JSON with this exact shape:
+{
   "education": [
     {
       "degree": "string",
@@ -164,30 +177,12 @@ Return this exact JSON shape:
       "graduationDate": "string or null",
       "fieldOfStudy": "string or null"
     }
-  ],
-  "awards": ["string"]
+  ]
 }
 
-This is a VERBATIM EXTRACTION task, not a summarization task. Copy text exactly as it appears in the source resume. Never paraphrase, shorten, condense, merge, or rewrite wording. If a section in the source has 20 items, your output must have 20 items — never fewer.
-
-FIELD-BY-FIELD RULES:
-- summary: Copy the full professional summary/objective paragraph(s) character-for-character. No paraphrasing.
-- competencies: Find the "Core Competencies" / "Key Skills" / "Competencies" / "Expertise" section and copy EVERY listed item as its own string, in the same order, with the same wording. Do not merge multiple items into one, do not drop any, do not reword them.
-- technicalSkills: Find the resume's own "Technical Skills" / "Tools & Technologies" / "Tech Stack" / "Skills" section.
-  * Reproduce that section's OWN sub-headings/categories EXACTLY as written in the resume (copy the literal heading text, e.g. if the resume says "Languages:" the category is "Languages").
-  * Each category in the source becomes one object: {"category": "<exact heading from resume>", "skills": [...every item listed under that heading, as separate strings...]}.
-  * Do NOT invent a category name. Do NOT merge multiple source categories into one. If the resume lists 5 categories, return 5 categories.
-  * Only use "Technical Skills" as the category name if the source section truly has no sub-headings at all.
-  * Do NOT pull anything from job descriptions, projects, or education into this field.
-- experience: Include EVERY role/job listed, in order, with exact company names and titles.
-  * dates: format as "Month Year - Month Year" or "Month Year - Present"
-  * bullets: copy EVERY bullet point under each role verbatim, in order. Do not summarize, shorten, merge, or drop bullets — if a role has 8 bullets in the source, return all 8.
-- education: include ALL entries found
-- personalProjects: Find "Personal Projects" / "Projects" / "Side Projects" / "Open Source" sections and include EVERY entry listed, however many there are.
-  * technologies: only technologies explicitly mentioned within that specific project's own text — never copy from technicalSkills or other projects.
-- certifications: Find "Certifications" / "Certificates" / "Licenses & Certifications" and copy EVERY certification listed as its own string. Empty array if none exists.
-- awards: honors, recognitions, and achievement awards (distinguish from certifications)
-- Return null for missing string fields, empty arrays for missing array fields.`;
+RULES:
+- Include ALL entries found.
+- If the section is empty or contains nothing, return {"education": []}.`;
 
 export const RESUME_TAILOR_PROMPT = `Act as an 'Executive Resume Strategist and ATS Optimizer'. Your goal is to tailor a Master Resume and Cover Letter to the job's specific Job Description (JD)
 

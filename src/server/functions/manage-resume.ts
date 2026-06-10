@@ -6,9 +6,20 @@ import { getCloudflareEnv } from "@/lib/cloudflare";
 import { getDb } from "@/db/db";
 import { masterResume, resumeSections } from "@/db/schema";
 import { callWorkersAI } from "@/lib/ai-gateway";
-import { RESUME_PARSE_PROMPT } from "@/lib/ai/prompts";
+import {
+  RESUME_PARSE_EDUCATION_PROMPT,
+  RESUME_PARSE_EXPERIENCE_PROMPT,
+  RESUME_PARSE_PROJECTS_PROMPT,
+} from "@/lib/ai/prompts";
 import { jsonrepair } from "jsonrepair";
 import { type SectionType, serializeSectionContent } from "@/lib/resume-sections";
+import { splitResumeIntoSections } from "@/lib/resume-section-splitter";
+import {
+  parseAwards,
+  parseCertifications,
+  parseCompetencies,
+  parseTechnicalSkills,
+} from "@/lib/resume-section-parsers";
 
 export interface ExperienceEntry {
   title: string;
@@ -186,6 +197,56 @@ export const parseResumeText = createServerFn({ method: "POST" })
     return extractBasicFields(data.text);
   });
 
+// Normalize experience entries: ensure they have the correct field names
+function normalizeExperience(exp: any[]): ExperienceEntry[] {
+  return exp.map(e => ({
+    title: e.title || '',
+    company: e.company || '',
+    dates: e.dates || (e.startDate || '') + (e.endDate ? ` - ${e.endDate}` : ''),
+    bullets: Array.isArray(e.bullets) ? e.bullets : (e.description ? [e.description] : []),
+  }));
+}
+
+/**
+ * Calls the AI with a prompt scoped to a single resume section's text and
+ * parses the JSON response. Returns null if the section text is empty or
+ * the response can't be parsed.
+ */
+async function parseSectionWithAI(
+  env: Parameters<typeof callWorkersAI>[0],
+  systemPrompt: string,
+  sectionText: string | undefined,
+  label: string,
+): Promise<any | null> {
+  if (!sectionText || !sectionText.trim()) return null;
+
+  try {
+    const raw = await callWorkersAI(
+      env,
+      [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: sectionText },
+      ],
+      { maxTokens: 4096, temperature: 0.1 },
+    );
+
+    const jsonMatch = raw.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      console.error(`[aiParseResume] No JSON found in ${label} response`);
+      return null;
+    }
+
+    try {
+      return JSON.parse(jsonMatch[0]);
+    } catch {
+      return JSON.parse(jsonrepair(jsonMatch[0]));
+    }
+  } catch (err) {
+    console.error(`[aiParseResume] Failed to parse ${label} section:`, err);
+    return null;
+  }
+}
+
 export const aiParseResume = createServerFn({ method: "POST" })
   .inputValidator((data: { text: string }) => data)
   .handler(async ({ data }): Promise<Partial<ResumeData>> => {
@@ -195,74 +256,45 @@ export const aiParseResume = createServerFn({ method: "POST" })
     try {
       console.log(`[aiParseResume] Parsing resume with ${data.text.length} characters`);
 
-      // Gemma 4 26B supports 256K context
-      // Set output tokens generously for full JSON parsing
-      const raw = await callWorkersAI(
-        env,
-        [
-          { role: "system", content: RESUME_PARSE_PROMPT },
-          { role: "user", content: data.text },
-        ],
-        { maxTokens: 16000, temperature: 0.1 },
-      );
+      const sections = splitResumeIntoSections(data.text);
 
-      const jsonMatch = raw.match(/\{[\s\S]*\}/);
-      if (!jsonMatch) {
-        console.error('[aiParseResume] No JSON found in response');
-        return {};
-      }
+      console.log('[aiParseResume] Detected sections:', Object.keys(sections));
 
-      let parsed: any;
-      try {
-        parsed = JSON.parse(jsonMatch[0]);
-      } catch {
-        parsed = JSON.parse(jsonrepair(jsonMatch[0]));
-      }
+      // Deterministic parsing for simple delimited-list sections — no AI,
+      // no risk of cross-section keyword bleed or summarization.
+      const technicalSkills = sections.technicalSkills ? parseTechnicalSkills(sections.technicalSkills) : [];
+      const competencies = sections.competencies ? parseCompetencies(sections.competencies) : [];
+      const certifications = sections.certifications ? parseCertifications(sections.certifications) : [];
+      const awards = sections.awards ? parseAwards(sections.awards) : [];
 
-      console.log('[aiParseResume] Raw parsed from AI:', {
-        summaryLength: parsed.summary?.length ?? 0,
-        competenciesCount: parsed.competencies?.length ?? 0,
-        competencies: parsed.competencies ?? [],
-        technicalSkillsCount: parsed.technicalSkills?.length ?? 0,
-        technicalSkills: parsed.technicalSkills ?? [],
-        experienceCount: parsed.experience?.length ?? 0,
-        personalProjectsCount: parsed.personalProjects?.length ?? 0,
-        certificationsCount: parsed.certifications?.length ?? 0,
-      });
+      // AI calls scoped to only their own section's text
+      const [experienceResult, projectsResult, educationResult] = await Promise.all([
+        parseSectionWithAI(env, RESUME_PARSE_EXPERIENCE_PROMPT, sections.experience, "experience"),
+        parseSectionWithAI(env, RESUME_PARSE_PROJECTS_PROMPT, sections.personalProjects, "personalProjects"),
+        parseSectionWithAI(env, RESUME_PARSE_EDUCATION_PROMPT, sections.education, "education"),
+      ]);
 
-      // Normalize experience entries: ensure they have the correct field names
-      const normalizeExperience = (exp: any[]): ExperienceEntry[] => {
-        return exp.map(e => ({
-          title: e.title || '',
-          company: e.company || '',
-          dates: e.dates || (e.startDate || '') + (e.endDate ? ` - ${e.endDate}` : ''),
-          bullets: Array.isArray(e.bullets) ? e.bullets : (e.description ? [e.description] : []),
-        }));
-      };
+      const experience = Array.isArray(experienceResult?.experience)
+        ? normalizeExperience(experienceResult.experience)
+        : undefined;
 
-      // Normalize categorized technical skills, ensuring every category has a name and skills list
-      const normalizeTechnicalSkills = (categories: any[]): { category: string; skills: string[] }[] => {
-        return categories
-          .filter((cat) => cat && Array.isArray(cat.skills) && cat.skills.length > 0)
-          .map((cat) => ({
-            category: typeof cat.category === 'string' && cat.category.trim() ? cat.category.trim() : 'Technical Skills',
-            skills: cat.skills.filter((s: any) => typeof s === 'string' && s.trim()),
-          }));
-      };
+      const personalProjects = Array.isArray(projectsResult?.personalProjects)
+        ? projectsResult.personalProjects.filter((p: any) => p.name)
+        : undefined;
 
-      const technicalSkills = Array.isArray(parsed.technicalSkills)
-        ? normalizeTechnicalSkills(parsed.technicalSkills)
-        : [];
+      const education = Array.isArray(educationResult?.education)
+        ? educationResult.education.filter((e: any) => e.degree && e.institution)
+        : undefined;
 
       const parsed_data: Partial<ResumeData> = {
-        summary: parsed.summary ?? undefined,
-        competencies: Array.isArray(parsed.competencies) ? parsed.competencies.filter((c: any) => c) : undefined,
+        summary: sections.summary ?? undefined,
+        competencies: competencies.length > 0 ? competencies : undefined,
         tools: technicalSkills.flatMap((cat) => cat.skills),
-        experience: Array.isArray(parsed.experience) ? normalizeExperience(parsed.experience) : undefined,
-        education: Array.isArray(parsed.education) ? parsed.education.filter((e: any) => e.degree && e.institution) : undefined,
-        certifications: Array.isArray(parsed.certifications) ? parsed.certifications.filter((c: any) => c) : undefined,
-        awards: Array.isArray(parsed.awards) ? parsed.awards.filter((a: any) => a) : undefined,
-        personalProjects: Array.isArray(parsed.personalProjects) ? parsed.personalProjects.filter((p: any) => p.name) : undefined,
+        experience,
+        education,
+        certifications: certifications.length > 0 ? certifications : undefined,
+        awards: awards.length > 0 ? awards : undefined,
+        personalProjects,
       };
 
       console.log('[aiParseResume] Parsed data:', {
