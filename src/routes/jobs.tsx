@@ -367,7 +367,7 @@ function JobsPage() {
 }
 
 // Wrapper component that awaits the deferred job history
-async function JobsListContentWrapper({
+function JobsListContentWrapper({
   jobHistoryPromise,
   hasResume,
   fullName,
@@ -383,10 +383,70 @@ async function JobsListContentWrapper({
   cronStartHour: number;
   cronFrequency: string;
   canViewAllUsers: boolean;
-}): Promise<React.ReactElement> {
+}): React.ReactElement {
   const { page, query, remote, sortBy, status: activeStatus, analyzedOnly } = Route.useSearch();
   const navigate = Route.useNavigate();
+  const [inputValue, setInputValue] = useState(query);
 
+  return (
+    <Suspense fallback={<JobsListSkeleton />}>
+      <JobsListContent
+        jobHistoryPromise={jobHistoryPromise}
+        hasResume={hasResume}
+        fullName={fullName}
+        savedSearches={loaderSavedSearches}
+        cronStartHour={cronStartHour}
+        cronFrequency={cronFrequency}
+        canViewAllUsers={canViewAllUsers}
+        page={page}
+        query={query}
+        remote={remote}
+        sortBy={sortBy}
+        activeStatus={activeStatus}
+        analyzedOnly={analyzedOnly}
+        inputValue={inputValue}
+        setInputValue={setInputValue}
+        navigate={navigate}
+      />
+    </Suspense>
+  );
+}
+
+async function JobsListContent({
+  jobHistoryPromise,
+  hasResume,
+  fullName,
+  savedSearches: loaderSavedSearches,
+  cronStartHour,
+  cronFrequency,
+  canViewAllUsers,
+  page,
+  query,
+  remote,
+  sortBy,
+  activeStatus,
+  analyzedOnly,
+  inputValue,
+  setInputValue,
+  navigate,
+}: {
+  jobHistoryPromise: Promise<any>;
+  hasResume: boolean;
+  fullName: string | null;
+  savedSearches: any[];
+  cronStartHour: number;
+  cronFrequency: string;
+  canViewAllUsers: boolean;
+  page: number;
+  query: string;
+  remote: boolean;
+  sortBy: string;
+  activeStatus: string;
+  analyzedOnly: boolean;
+  inputValue: string;
+  setInputValue: (v: string) => void;
+  navigate: any;
+}): Promise<React.ReactElement> {
   const history = await jobHistoryPromise;
   const rows = history.rows;
   const total = history.total;
@@ -394,8 +454,6 @@ async function JobsListContentWrapper({
 
   const searchParams = { page, query, remote, sortBy, status: activeStatus, analyzedOnly };
   const jobsQuery = useJobsQuery({ searchParams });
-
-  const [inputValue, setInputValue] = useState(query);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(() => new Set());
   const [pendingStatusId, setPendingStatusId] = useState<number | null>(null);
   const [pendingBulkAction, setPendingBulkAction] = useState<"archive" | "delete" | null>(null);
