@@ -845,10 +845,29 @@ export function ResumeManagerV2({ initial }: { initial: ResumeData | null }) {
               onSave={(content) => handleSaveSection('personal_projects', content)}
               renderContent={(items) => (
                 <div className="space-y-4">
-                  {items.map((proj: any, i: number) => (
+                  {items.map((proj: any, i: number) => {
+                    const rawDesc = String(proj.description || '')
+                    const descLines = (
+                      rawDesc.includes('\n')
+                        ? rawDesc.split(/\r?\n+/)
+                        : rawDesc.split(/(?<=[.!?])\s+(?=[A-Z])/)
+                    )
+                      .map((l: string) => l.replace(/^[•·●○◦▪︎\-*]\s*/, '').trim())
+                      .filter(Boolean)
+                    return (
                     <div key={i}>
                       <p className="font-medium text-sm">{proj.name}</p>
-                      <p className="text-sm text-muted-foreground">{proj.description}</p>
+                      {descLines.length > 1 ? (
+                        <ul className="mt-1 space-y-1 list-disc list-inside">
+                          {descLines.map((line: string, j: number) => (
+                            <li key={j} className="text-sm text-muted-foreground">
+                              {line}
+                            </li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <p className="text-sm text-muted-foreground">{proj.description}</p>
+                      )}
                       {proj.technologies && proj.technologies.length > 0 && (
                         <div className="flex flex-wrap gap-1 mt-1">
                           {proj.technologies.map((tech: string, j: number) => (
@@ -872,7 +891,8 @@ export function ResumeManagerV2({ initial }: { initial: ResumeData | null }) {
                         </a>
                       )}
                     </div>
-                  ))}
+                    )
+                  })}
                 </div>
               )}
               renderEdit={(items, onChange) => (
