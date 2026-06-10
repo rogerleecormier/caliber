@@ -7,19 +7,17 @@ import { getDb } from "@/db/db";
 import { masterResume, resumeSections } from "@/db/schema";
 import { callWorkersAI } from "@/lib/ai-gateway";
 import {
+  RESUME_PARSE_AWARDS_PROMPT,
+  RESUME_PARSE_CERTIFICATIONS_PROMPT,
+  RESUME_PARSE_COMPETENCIES_PROMPT,
   RESUME_PARSE_EDUCATION_PROMPT,
   RESUME_PARSE_EXPERIENCE_PROMPT,
   RESUME_PARSE_PROJECTS_PROMPT,
+  RESUME_PARSE_TECHNICAL_SKILLS_PROMPT,
 } from "@/lib/ai/prompts";
 import { jsonrepair } from "jsonrepair";
-import { type SectionType, serializeSectionContent } from "@/lib/resume-sections";
+import { type SectionType, serializeSectionContent, type TechnicalSkillCategory } from "@/lib/resume-sections";
 import { splitResumeIntoSections } from "@/lib/resume-section-splitter";
-import {
-  parseAwards,
-  parseCertifications,
-  parseCompetencies,
-  parseTechnicalSkills,
-} from "@/lib/resume-section-parsers";
 
 export interface ExperienceEntry {
   title: string;
@@ -227,7 +225,7 @@ async function parseSectionWithAI(
         { role: "system", content: systemPrompt },
         { role: "user", content: sectionText },
       ],
-      { maxTokens: 4096, temperature: 0.1 },
+      { maxTokens: 8192, temperature: 0.1 },
     );
 
     const jsonMatch = raw.match(/\{[\s\S]*\}/);
@@ -260,18 +258,23 @@ export const aiParseResume = createServerFn({ method: "POST" })
 
       console.log('[aiParseResume] Detected sections:', Object.keys(sections));
 
-      // Deterministic parsing for simple delimited-list sections — no AI,
-      // no risk of cross-section keyword bleed or summarization.
-      const technicalSkills = sections.technicalSkills ? parseTechnicalSkills(sections.technicalSkills) : [];
-      const competencies = sections.competencies ? parseCompetencies(sections.competencies) : [];
-      const certifications = sections.certifications ? parseCertifications(sections.certifications) : [];
-      const awards = sections.awards ? parseAwards(sections.awards) : [];
-
-      // AI calls scoped to only their own section's text
-      const [experienceResult, projectsResult, educationResult] = await Promise.all([
+      // AI calls scoped to only their own section's text — verbatim extraction
+      const [
+        experienceResult,
+        projectsResult,
+        educationResult,
+        technicalSkillsResult,
+        competenciesResult,
+        certificationsResult,
+        awardsResult,
+      ] = await Promise.all([
         parseSectionWithAI(env, RESUME_PARSE_EXPERIENCE_PROMPT, sections.experience, "experience"),
         parseSectionWithAI(env, RESUME_PARSE_PROJECTS_PROMPT, sections.personalProjects, "personalProjects"),
         parseSectionWithAI(env, RESUME_PARSE_EDUCATION_PROMPT, sections.education, "education"),
+        parseSectionWithAI(env, RESUME_PARSE_TECHNICAL_SKILLS_PROMPT, sections.technicalSkills, "technicalSkills"),
+        parseSectionWithAI(env, RESUME_PARSE_COMPETENCIES_PROMPT, sections.competencies, "competencies"),
+        parseSectionWithAI(env, RESUME_PARSE_CERTIFICATIONS_PROMPT, sections.certifications, "certifications"),
+        parseSectionWithAI(env, RESUME_PARSE_AWARDS_PROMPT, sections.awards, "awards"),
       ]);
 
       const experience = Array.isArray(experienceResult?.experience)
@@ -285,6 +288,24 @@ export const aiParseResume = createServerFn({ method: "POST" })
       const education = Array.isArray(educationResult?.education)
         ? educationResult.education.filter((e: any) => e.degree && e.institution)
         : undefined;
+
+      const technicalSkills: TechnicalSkillCategory[] = Array.isArray(technicalSkillsResult?.technicalSkills)
+        ? technicalSkillsResult.technicalSkills.filter(
+            (c: any) => c.category && Array.isArray(c.skills) && c.skills.length > 0,
+          )
+        : [];
+
+      const competencies: string[] = Array.isArray(competenciesResult?.competencies)
+        ? competenciesResult.competencies.filter(Boolean)
+        : [];
+
+      const certifications: string[] = Array.isArray(certificationsResult?.certifications)
+        ? certificationsResult.certifications.filter(Boolean)
+        : [];
+
+      const awards: string[] = Array.isArray(awardsResult?.awards)
+        ? awardsResult.awards.filter(Boolean)
+        : [];
 
       const parsed_data: Partial<ResumeData> = {
         summary: sections.summary ?? undefined,
@@ -319,18 +340,38 @@ export const aiParseResume = createServerFn({ method: "POST" })
           if (sessionUser) {
             const now = new Date().toISOString();
 
-            const sectionMap: Record<string, [SectionType, any]> = {
+            // For AI-derived sections, only write if either the resume had no
+            // such section (legitimately empty) or the AI call succeeded.
+            // Skip writing if the section text existed but the AI call failed
+            // (returned null) — avoids overwriting existing data with [].
+            const sectionMap: Record<string, [SectionType, any] | null> = {
               summary: ["professional_summary", parsed_data.summary ?? ""],
-              competencies: ["core_competencies", parsed_data.competencies ?? []],
-              tools: ["technical_skills", technicalSkills],
-              experience: ["professional_experience", parsed_data.experience ?? []],
-              personalProjects: ["personal_projects", parsed_data.personalProjects ?? []],
-              education: ["education", parsed_data.education ?? []],
-              certifications: ["certifications", parsed_data.certifications ?? []],
-              awards: ["awards", parsed_data.awards ?? []],
+              competencies: !sections.competencies || competenciesResult
+                ? ["core_competencies", competencies]
+                : null,
+              tools: !sections.technicalSkills || technicalSkillsResult
+                ? ["technical_skills", technicalSkills]
+                : null,
+              experience: !sections.experience || experienceResult
+                ? ["professional_experience", experience ?? []]
+                : null,
+              personalProjects: !sections.personalProjects || projectsResult
+                ? ["personal_projects", personalProjects ?? []]
+                : null,
+              education: !sections.education || educationResult
+                ? ["education", education ?? []]
+                : null,
+              certifications: !sections.certifications || certificationsResult
+                ? ["certifications", certifications]
+                : null,
+              awards: !sections.awards || awardsResult
+                ? ["awards", awards]
+                : null,
             };
 
-            for (const [, [sectionType, content]] of Object.entries(sectionMap)) {
+            for (const entry of Object.values(sectionMap)) {
+              if (!entry) continue;
+              const [sectionType, content] = entry;
               const serialized = serializeSectionContent(sectionType, content);
 
               const existing = await db

@@ -126,6 +126,63 @@ SCORING RULES:
    - If isUnicorn is true, explain WHY in unicornReason
    - If isUnicorn is false, set unicornReason to null`;
 
+export const RESUME_PARSE_TECHNICAL_SKILLS_PROMPT = `You are a resume parser. The text below is ONLY the "Technical Skills" / "Technical Proficiencies" / "Tools & Technologies" section of a resume. Extract it into JSON with no markdown, no code fences, no extra text.
+
+Return ONLY valid JSON with this exact shape:
+{
+  "technicalSkills": [
+    {
+      "category": "string",
+      "skills": ["string"]
+    }
+  ]
+}
+
+RULES:
+- This is a VERBATIM EXTRACTION task. Copy category names and skill names exactly as written — do not paraphrase, rename, merge, or invent categories.
+- Reproduce the source's OWN category headings EXACTLY as written (e.g. if the text says "AI Engineering & Agentic Development:", the category is "AI Engineering & Agentic Development"). If the source lists 8 categories, return 8 categories.
+- Each item listed under a category heading (comma-separated or bulleted) becomes one entry in that category's "skills" array. Split on commas — do not keep multiple skills joined into one string.
+- If the section has no category headings at all, return a single category named "Technical Skills" containing every item.
+- If the section is empty, return {"technicalSkills": []}.`;
+
+export const RESUME_PARSE_COMPETENCIES_PROMPT = `You are a resume parser. The text below is ONLY the "Core Competencies" / "Key Skills" / "Areas of Expertise" section of a resume. Extract it into JSON with no markdown, no code fences, no extra text.
+
+Return ONLY valid JSON with this exact shape:
+{
+  "competencies": ["string"]
+}
+
+RULES:
+- This is a VERBATIM EXTRACTION task. Copy each competency exactly as written, one per array entry, in the same order.
+- The source may group competencies under bold sub-heading labels (e.g. "Strategic & Leadership Capabilities") — do NOT include those sub-heading labels as competencies, only the bulleted items underneath them.
+- Include EVERY bulleted item across all sub-groups — if there are 30 bullets total, return 30 entries.
+- Do not merge, summarize, or reword items.
+- If the section is empty, return {"competencies": []}.`;
+
+export const RESUME_PARSE_CERTIFICATIONS_PROMPT = `You are a resume parser. The text below is ONLY the "Certifications" section of a resume. Extract it into JSON with no markdown, no code fences, no extra text.
+
+Return ONLY valid JSON with this exact shape:
+{
+  "certifications": ["string"]
+}
+
+RULES:
+- This is a VERBATIM EXTRACTION task. Copy each certification exactly as written (including issuer and date if present), one per array entry.
+- Merge wrapped lines that belong to the same certification into a single entry.
+- If the section is empty, return {"certifications": []}.`;
+
+export const RESUME_PARSE_AWARDS_PROMPT = `You are a resume parser. The text below is ONLY the "Awards" / "Honors" section of a resume. Extract it into JSON with no markdown, no code fences, no extra text.
+
+Return ONLY valid JSON with this exact shape:
+{
+  "awards": ["string"]
+}
+
+RULES:
+- This is a VERBATIM EXTRACTION task. Copy each award/honor exactly as written, one per array entry.
+- Merge wrapped lines that belong to the same award into a single entry.
+- If the section is empty, return {"awards": []}.`;
+
 export const RESUME_PARSE_EXPERIENCE_PROMPT = `You are a resume parser. The text below is ONLY the "Professional Experience" / "Work Experience" section of a resume. Extract every role into JSON with no markdown, no code fences, no extra text.
 
 Return ONLY valid JSON with this exact shape:
