@@ -11,6 +11,7 @@ import * as schema from '@/db/schema'
 import { eq, and } from 'drizzle-orm'
 import { determineCategoryId } from '@/lib/job-sources'
 import { canonicalizeLinkedinJobUrl } from '@/lib/linkedin-persistence'
+import { pruneJobDescription } from '@/lib/prune-job-description'
 import type { JobIngestionMessage, AtsJobMessage, PipelineJobMessage } from '@/lib/job-ingestion-queue'
 
 /**
@@ -53,6 +54,7 @@ export async function processJobIngestionBatch(
 /**
  * Process an ATS job message (Greenhouse/Lever/Workable).
  * Checks for existing record by sourceUrl, then upserts.
+ * Prunes description and syncs FTS5 index (ENG-02).
  */
 async function processAtsJobMessage(
   db: DrizzleD1Database,
@@ -69,29 +71,36 @@ async function processAtsJobMessage(
 
   const categoryId = determineCategoryId(payload.title, payload.description, [])
   const postDate = payload.postDate ? new Date(payload.postDate) : new Date()
+  const descriptionPruned = pruneJobDescription(payload.description)
 
   if (existing.length > 0) {
+    const jobId = existing[0].id
     await db
       .update(schema.jobs)
       .set({
         title: payload.title,
         company,
         descriptionRaw: payload.description,
+        descriptionPruned,
         isCleansed: 0,
         updatedAt: new Date(),
         postDate: postDate || existing[0].postDate,
         categoryId,
       })
-      .where(eq(schema.jobs.id, existing[0].id))
+      .where(eq(schema.jobs.id, jobId))
+
+    // Update FTS5 index
+    await updateJobFts(db, jobId, payload.title, company, descriptionPruned)
 
     console.log(
       `[job-ingestion-consumer] ATS updated: ${source}/${company} - "${payload.title}"`,
     )
   } else {
-    await db.insert(schema.jobs).values({
+    const result = await db.insert(schema.jobs).values({
       title: payload.title,
       company,
       descriptionRaw: payload.description,
+      descriptionPruned,
       isCleansed: 0,
       sourceUrl: payload.sourceUrl,
       sourceName: payload.sourceName,
@@ -100,8 +109,70 @@ async function processAtsJobMessage(
       remoteType: 'fully_remote',
     })
 
+    // Insert into FTS5 index (use the inserted rowid from the jobs table)
+    const jobId = result.meta.last_row_id as number
+    if (jobId) {
+      await insertJobFts(db, jobId, payload.title, company, descriptionPruned)
+    }
+
     console.log(
       `[job-ingestion-consumer] ATS inserted: ${source}/${company} - "${payload.title}"`,
+    )
+  }
+}
+
+/**
+ * Insert a job into the FTS5 index.
+ */
+async function insertJobFts(
+  db: DrizzleD1Database,
+  jobId: number,
+  title: string,
+  company: string | null,
+  descriptionPruned: string,
+): Promise<void> {
+  try {
+    await db.insert(schema.jobsFts).values({
+      rowid: jobId,
+      jobId,
+      title,
+      company,
+      descriptionPruned,
+    })
+  } catch (error) {
+    console.error(
+      `[job-ingestion-consumer] Failed to insert FTS5 record for job ${jobId}:`,
+      error,
+    )
+  }
+}
+
+/**
+ * Update a job in the FTS5 index.
+ */
+async function updateJobFts(
+  db: DrizzleD1Database,
+  jobId: number,
+  title: string,
+  company: string | null,
+  descriptionPruned: string,
+): Promise<void> {
+  try {
+    // Delete old FTS5 record
+    await db.delete(schema.jobsFts).where(eq(schema.jobsFts.jobId, jobId))
+
+    // Insert updated FTS5 record
+    await db.insert(schema.jobsFts).values({
+      rowid: jobId,
+      jobId,
+      title,
+      company,
+      descriptionPruned,
+    })
+  } catch (error) {
+    console.error(
+      `[job-ingestion-consumer] Failed to update FTS5 record for job ${jobId}:`,
+      error,
     )
   }
 }

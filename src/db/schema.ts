@@ -17,6 +17,7 @@ export const jobs = sqliteTable('jobs', {
   company: text('company'),
   description: text('description'),
   descriptionRaw: text('description_raw'), // Raw/dirty data from source
+  descriptionPruned: text('description_pruned'), // Cleaned, boilerplate-removed text (ENG-02)
   fullDescription: text('full_description'),
   isCleansed: integer('is_cleansed').default(0), // 0 = needs cleansing, 1 = cleansed
   payRange: text('pay_range'),
@@ -31,6 +32,18 @@ export const jobs = sqliteTable('jobs', {
     .notNull()
     .default(sql`(unixepoch())`),
   updatedAt: integer('updated_at', { mode: 'timestamp' })
+    .notNull()
+    .default(sql`(unixepoch())`),
+})
+
+// FTS5 virtual table for fast full-text search on job descriptions (ENG-02)
+export const jobsFts = sqliteTable('jobs_fts', {
+  rowid: integer('rowid').primaryKey(),
+  jobId: integer('job_id').notNull().references(() => jobs.id, { onDelete: 'cascade' }),
+  title: text('title'),
+  company: text('company'),
+  descriptionPruned: text('description_pruned'),
+  createdAt: integer('created_at', { mode: 'timestamp' })
     .notNull()
     .default(sql`(unixepoch())`),
 })
