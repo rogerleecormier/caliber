@@ -168,28 +168,26 @@ Return this exact JSON shape:
   "awards": ["string"]
 }
 
-CRITICAL EXTRACTION RULES:
-- summary: Extract the FULL professional summary or objective section verbatim. DO NOT summarize or condense. Preserve ALL text exactly as written in the resume.
-- competencies: Extract EVERY high-level skill and domain area listed (e.g. "Project Management", "DevOps", "AI/ML", "Leadership", "Strategic Planning", "Agile", "Scrum", "Product Management", "System Design", etc.)
-  * Look for "Core Competencies", "Key Skills", "Competencies", "Expertise", "Domain Knowledge" sections
-  * Extract individual items that represent high-level capabilities or domain areas
-  * Parse competencies from ALL sections if not in dedicated section
-  * MUST return an array with ALL competencies listed in the resume (never return fewer than what's actually listed)
-  * Do NOT summarize or combine — include EVERY individual competency mentioned
-- technicalSkills: Extract ONLY from the resume's dedicated "Technical Skills", "Tools & Technologies", "Tech Stack", "Skills", or "Technologies" section — do NOT pull skills from job descriptions, project descriptions, education, or anywhere else.
-  * Preserve the EXACT category names/groupings as they appear in that section (e.g. "Languages", "Cloud & DevOps", "Frameworks", "Databases"). Every category object MUST have a non-empty "category" name and a non-empty "skills" array.
-  * If the section has no sub-category headings, use a single category named "Technical Skills" containing all the listed items.
-  * MUST include EVERY item listed in that section — do not summarize, combine, or omit.
-- experience: include ALL roles found, preserve exact company names and titles
-  * dates: format as "Month Year - Month Year" (e.g., "Jan 2020 - Dec 2021") or "Jan 2020 - Present"
-  * bullets: extract ALL bullet points for each role, preserve the actual accomplishments
+This is a VERBATIM EXTRACTION task, not a summarization task. Copy text exactly as it appears in the source resume. Never paraphrase, shorten, condense, merge, or rewrite wording. If a section in the source has 20 items, your output must have 20 items — never fewer.
+
+FIELD-BY-FIELD RULES:
+- summary: Copy the full professional summary/objective paragraph(s) character-for-character. No paraphrasing.
+- competencies: Find the "Core Competencies" / "Key Skills" / "Competencies" / "Expertise" section and copy EVERY listed item as its own string, in the same order, with the same wording. Do not merge multiple items into one, do not drop any, do not reword them.
+- technicalSkills: Find the resume's own "Technical Skills" / "Tools & Technologies" / "Tech Stack" / "Skills" section.
+  * Reproduce that section's OWN sub-headings/categories EXACTLY as written in the resume (copy the literal heading text, e.g. if the resume says "Languages:" the category is "Languages").
+  * Each category in the source becomes one object: {"category": "<exact heading from resume>", "skills": [...every item listed under that heading, as separate strings...]}.
+  * Do NOT invent a category name. Do NOT merge multiple source categories into one. If the resume lists 5 categories, return 5 categories.
+  * Only use "Technical Skills" as the category name if the source section truly has no sub-headings at all.
+  * Do NOT pull anything from job descriptions, projects, or education into this field.
+- experience: Include EVERY role/job listed, in order, with exact company names and titles.
+  * dates: format as "Month Year - Month Year" or "Month Year - Present"
+  * bullets: copy EVERY bullet point under each role verbatim, in order. Do not summarize, shorten, merge, or drop bullets — if a role has 8 bullets in the source, return all 8.
 - education: include ALL entries found
-- personalProjects: look for sections labeled "Personal Projects", "Projects", "Side Projects", "Open Source" or similar — include EVERY single entry found, no matter how many there are. Do NOT skip, limit, or summarize the list.
-  * technologies: only include technologies explicitly mentioned within that specific project's own description — do not copy items from technicalSkills or other projects.
-- certifications: look for a "Certifications", "Certificates", or "Licenses & Certifications" section and include EVERY certification (PMP, CompTIA, AWS, CCNA, etc.) listed there, each as its own string. If no such section exists, return an empty array.
+- personalProjects: Find "Personal Projects" / "Projects" / "Side Projects" / "Open Source" sections and include EVERY entry listed, however many there are.
+  * technologies: only technologies explicitly mentioned within that specific project's own text — never copy from technicalSkills or other projects.
+- certifications: Find "Certifications" / "Certificates" / "Licenses & Certifications" and copy EVERY certification listed as its own string. Empty array if none exists.
 - awards: honors, recognitions, and achievement awards (distinguish from certifications)
-- CRITICAL REMINDER: Extract ALL items from EVERY section — do not truncate, limit, summarize, combine, or omit results. Return complete unmodified lists.
-- Return null for missing string fields, empty arrays for missing array fields`;
+- Return null for missing string fields, empty arrays for missing array fields.`;
 
 export const RESUME_TAILOR_PROMPT = `Act as an 'Executive Resume Strategist and ATS Optimizer'. Your goal is to tailor a Master Resume and Cover Letter to the job's specific Job Description (JD)
 
