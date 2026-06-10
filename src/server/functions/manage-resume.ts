@@ -52,6 +52,7 @@ export interface ResumeData {
   summary?: string;
   competencies?: string[];
   tools?: string[];
+  technicalSkills?: TechnicalSkillCategory[];
   experience?: ExperienceEntry[];
   education?: EducationEntry[];
   certifications?: string[];
@@ -225,7 +226,7 @@ async function parseSectionWithAI(
         { role: "system", content: systemPrompt },
         { role: "user", content: sectionText },
       ],
-      { maxTokens: 8192, temperature: 0.1 },
+      { maxTokens: 16384, temperature: 0.1 },
     );
 
     const jsonMatch = raw.match(/\{[\s\S]*\}/);
@@ -311,6 +312,7 @@ export const aiParseResume = createServerFn({ method: "POST" })
         summary: sections.summary ?? undefined,
         competencies: competencies.length > 0 ? competencies : undefined,
         tools: technicalSkills.flatMap((cat) => cat.skills),
+        technicalSkills,
         experience,
         education,
         certifications: certifications.length > 0 ? certifications : undefined,

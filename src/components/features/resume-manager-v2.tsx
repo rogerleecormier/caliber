@@ -170,15 +170,15 @@ export function ResumeManagerV2({ initial }: { initial: ResumeData | null }) {
       }
 
       // Update local sections - initialize all sections with defaults
-      // Note: aiParsed.certifications maps to awards section
       const newSections: Partial<Record<SectionType, any>> = {
         professional_summary: aiParsed.summary || '',
         core_competencies: aiParsed.competencies || [],
-        technical_skills: aiParsed.tools || [],
+        technical_skills: aiParsed.technicalSkills || [],
         professional_experience: aiParsed.experience || [],
         education: aiParsed.education || [],
         personal_projects: aiParsed.personalProjects || [],
-        awards: aiParsed.awards || aiParsed.certifications || [],
+        certifications: aiParsed.certifications || [],
+        awards: aiParsed.awards || [],
       }
 
       // Save all sections to DB

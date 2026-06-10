@@ -147,7 +147,7 @@ export async function callWorkersAI(
     text = result.result;
   } else if (result && result.result != null) {
     text = JSON.stringify(result.result);
-  } else if (result && Array.isArray(result.choices) && result.choices[0]?.message?.content) {
+  } else if (result && Array.isArray(result.choices) && typeof result.choices[0]?.message?.content === "string") {
     // OpenAI-style format: { choices: [{ message: { content: string } }] }
     text = result.choices[0].message.content;
   } else {
