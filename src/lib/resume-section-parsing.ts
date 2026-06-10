@@ -162,7 +162,7 @@ export function enforceGuardrails(sectionType: SectionType, content: any): any {
       });
     }
     case "personal_projects": {
-      // Enforce 3-4 projects, each with exactly 2 sentences (≤60 words total)
+      // Enforce 3-4 projects, each with 2-3 sentences (≤90 words total)
       const projects = Array.isArray(content) ? content.filter((p: any) => p?.name) : [];
       if (projects.length > 4) {
         console.warn(`[enforceGuardrails] personal_projects has ${projects.length} items, trimming to 4`);
@@ -172,7 +172,7 @@ export function enforceGuardrails(sectionType: SectionType, content: any): any {
         const desc = (p.description ?? "").trim();
         if (!desc) return p;
 
-        // Normalize: split on newlines or sentence boundaries; enforce 2 sentences max
+        // Normalize: split on sentence boundaries; enforce 2-3 sentences max
         const sentences = desc
           .split(/\n+/)
           .join(" ")
@@ -181,12 +181,15 @@ export function enforceGuardrails(sectionType: SectionType, content: any): any {
           .filter(Boolean);
 
         const wordCount = desc.split(/\s+/).filter(Boolean).length;
-        if (sentences.length > 2) {
-          console.warn(`[guardrails] project "${p.name}" has ${sentences.length} sentences, trimming to 2`);
-          return { ...p, description: sentences.slice(0, 2).join(" ") };
+        if (sentences.length > 3) {
+          console.warn(`[guardrails] project "${p.name}" has ${sentences.length} sentences, trimming to 3`);
+          return { ...p, description: sentences.slice(0, 3).join(" ") };
         }
-        if (wordCount > 60) {
-          console.warn(`[guardrails] project "${p.name}" description has ${wordCount} words (>60), may need trimming`);
+        if (wordCount > 90) {
+          console.warn(`[guardrails] project "${p.name}" description has ${wordCount} words (>90), trimming`);
+          // Trim to first 90 words while respecting sentence boundaries
+          const trimmed = desc.split(/\s+/).slice(0, 90).join(" ");
+          return { ...p, description: trimmed.replace(/\s+$/, "") };
         }
         return p;
       });
