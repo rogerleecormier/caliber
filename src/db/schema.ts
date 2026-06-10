@@ -37,9 +37,9 @@ export const jobs = sqliteTable('jobs', {
 })
 
 // FTS5 virtual table for fast full-text search on job descriptions (ENG-02)
+// Note: FTS5 virtual table with content= for external content indexing
 export const jobsFts = sqliteTable('jobs_fts', {
-  rowid: integer('rowid').primaryKey(),
-  jobId: integer('job_id').notNull().references(() => jobs.id, { onDelete: 'cascade' }),
+  jobId: integer('job_id').notNull(),
   title: text('title'),
   company: text('company'),
   descriptionPruned: text('description_pruned'),

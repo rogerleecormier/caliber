@@ -8,7 +8,7 @@
 
 import type { DrizzleD1Database } from '@/db/db'
 import * as schema from '@/db/schema'
-import { eq, and } from 'drizzle-orm'
+import { eq, and, sql } from 'drizzle-orm'
 import { determineCategoryId } from '@/lib/job-sources'
 import { canonicalizeLinkedinJobUrl } from '@/lib/linkedin-persistence'
 import { pruneJobDescription } from '@/lib/prune-job-description'
@@ -123,6 +123,7 @@ async function processAtsJobMessage(
 
 /**
  * Insert a job into the FTS5 index.
+ * For external content FTS5 tables, we use raw SQL for proper handling.
  */
 async function insertJobFts(
   db: DrizzleD1Database,
@@ -132,13 +133,12 @@ async function insertJobFts(
   descriptionPruned: string,
 ): Promise<void> {
   try {
-    await db.insert(schema.jobsFts).values({
-      rowid: jobId,
-      jobId,
-      title,
-      company,
-      descriptionPruned,
-    })
+    await db.run(
+      sql`
+        INSERT INTO jobs_fts (rowid, job_id, title, company, description_pruned)
+        VALUES (${jobId}, ${jobId}, ${title}, ${company}, ${descriptionPruned})
+      `,
+    )
   } catch (error) {
     console.error(
       `[job-ingestion-consumer] Failed to insert FTS5 record for job ${jobId}:`,
@@ -149,6 +149,7 @@ async function insertJobFts(
 
 /**
  * Update a job in the FTS5 index.
+ * For external content FTS5 tables, we use raw SQL for proper handling.
  */
 async function updateJobFts(
   db: DrizzleD1Database,
@@ -158,17 +159,20 @@ async function updateJobFts(
   descriptionPruned: string,
 ): Promise<void> {
   try {
-    // Delete old FTS5 record
-    await db.delete(schema.jobsFts).where(eq(schema.jobsFts.jobId, jobId))
+    // Delete old FTS5 record by rowid
+    await db.run(
+      sql`
+        DELETE FROM jobs_fts WHERE rowid = ${jobId}
+      `,
+    )
 
     // Insert updated FTS5 record
-    await db.insert(schema.jobsFts).values({
-      rowid: jobId,
-      jobId,
-      title,
-      company,
-      descriptionPruned,
-    })
+    await db.run(
+      sql`
+        INSERT INTO jobs_fts (rowid, job_id, title, company, description_pruned)
+        VALUES (${jobId}, ${jobId}, ${title}, ${company}, ${descriptionPruned})
+      `,
+    )
   } catch (error) {
     console.error(
       `[job-ingestion-consumer] Failed to update FTS5 record for job ${jobId}:`,
