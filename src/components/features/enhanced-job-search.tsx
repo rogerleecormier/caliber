@@ -9,7 +9,6 @@ import {
   TooltipContent,
   TooltipTrigger,
   Badge,
-  Checkbox,
 } from '@caliber/ui-kit';
 import {
   ChevronDown,
@@ -255,13 +254,15 @@ export function EnhancedJobSearch({
 
             {/* Remote Toggle */}
             <div className="flex items-center gap-2">
-              <Checkbox
+              <input
+                type="checkbox"
                 id="remote"
                 checked={formState.remote}
-                onCheckedChange={(checked) =>
-                  handleInputChange('remote', checked === true)
+                onChange={(e) =>
+                  handleInputChange('remote', e.target.checked)
                 }
                 disabled={isLoading}
+                className="w-4 h-4 rounded border-gray-300"
               />
               <label htmlFor="remote" className="text-sm font-medium cursor-pointer">
                 <Globe className="h-4 w-4 inline mr-2" />
@@ -306,11 +307,13 @@ export function EnhancedJobSearch({
               <div className="space-y-2">
                 {(['adzuna', 'jooble', 'remotive'] as const).map((source) => (
                   <div key={source} className="flex items-center gap-3 p-3 border rounded-lg">
-                    <Checkbox
+                    <input
+                      type="checkbox"
                       id={`source-${source}`}
                       checked={formState.sources.includes(source)}
-                      onCheckedChange={() => handleSourceToggle(source)}
+                      onChange={() => handleSourceToggle(source)}
                       disabled={isLoading}
+                      className="w-4 h-4 rounded border-gray-300"
                     />
                     <label
                       htmlFor={`source-${source}`}
