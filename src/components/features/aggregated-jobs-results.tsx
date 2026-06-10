@@ -96,10 +96,14 @@ export function AggregatedJobsResults({
         break;
       case 'posted-date':
       default:
-        sorted.sort(
-          (a, b) =>
-            (b.postedDate?.getTime() ?? 0) - (a.postedDate?.getTime() ?? 0)
-        );
+        sorted.sort((a, b) => {
+          const getTimeValue = (date?: Date | string) => {
+            if (!date) return 0;
+            if (date instanceof Date) return date.getTime();
+            return new Date(date).getTime();
+          };
+          return getTimeValue(b.postedDate) - getTimeValue(a.postedDate);
+        });
         break;
     }
 

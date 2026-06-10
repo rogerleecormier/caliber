@@ -41,7 +41,7 @@ export interface AggregatedSearchJob {
   location: string;
   jobUrl: string;
   source: 'adzuna' | 'jooble' | 'remotive';
-  postedDate?: Date;
+  postedDate?: Date | string;
   salary?: {
     min?: number;
     max?: number;
