@@ -8,6 +8,20 @@ const CONTENT_WIDTH = PAGE_WIDTH - MARGIN * 2;
 const LINE_HEIGHT = 14;
 const SECTION_GAP = 10;
 
+/**
+ * Make text safe for pdf-lib's StandardFont (WinAnsi) encoding.
+ * WinAnsi cannot encode control characters such as newline (0x0A) or tab
+ * (0x09), which throw at draw time. Collapse all whitespace runs to single
+ * spaces and drop any remaining non-printable characters.
+ */
+function sanitizeText(text: string): string {
+  return (text ?? "")
+    .replace(/\s+/g, " ")
+    // strip any remaining C0/C1 control chars (whitespace already collapsed)
+    .replace(/[\u0000-\u001f\u007f-\u009f]/g, "")
+    .trim();
+}
+
 export async function generateResumePdf(content: AtsResumeContent): Promise<Uint8Array> {
   const doc = await PDFDocument.create();
   const fontRegular = await doc.embedFont(StandardFonts.Helvetica);
@@ -41,7 +55,7 @@ export async function generateResumePdf(content: AtsResumeContent): Promise<Uint
     const x = options.x ?? MARGIN;
     const hangingIndent = options.hangingIndent ?? 0;
 
-    const words = text.split(" ");
+    const words = sanitizeText(text).split(" ");
     let line = "";
     let isFirstLine = true;
     const maxWidth = CONTENT_WIDTH - (x - MARGIN);
@@ -88,9 +102,9 @@ export async function generateResumePdf(content: AtsResumeContent): Promise<Uint
     const prefixWidth = prefixFont.widthOfTextAtSize(prefix, size);
 
     ensureSpace(LINE_HEIGHT);
-    page.drawText(prefix, { x, y, size, font: prefixFont, color });
+    page.drawText(sanitizeText(prefix), { x, y, size, font: prefixFont, color });
 
-    const words = text.split(" ");
+    const words = sanitizeText(text).split(" ");
     let line = "";
     let isFirstLine = true;
     const maxWidth = CONTENT_WIDTH - (x - MARGIN);
@@ -119,7 +133,7 @@ export async function generateResumePdf(content: AtsResumeContent): Promise<Uint
   function drawSection(title: string) {
     y -= SECTION_GAP;
     ensureSpace(LINE_HEIGHT * 2);
-    page.drawText(title.toUpperCase(), { x: MARGIN, y, size: 11, font: fontBold, color: black });
+    page.drawText(sanitizeText(title).toUpperCase(), { x: MARGIN, y, size: 11, font: fontBold, color: black });
     y -= 3;
     page.drawLine({
       start: { x: MARGIN, y },
@@ -134,7 +148,7 @@ export async function generateResumePdf(content: AtsResumeContent): Promise<Uint
   const bulletIndent = fontRegular.widthOfTextAtSize(bulletPrefix, 10);
 
   ensureSpace(30);
-  page.drawText(content.nameHeader, { x: MARGIN, y, size: 20, font: fontBold, color: black });
+  page.drawText(sanitizeText(content.nameHeader), { x: MARGIN, y, size: 20, font: fontBold, color: black });
   y -= 26;
 
   drawText(content.contactInfo, { size: 9, color: darkGray });
@@ -221,12 +235,12 @@ export async function generateCoverLetterPdf(content: {
   let y = PAGE_HEIGHT - MARGIN;
 
   if (content.nameHeader) {
-    page.drawText(content.nameHeader, { x: MARGIN, y, size: 20, font: fontBold, color: black });
+    page.drawText(sanitizeText(content.nameHeader), { x: MARGIN, y, size: 20, font: fontBold, color: black });
     y -= 26;
   }
 
   if (content.contactInfo) {
-    const contactWords = content.contactInfo.split(" ");
+    const contactWords = sanitizeText(content.contactInfo).split(" ");
     let contactLine = "";
     for (const word of contactWords) {
       const test = contactLine ? `${contactLine} ${word}` : word;
@@ -255,7 +269,7 @@ export async function generateCoverLetterPdf(content: {
   function drawText(text: string, options: { font?: typeof fontRegular; size?: number } = {}) {
     const font = options.font ?? fontRegular;
     const size = options.size ?? 11;
-    const words = text.split(" ");
+    const words = sanitizeText(text).split(" ");
     let line = "";
     for (const word of words) {
       const test = line ? `${line} ${word}` : word;
@@ -285,7 +299,7 @@ export async function generateCoverLetterPdf(content: {
     const bulletPrefix = "•  ";
     const hangingIndent = fontRegular.widthOfTextAtSize(bulletPrefix, 11);
     for (const bullet of content.bullets) {
-      const text = `${bulletPrefix}${bullet}`;
+      const text = `${bulletPrefix}${sanitizeText(bullet)}`;
       const words = text.split(" ");
       let line = "";
       let isFirstLine = true;
