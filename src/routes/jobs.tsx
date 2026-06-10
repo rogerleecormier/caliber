@@ -383,7 +383,7 @@ function JobsListContentWrapper({
   cronFrequency: string;
   canViewAllUsers: boolean;
 }): React.ReactElement {
-  const { page, query, remote, sortBy, status: activeStatus, analyzedOnly } = Route.useSearch();
+  const { page, query, remote, sortBy, status: activeStatus, analyzedOnly, analyze, url: searchUrl } = Route.useSearch();
   const navigate = Route.useNavigate();
 
   const rows = jobHistoryPromise.rows;
