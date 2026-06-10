@@ -17,14 +17,15 @@ import {
   searchLogs,
 } from "@/db/schema";
 
-async function requireAdmin(request?: Request) {
+async function requireAdmin(ctx?: any) {
+  const request = ctx?.request;
   const user = await resolveSessionUser(request);
   if (!user || user.role !== "admin") throw new Error("Unauthorized");
   return user;
 }
 
-export const listUsers = createServerFn({ method: "GET" }).handler(async (_, { request }) => {
-  await requireAdmin(request);
+export const listUsers = createServerFn({ method: "GET" }).handler(async (_data, ctx) => {
+  await requireAdmin(ctx);
   const env = getCloudflareEnv();
   if (!env.DB) return [];
   const db = getDb(env.DB);
@@ -33,8 +34,8 @@ export const listUsers = createServerFn({ method: "GET" }).handler(async (_, { r
 
 export const createUser = createServerFn({ method: "POST" })
   .inputValidator((data: { email: string; password: string; role?: "admin" | "user" }) => data)
-  .handler(async ({ data }, { request }) => {
-    await requireAdmin(request);
+  .handler(async ({ data }, ctx) => {
+    await requireAdmin(ctx);
     const env = getCloudflareEnv();
     if (!env.DB) throw new Error("Database unavailable");
     const auth = getAuthInstance(env);
@@ -54,8 +55,8 @@ export const createUser = createServerFn({ method: "POST" })
 
 export const deleteUser = createServerFn({ method: "POST" })
   .inputValidator((data: { userId: string }) => data)
-  .handler(async ({ data }, { request }) => {
-    const currentUser = await requireAdmin(request);
+  .handler(async ({ data }, ctx) => {
+    const currentUser = await requireAdmin(ctx);
     if (currentUser.id === data.userId) throw new Error("You cannot delete your own admin account");
 
     const env = getCloudflareEnv();

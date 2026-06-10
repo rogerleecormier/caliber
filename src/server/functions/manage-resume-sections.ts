@@ -32,11 +32,11 @@ export interface ResumeData {
 }
 
 export const getResumeSections = createServerFn({ method: 'GET' }).handler(
-  async (_, { request }): Promise<Partial<Record<SectionType, any>>> => {
+  async (_data, ctx): Promise<Partial<Record<SectionType, any>>> => {
     try {
       const env = getCloudflareEnv()
       if (!env.DB) return {}
-      const user = await resolveSessionUser(request)
+      const user = await resolveSessionUser((ctx as any)?.request)
       if (!user) return {}
 
       const db = getDb(env.DB)
@@ -63,11 +63,11 @@ export const upsertResumeSection = createServerFn({ method: 'POST' })
   .inputValidator(
     (data: { sectionType: SectionType; content: any }) => data,
   )
-  .handler(async ({ data }, { request }): Promise<{ success: boolean }> => {
+  .handler(async ({ data }, ctx): Promise<{ success: boolean }> => {
     const env = getCloudflareEnv()
     if (!env.DB) throw new Error('Database not available')
 
-    const user = await resolveSessionUser(request)
+    const user = await resolveSessionUser((ctx as any)?.request)
     if (!user) throw new Error('Not authenticated')
 
     const db = getDb(env.DB)
@@ -111,11 +111,11 @@ export const upsertResumeSection = createServerFn({ method: 'POST' })
 
 export const upsertAllResumeSections = createServerFn({ method: 'POST' })
   .inputValidator((data: ResumeData) => data)
-  .handler(async ({ data }, { request }): Promise<{ success: boolean }> => {
+  .handler(async ({ data }, ctx): Promise<{ success: boolean }> => {
     const env = getCloudflareEnv()
     if (!env.DB) throw new Error('Database not available')
 
-    const user = await resolveSessionUser(request)
+    const user = await resolveSessionUser((ctx as any)?.request)
     if (!user) throw new Error('Not authenticated')
 
     const db = getDb(env.DB)

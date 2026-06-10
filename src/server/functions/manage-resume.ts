@@ -69,11 +69,11 @@ export interface ResumeData {
 }
 
 export const getResume = createServerFn({ method: "GET" }).handler(
-  async (_, { request }): Promise<ResumeData | null> => {
+  async (_data, ctx): Promise<ResumeData | null> => {
     try {
       const env = getCloudflareEnv();
       if (!env.DB) return null;
-      const user = await resolveSessionUser(request);
+      const user = await resolveSessionUser((ctx as any)?.request);
       if (!user) return null;
 
       const db = getDb(env.DB);
@@ -106,11 +106,11 @@ export const getResume = createServerFn({ method: "GET" }).handler(
 
 export const saveResume = createServerFn({ method: "POST" })
   .inputValidator((data: ResumeData) => data)
-  .handler(async ({ data }, { request }): Promise<{ success: boolean; updatedAt: string }> => {
+  .handler(async ({ data }, ctx): Promise<{ success: boolean; updatedAt: string }> => {
     const env = getCloudflareEnv();
     if (!env.DB) throw new Error("Database not available");
 
-    const user = await resolveSessionUser(request);
+    const user = await resolveSessionUser((ctx as any)?.request);
     if (!user) throw new Error("Not authenticated");
 
     const db = getDb(env.DB);
@@ -262,13 +262,13 @@ async function parseSectionWithAI(
  */
 async function writeResumeSections(
   sectionMap: Record<string, [SectionType, any] | null>,
-  request?: Request,
+  ctx?: any,
 ): Promise<void> {
   try {
     const env = getCloudflareEnv();
     if (!env.DB) return;
     const db = getDb(env.DB);
-    const sessionUser = await resolveSessionUser(request);
+    const sessionUser = await resolveSessionUser(ctx?.request);
     if (!sessionUser) return;
     const now = new Date().toISOString();
 
@@ -309,7 +309,8 @@ async function writeResumeSections(
 
 export const aiParseResume = createServerFn({ method: "POST" })
   .inputValidator((data: { text: string }) => data)
-  .handler(async ({ data }, { request }): Promise<Partial<ResumeData>> => {
+  .handler(async ({ data }, ctx): Promise<Partial<ResumeData>> => {
+    const request = (ctx as any)?.request;
     const env = getCloudflareEnv();
 
     // Structured-markdown fast path: if the upload follows the documented
@@ -356,7 +357,7 @@ export const aiParseResume = createServerFn({ method: "POST" })
         education: ["education", md.education],
         certifications: ["certifications", md.certifications],
         awards: ["awards", md.awards],
-      }, request);
+      }, ctx);
 
       return parsed_data;
     }

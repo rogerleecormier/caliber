@@ -15,6 +15,20 @@ export default defineConfig({
   },
   test: {
     environment: "node",
-    include: ["src/**/*.test.ts"],
+    include: ["src/**/*.test.ts", "src/**/*.spec.ts"],
+    exclude: ["node_modules", "dist"],
+    globals: true,
+    coverage: {
+      provider: "v8",
+      reporter: ["text", "json", "html", "lcov"],
+      exclude: [
+        "node_modules/",
+        "dist/",
+        "src/**/*.test.ts",
+        "src/**/*.spec.ts",
+        "**/*.config.ts",
+        "**/types.ts",
+      ],
+    },
   },
 });

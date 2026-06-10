@@ -11,11 +11,11 @@ export type ApplicationOutcome = PipelineStatus | null;
 
 export const toggleApplied = createServerFn({ method: "POST" })
   .inputValidator((data: { id: number; applied: boolean }) => data)
-  .handler(async ({ data }, { request }) => {
+  .handler(async ({ data }, ctx) => {
     const env = getCloudflareEnv();
     if (!env.DB) throw new Error("Database not available");
 
-    const user = await resolveSessionUser(request);
+    const user = await resolveSessionUser((ctx as any)?.request);
     if (!user) throw new Error("Not authenticated");
 
     const db = getDb(env.DB);
@@ -39,11 +39,11 @@ export const toggleApplied = createServerFn({ method: "POST" })
 
 export const setApplicationOutcome = createServerFn({ method: "POST" })
   .inputValidator((data: { id: number; status: PipelineStatus | null }) => data)
-  .handler(async ({ data }, { request }) => {
+  .handler(async ({ data }, ctx) => {
     const env = getCloudflareEnv();
     if (!env.DB) throw new Error("Database not available");
 
-    const user = await resolveSessionUser(request);
+    const user = await resolveSessionUser((ctx as any)?.request);
     if (!user) throw new Error("Not authenticated");
 
     if (data.status !== null && !PIPELINE_STATUSES.includes(data.status)) {

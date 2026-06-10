@@ -24,7 +24,7 @@ const COVER_LETTER_MIN_SECTION_TOKENS = 2_500;
 
 export const generateCoverLetter = createServerFn({ method: "POST" })
   .inputValidator((data: { analysisId: number; extraGuidance?: string }) => data)
-  .handler(async ({ data }, { request }) => {
+  .handler(async ({ data }, ctx) => {
     try {
       const env = getCloudflareEnv();
       if (!env.DB || !env.R2 || !env.AI) {
@@ -32,7 +32,7 @@ export const generateCoverLetter = createServerFn({ method: "POST" })
       }
 
       const db = getDb(env.DB);
-      const user = await resolveSessionUser(request);
+      const user = await resolveSessionUser((ctx as any)?.request);
       if (!user) throw new Error("Not authenticated");
 
       const [analysis] = await db
