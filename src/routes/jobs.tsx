@@ -1,6 +1,6 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, defer } from "@tanstack/react-router";
 import type { ChangeEvent } from "react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, Suspense } from "react";
 import {
   Archive,
   BookMarked,
@@ -102,29 +102,26 @@ export const Route = createFileRoute("/jobs")({
     if (!ctx.user) requireLoginRedirect();
   },
   loader: async ({ deps }: { deps: JobSearchParams }) => {
-    const [resume, savedSearches, history, cronInfo] = await Promise.all([
+    const [resume, savedSearches, cronInfo] = await Promise.all([
       getResume(),
       getSavedPipelineSearches(),
-      getPipelineJobHistory({
+      getPipelineCronInfo(),
+    ]);
+
+    return defer({
+      hasResume: !!resume?.rawText,
+      fullName: resume?.fullName || null,
+      savedSearches,
+      cronStartHour: cronInfo.cronStartHour,
+      cronFrequency: cronInfo.cronFrequency,
+      jobHistory: getPipelineJobHistory({
         data: {
           ...deps,
           pageSize: PAGE_SIZE,
           excludeDiscovered: deps.analyzedOnly,
         },
       }),
-      getPipelineCronInfo(),
-    ]);
-    return {
-      hasResume: !!resume?.rawText,
-      fullName: resume?.fullName || null,
-      savedSearches,
-      rows: history.rows,
-      total: history.total,
-      statusCounts: history.statusCounts,
-      canViewAllUsers: history.canViewAllUsers,
-      cronStartHour: cronInfo.cronStartHour,
-      cronFrequency: cronInfo.cronFrequency,
-    };
+    });
   },
   component: JobsPage,
 });
@@ -135,10 +132,135 @@ type ViewMode = "cards" | "table";
 
 function JobsPage() {
   const { page, query, remote, sortBy, status: activeStatus, analyzedOnly, analyze, url: searchUrl } = Route.useSearch();
-  const { hasResume, fullName, savedSearches: loaderSavedSearches, rows, total, statusCounts, canViewAllUsers, cronStartHour, cronFrequency } =
-    Route.useLoaderData();
+  const loaderData = Route.useLoaderData() as any;
+  const { hasResume, fullName, savedSearches: loaderSavedSearches, cronStartHour, cronFrequency, jobHistory } = loaderData;
   const navigate = Route.useNavigate();
   // const router = useRouter(); // available if needed
+
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [searchWarnings, setSearchWarnings] = useState<string[]>([]);
+  const [cronNewCount, setCronNewCount] = useState(0);
+  const [analysisModalOpen, setAnalysisModalOpen] = useState(false);
+  const [selectedJobForAnalysis, setSelectedJobForAnalysis] = useState<HubJob | null>(null);
+  const [storedAnalysis, setStoredAnalysis] = useState<any>(null);
+
+  return (
+    <div className="spx-page spx-stack">
+      <PageHero
+        eyebrow="Caliber"
+        icon={<Briefcase className="h-3.5 w-3.5" />}
+        title="Your High-Caliber Job Pipeline"
+        description={
+          loaderData.canViewAllUsers
+            ? "Browse all users' agent jobs and manage the full pipeline."
+            : "Deploy background agents to search LinkedIn, Greenhouse, Lever, and Workable on your schedule — surfacing only top-tier matches."
+        }
+        actions={
+          <div className="flex flex-wrap items-center justify-end gap-2.5">
+            <Link
+              to="/dashboard"
+              className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white/80 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-white hover:border-slate-300"
+            >
+              <BarChart3 className="h-4 w-4" />
+              Insights
+            </Link>
+            <button
+              type="button"
+              onClick={() => {
+                setSelectedJobForAnalysis(null);
+                setStoredAnalysis(null);
+                setAnalysisModalOpen(true);
+              }}
+              className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 border border-indigo-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700"
+            >
+              <Search className="h-4 w-4" />
+              Analyze
+            </button>
+            <button
+              type="button"
+              onClick={() => setDrawerOpen(true)}
+              className="inline-flex items-center gap-2 rounded-lg bg-amber-600 border border-amber-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-amber-700"
+            >
+              <BookMarked className="h-4 w-4" />
+              Agents
+              {loaderSavedSearches.length > 0 && (
+                <span className="rounded-full bg-white/30 px-1.5 py-0.5 text-[10px] font-bold text-white leading-none">
+                  {loaderSavedSearches.length}
+                </span>
+              )}
+            </button>
+          </div>
+        }
+      />
+
+      <Suspense fallback={<JobsListSkeleton />}>
+        <JobsListContentWrapper
+          jobHistoryPromise={jobHistory}
+          hasResume={hasResume}
+          fullName={fullName}
+          savedSearches={loaderSavedSearches}
+          cronStartHour={cronStartHour}
+          cronFrequency={cronFrequency}
+          canViewAllUsers={loaderData.canViewAllUsers}
+        />
+      </Suspense>
+
+      <AnalysisModal
+        isOpen={analysisModalOpen}
+        jobTitle={selectedJobForAnalysis?.title}
+        jobUrl={selectedJobForAnalysis?.sourceUrl}
+        onClose={() => {
+          setAnalysisModalOpen(false);
+          setSelectedJobForAnalysis(null);
+          setStoredAnalysis(null);
+        }}
+        isFromExistingJob={!!selectedJobForAnalysis}
+        storedAnalysis={storedAnalysis}
+        pipelineJobId={selectedJobForAnalysis?.id}
+        onAnalysisComplete={() => {}}
+        onDocumentGenerated={() => {}}
+      />
+
+      <AgentsSearchDrawer
+        open={drawerOpen}
+        onOpenChange={setDrawerOpen}
+        hasResume={hasResume}
+        fullName={fullName}
+        initialSavedSearches={loaderSavedSearches}
+        preload={null}
+        cronStartHour={cronStartHour}
+        cronFrequency={cronFrequency}
+        onSearchComplete={() => {}}
+      />
+    </div>
+  );
+}
+
+// Wrapper component that awaits the deferred job history
+async function JobsListContentWrapper({
+  jobHistoryPromise,
+  hasResume,
+  fullName,
+  savedSearches: loaderSavedSearches,
+  cronStartHour,
+  cronFrequency,
+  canViewAllUsers,
+}: {
+  jobHistoryPromise: Promise<any>;
+  hasResume: boolean;
+  fullName: string | null;
+  savedSearches: any[];
+  cronStartHour: number;
+  cronFrequency: string;
+  canViewAllUsers: boolean;
+}): Promise<React.ReactElement> {
+  const { page, query, remote, sortBy, status: activeStatus, analyzedOnly } = Route.useSearch();
+  const navigate = Route.useNavigate();
+
+  const history = await jobHistoryPromise;
+  const rows = history.rows;
+  const total = history.total;
+  const statusCounts = history.statusCounts;
 
   const searchParams = { page, query, remote, sortBy, status: activeStatus, analyzedOnly };
   const jobsQuery = useJobsQuery({ searchParams });
@@ -147,13 +269,7 @@ function JobsPage() {
   const [selectedIds, setSelectedIds] = useState<Set<number>>(() => new Set());
   const [pendingStatusId, setPendingStatusId] = useState<number | null>(null);
   const [pendingBulkAction, setPendingBulkAction] = useState<"archive" | "delete" | null>(null);
-  const [drawerOpen, setDrawerOpen] = useState(false);
-  const [searchWarnings, setSearchWarnings] = useState<string[]>([]);
-  const [cronNewCount, setCronNewCount] = useState(0);
   const [viewMode, setViewMode] = useState<ViewMode>("cards");
-  const [analysisModalOpen, setAnalysisModalOpen] = useState(false);
-  const [selectedJobForAnalysis, setSelectedJobForAnalysis] = useState<HubJob | null>(null);
-  const [storedAnalysis, setStoredAnalysis] = useState<any>(null);
   const didMount = useRef(false);
 
   const jobs = (jobsQuery.data?.rows ?? rows) as HubJob[];
@@ -472,53 +588,7 @@ function JobsPage() {
   // ─── Render ───────────────────────────────────────────────────────────────
 
   return (
-    <div className="spx-page spx-stack">
-      <PageHero
-        eyebrow="Caliber"
-        icon={<Briefcase className="h-3.5 w-3.5" />}
-        title="Your High-Caliber Job Pipeline"
-        description={
-          canViewAllUsers
-            ? "Browse all users' agent jobs and manage the full pipeline."
-            : "Deploy background agents to search LinkedIn, Greenhouse, Lever, and Workable on your schedule — surfacing only top-tier matches."
-        }
-        actions={
-          <div className="flex flex-wrap items-center justify-end gap-2.5">
-            <Link
-              to="/dashboard"
-              className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white/80 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-white hover:border-slate-300"
-            >
-              <BarChart3 className="h-4 w-4" />
-              Insights
-            </Link>
-            <button
-              type="button"
-              onClick={() => {
-                setSelectedJobForAnalysis(null);
-                setStoredAnalysis(null);
-                setAnalysisModalOpen(true);
-              }}
-              className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 border border-indigo-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700"
-            >
-              <Search className="h-4 w-4" />
-              Analyze
-            </button>
-            <button
-              type="button"
-              onClick={openFreshDrawer}
-              className="inline-flex items-center gap-2 rounded-lg bg-amber-600 border border-amber-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-amber-700"
-            >
-              <BookMarked className="h-4 w-4" />
-              Agents
-              {loaderSavedSearches.length > 0 && (
-                <span className="rounded-full bg-white/30 px-1.5 py-0.5 text-[10px] font-bold text-white leading-none">
-                  {loaderSavedSearches.length}
-                </span>
-              )}
-            </button>
-          </div>
-        }
-      />
+    <>
 
       {/* Cron new-jobs banner */}
       {cronNewCount > 0 && (
@@ -856,30 +926,28 @@ function JobsPage() {
           />
         </PageSection>
       </div>
+    </>
+  );
+}
 
-      <AnalysisModal
-        isOpen={analysisModalOpen}
-        jobTitle={selectedJobForAnalysis?.title}
-        jobUrl={selectedJobForAnalysis?.sourceUrl}
-        onClose={closeAnalysisModal}
-        isFromExistingJob={!!selectedJobForAnalysis}
-        storedAnalysis={storedAnalysis}
-        pipelineJobId={selectedJobForAnalysis?.id}
-        onAnalysisComplete={handleAnalysisComplete}
-        onDocumentGenerated={handleDocumentGenerated}
-      />
-
-      <AgentsSearchDrawer
-        open={drawerOpen}
-        onOpenChange={setDrawerOpen}
-        hasResume={hasResume}
-        fullName={fullName}
-        initialSavedSearches={loaderSavedSearches}
-        preload={null}
-        cronStartHour={cronStartHour}
-        cronFrequency={cronFrequency}
-        onSearchComplete={handleSearchComplete}
-      />
+// Skeleton loading component for job list streaming
+function JobsListSkeleton() {
+  return (
+    <div className="spx-page spx-stack">
+      <div className="space-y-5 animate-pulse">
+        <div className="h-24 rounded-2xl bg-slate-200/70" />
+        <div className="grid gap-4 grid-cols-2 sm:grid-cols-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="h-20 rounded-xl bg-slate-200/70" />
+          ))}
+        </div>
+        <div className="h-16 rounded-xl bg-slate-200/70" />
+        <div className="grid gap-4 grid-cols-1 lg:grid-cols-2">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} className="h-48 rounded-2xl bg-slate-200/70" />
+          ))}
+        </div>
+      </div>
     </div>
   );
 }

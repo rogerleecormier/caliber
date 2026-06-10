@@ -1,5 +1,5 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
-import { getAnalytics } from "@/server/functions/get-analytics";
+import { createFileRoute, Link, defer } from "@tanstack/react-router";
+import { getAnalytics, type AnalyticsSummaryData } from "@/server/functions/get-analytics";
 import { useQuery } from "@tanstack/react-query";
 import {
   BarChart3,
@@ -22,7 +22,7 @@ import {
   Calendar,
 } from "lucide-react";
 import type { ReactNode } from "react";
-import { useMemo, useState } from "react";
+import { useMemo, useState, Suspense } from "react";
 import { requireLoginRedirect } from "@/lib/auth-redirect";
 import { PageHero } from "@caliber/ui-kit";
 import {
@@ -51,7 +51,10 @@ export const Route = createFileRoute("/dashboard")({
     const ctx = context as { user?: { id: string } | null };
     if (!ctx.user) requireLoginRedirect();
   },
-  loader: async () => getAnalytics({ data: { period: "all_time" } }),
+  loader: async () =>
+    defer<{ analyticsData: Promise<AnalyticsSummaryData> }>({
+      analyticsData: getAnalytics({ data: { period: "all_time" } }),
+    }),
   component: DashboardPage,
   pendingComponent: DashboardLoading,
 });
@@ -80,7 +83,50 @@ const ChartTooltip = ({ active, payload, label }: any) => {
 
 // Main Dashboard Page
 function DashboardPage() {
-  const initialData = Route.useLoaderData();
+  const { analyticsData } = Route.useLoaderData() as any;
+
+  return (
+    <div className="spx-page space-y-8 pb-16">
+      <DashboardHeader />
+      <Suspense fallback={<DashboardContentSkeleton />}>
+        <DashboardContent analyticsDataPromise={analyticsData} />
+      </Suspense>
+    </div>
+  );
+}
+
+// Fast header section — renders immediately
+function DashboardHeader() {
+  return (
+    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <PageHero
+        eyebrow="Search Insights"
+        icon={<BarChart3 className="h-3.5 w-3.5" />}
+        title="Search Insights Dashboard"
+        description="Real-time analytics on your job search performance, match quality, and positioning trends."
+        className="flex-1"
+      />
+
+      <div className="flex items-center gap-3 shrink-0 self-start md:self-center">
+        <div className="flex items-center gap-1.5 text-xs text-slate-500 bg-white/70 border border-slate-200/80 px-2.5 py-1.5 rounded-lg shadow-sm">
+          <span className="relative flex h-2 w-2">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+            <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+          </span>
+          <span className="font-semibold text-slate-600">Dynamic Ingestion Live</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Slow content section — streams in via Suspense
+async function DashboardContent({
+  analyticsDataPromise,
+}: {
+  analyticsDataPromise: Promise<AnalyticsSummaryData>;
+}): Promise<React.ReactElement> {
+  const initialData: AnalyticsSummaryData = await analyticsDataPromise;
   const [selectedPeriod, setSelectedPeriod] = useState<string>("all_time");
 
   // Selected drill-down state
@@ -177,7 +223,7 @@ function DashboardPage() {
 
   if (!data || !derived) {
     return (
-      <div className="spx-page text-center text-slate-500 py-12">
+      <div className="text-center text-slate-500 py-12">
         No analytics data yet. Analyze some job postings to get started.
       </div>
     );
@@ -271,25 +317,10 @@ function DashboardPage() {
   };
 
   return (
-    <div className="spx-page space-y-8 pb-16">
+    <div className="space-y-8 pb-16">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <PageHero
-          eyebrow="Search Insights"
-          icon={<BarChart3 className="h-3.5 w-3.5" />}
-          title="Search Insights Dashboard"
-          description="Real-time analytics on your job search performance, match quality, and positioning trends."
-          className="flex-1"
-        />
-
+        <div></div>
         <div className="flex items-center gap-3 shrink-0 self-start md:self-center">
-          <div className="flex items-center gap-1.5 text-xs text-slate-500 bg-white/70 border border-slate-200/80 px-2.5 py-1.5 rounded-lg shadow-sm">
-            <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-            </span>
-            <span className="font-semibold text-slate-600">Dynamic Ingestion Live</span>
-          </div>
-
           <div className="relative">
             <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
             <select
@@ -1142,6 +1173,27 @@ function DashboardLoading() {
         ))}
       </div>
       <div className="grid gap-6 xl:grid-cols-2">
+        <div className="h-80 rounded-2xl bg-slate-200/70" />
+        <div className="h-80 rounded-2xl bg-slate-200/70" />
+      </div>
+    </div>
+  );
+}
+
+// Content skeleton while analytics data streams in
+function DashboardContentSkeleton() {
+  return (
+    <div className="space-y-8 pb-16 animate-pulse">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <div key={i} className="h-28 rounded-2xl bg-slate-200/70" />
+        ))}
+      </div>
+      <div className="grid gap-6 md:grid-cols-2">
+        <div className="h-80 rounded-2xl bg-slate-200/70" />
+        <div className="h-80 rounded-2xl bg-slate-200/70" />
+      </div>
+      <div className="grid gap-6 md:grid-cols-2">
         <div className="h-80 rounded-2xl bg-slate-200/70" />
         <div className="h-80 rounded-2xl bg-slate-200/70" />
       </div>
