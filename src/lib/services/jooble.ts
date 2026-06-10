@@ -58,13 +58,26 @@ export class JoobleService {
 
     const body = JSON.stringify(bodyObj);
 
-    const response = await fetch(`${this.baseUrl}/${this.apiKey}`, {
+    let response = await fetch(`${this.baseUrl}/${this.apiKey}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
       body,
     });
+
+    // Retry once if 403 (Jooble sometimes blocks Cloudflare IPs)
+    if (response.status === 403) {
+      console.warn('Jooble API returned 403, retrying once...');
+      await new Promise(r => setTimeout(r, 1000));
+      response = await fetch(`${this.baseUrl}/${this.apiKey}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body,
+      });
+    }
 
     // Increment counter on successful call if KV is available
     if (response.ok && this.kv) {
