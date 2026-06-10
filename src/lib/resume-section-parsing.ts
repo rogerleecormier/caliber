@@ -162,7 +162,7 @@ export function enforceGuardrails(sectionType: SectionType, content: any): any {
       });
     }
     case "personal_projects": {
-      // Enforce 3-4 projects, each with ≤8 bullet/line-separated points
+      // Enforce 3-4 projects, each with exactly 2 sentences (≤60 words total)
       const projects = Array.isArray(content) ? content.filter((p: any) => p?.name) : [];
       if (projects.length > 4) {
         console.warn(`[enforceGuardrails] personal_projects has ${projects.length} items, trimming to 4`);
@@ -171,14 +171,22 @@ export function enforceGuardrails(sectionType: SectionType, content: any): any {
       return projects.map((p: any) => {
         const desc = (p.description ?? "").trim();
         if (!desc) return p;
-        // Split on bullets or line breaks; keep first 8 lines
-        const lines = desc
+
+        // Normalize: split on newlines or sentence boundaries; enforce 2 sentences max
+        const sentences = desc
           .split(/\n+/)
-          .map((l: string) => l.replace(/^[\s•\-*]+/, "").trim())
+          .join(" ")
+          .split(/(?<=[.!?])\s+/)
+          .map((s: string) => s.trim())
           .filter(Boolean);
-        if (lines.length > 8) {
-          console.warn(`[guardrails] project "${p.name}" description has ${lines.length} lines, trimming to 8`);
-          return { ...p, description: lines.slice(0, 8).join("\n") };
+
+        const wordCount = desc.split(/\s+/).filter(Boolean).length;
+        if (sentences.length > 2) {
+          console.warn(`[guardrails] project "${p.name}" has ${sentences.length} sentences, trimming to 2`);
+          return { ...p, description: sentences.slice(0, 2).join(" ") };
+        }
+        if (wordCount > 60) {
+          console.warn(`[guardrails] project "${p.name}" description has ${wordCount} words (>60), may need trimming`);
         }
         return p;
       });

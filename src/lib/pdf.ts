@@ -219,15 +219,8 @@ export async function generateResumePdf(content: AtsResumeContent): Promise<Uint
       const titleLine = projectUrl ? `${projectName}  —  ${projectUrl}` : projectName;
       drawText(titleLine, { font: fontBold, size: 10 });
 
-      // Render description as bullets if multi-line; otherwise as prose
-      const descLines = (project.description ?? "").split(/\n+/).map((l: string) => l.trim()).filter(Boolean);
-      if (descLines.length > 1) {
-        for (const line of descLines) {
-          drawText(`•  ${line}`, { x: MARGIN + 10, hangingIndent: bulletIndent });
-        }
-      } else {
-        drawText(project.description);
-      }
+      // Always render as prose (2 sentences)
+      drawText(project.description);
       y -= 4;
     }
   }
