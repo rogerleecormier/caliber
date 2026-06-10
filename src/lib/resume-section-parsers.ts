@@ -30,11 +30,16 @@ export function parseTechnicalSkills(text: string): TechnicalSkillCategory[] {
   // new paragraph, continuation lines (no leading bullet/bold-label) are
   // merged into the previous line.
   const rawLines = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+  // A line starts a new category paragraph if it's a bulleted line, or if it
+  // begins with a short "Label:" / "**Label:**" prefix near the start of the
+  // line (a category heading), as opposed to a continuation of wrapped text.
+  const NEW_CATEGORY_REGEX = /^(?:[-*•·]\s*)?\*{0,2}[A-Za-z][\w\s&,/-]{1,60}\*{0,2}:\s/;
   const paragraphs: string[] = [];
   for (const line of rawLines) {
-    const startsNewParagraph = /^(\*\*|[-*•·]|\w)/.test(line) &&
-      (paragraphs.length === 0 || /^[-*•·]|\*\*[^*]+\*\*\s*:/.test(line));
-    if (startsNewParagraph || paragraphs.length === 0) {
+    const startsNewParagraph = paragraphs.length === 0 ||
+      /^[-*•·]/.test(line) ||
+      NEW_CATEGORY_REGEX.test(line);
+    if (startsNewParagraph) {
       paragraphs.push(line);
     } else {
       paragraphs[paragraphs.length - 1] += " " + line;
