@@ -258,6 +258,16 @@ function JobsPage() {
             setSelectedJobForAnalysis={setSelectedJobForAnalysis}
             storedAnalysis={storedAnalysis}
             setStoredAnalysis={setStoredAnalysis}
+            searchWarnings={searchWarnings}
+            setSearchWarnings={setSearchWarnings}
+            drawerOpen={drawerOpen}
+            setDrawerOpen={setDrawerOpen}
+            aggregatedSearchOpen={aggregatedSearchOpen}
+            setAggregatedSearchOpen={setAggregatedSearchOpen}
+            aggregatedResults={aggregatedResults}
+            setAggregatedResults={setAggregatedResults}
+            savedAggregatedJobIds={savedAggregatedJobIds}
+            setSavedAggregatedJobIds={setSavedAggregatedJobIds}
           />
         )}
 
@@ -390,6 +400,16 @@ function JobsListContentWrapper({
   setSelectedJobForAnalysis,
   storedAnalysis,
   setStoredAnalysis,
+  searchWarnings,
+  setSearchWarnings,
+  drawerOpen,
+  setDrawerOpen,
+  aggregatedSearchOpen,
+  setAggregatedSearchOpen,
+  aggregatedResults,
+  setAggregatedResults,
+  savedAggregatedJobIds,
+  setSavedAggregatedJobIds,
 }: {
   jobHistoryPromise: any;
   hasResume: boolean;
@@ -406,6 +426,16 @@ function JobsListContentWrapper({
   setSelectedJobForAnalysis: (job: any) => void;
   storedAnalysis: any;
   setStoredAnalysis: (analysis: any) => void;
+  searchWarnings: string[];
+  setSearchWarnings: (warnings: string[]) => void;
+  drawerOpen: boolean;
+  setDrawerOpen: (open: boolean) => void;
+  aggregatedSearchOpen: boolean;
+  setAggregatedSearchOpen: (open: boolean) => void;
+  aggregatedResults: any;
+  setAggregatedResults: (results: any) => void;
+  savedAggregatedJobIds: Set<string>;
+  setSavedAggregatedJobIds: (ids: Set<string> | ((prev: Set<string>) => Set<string>)) => void;
 }): React.ReactElement {
   const { page, query, remote, sortBy, status: activeStatus, analyzedOnly, analyze, url: searchUrl } = Route.useSearch();
   const navigate = Route.useNavigate();
