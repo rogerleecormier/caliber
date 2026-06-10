@@ -28,6 +28,7 @@ import { Route as ApiV3JobsRouteImport } from './routes/api/v3/jobs'
 import { Route as ApiV3JobContentRouteImport } from './routes/api/v3/job-content'
 import { Route as ApiV3CategoriesRouteImport } from './routes/api/v3/categories'
 import { Route as ApiLinkedinSearchRouteImport } from './routes/api/linkedin/search'
+import { Route as ApiJobsSearchRouteImport } from './routes/api/jobs/search'
 import { Route as ApiAuthSignOutRouteImport } from './routes/api/auth/sign-out'
 import { Route as ApiAuthGetSessionRouteImport } from './routes/api/auth/get-session'
 import { Route as ApiAiUnicornRouteImport } from './routes/api/ai/unicorn'
@@ -137,6 +138,11 @@ const ApiLinkedinSearchRoute = ApiLinkedinSearchRouteImport.update({
   path: '/api/linkedin/search',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiJobsSearchRoute = ApiJobsSearchRouteImport.update({
+  id: '/api/jobs/search',
+  path: '/api/jobs/search',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiAuthSignOutRoute = ApiAuthSignOutRouteImport.update({
   id: '/api/auth/sign-out',
   path: '/api/auth/sign-out',
@@ -228,6 +234,7 @@ export interface FileRoutesByFullPath {
   '/api/ai/unicorn': typeof ApiAiUnicornRoute
   '/api/auth/get-session': typeof ApiAuthGetSessionRoute
   '/api/auth/sign-out': typeof ApiAuthSignOutRoute
+  '/api/jobs/search': typeof ApiJobsSearchRoute
   '/api/linkedin/search': typeof ApiLinkedinSearchRoute
   '/api/v3/categories': typeof ApiV3CategoriesRoute
   '/api/v3/job-content': typeof ApiV3JobContentRoute
@@ -262,6 +269,7 @@ export interface FileRoutesByTo {
   '/api/ai/unicorn': typeof ApiAiUnicornRoute
   '/api/auth/get-session': typeof ApiAuthGetSessionRoute
   '/api/auth/sign-out': typeof ApiAuthSignOutRoute
+  '/api/jobs/search': typeof ApiJobsSearchRoute
   '/api/linkedin/search': typeof ApiLinkedinSearchRoute
   '/api/v3/categories': typeof ApiV3CategoriesRoute
   '/api/v3/job-content': typeof ApiV3JobContentRoute
@@ -297,6 +305,7 @@ export interface FileRoutesById {
   '/api/ai/unicorn': typeof ApiAiUnicornRoute
   '/api/auth/get-session': typeof ApiAuthGetSessionRoute
   '/api/auth/sign-out': typeof ApiAuthSignOutRoute
+  '/api/jobs/search': typeof ApiJobsSearchRoute
   '/api/linkedin/search': typeof ApiLinkedinSearchRoute
   '/api/v3/categories': typeof ApiV3CategoriesRoute
   '/api/v3/job-content': typeof ApiV3JobContentRoute
@@ -333,6 +342,7 @@ export interface FileRouteTypes {
     | '/api/ai/unicorn'
     | '/api/auth/get-session'
     | '/api/auth/sign-out'
+    | '/api/jobs/search'
     | '/api/linkedin/search'
     | '/api/v3/categories'
     | '/api/v3/job-content'
@@ -367,6 +377,7 @@ export interface FileRouteTypes {
     | '/api/ai/unicorn'
     | '/api/auth/get-session'
     | '/api/auth/sign-out'
+    | '/api/jobs/search'
     | '/api/linkedin/search'
     | '/api/v3/categories'
     | '/api/v3/job-content'
@@ -401,6 +412,7 @@ export interface FileRouteTypes {
     | '/api/ai/unicorn'
     | '/api/auth/get-session'
     | '/api/auth/sign-out'
+    | '/api/jobs/search'
     | '/api/linkedin/search'
     | '/api/v3/categories'
     | '/api/v3/job-content'
@@ -436,6 +448,7 @@ export interface RootRouteChildren {
   ApiAiUnicornRoute: typeof ApiAiUnicornRoute
   ApiAuthGetSessionRoute: typeof ApiAuthGetSessionRoute
   ApiAuthSignOutRoute: typeof ApiAuthSignOutRoute
+  ApiJobsSearchRoute: typeof ApiJobsSearchRoute
   ApiLinkedinSearchRoute: typeof ApiLinkedinSearchRoute
   ApiV3CategoriesRoute: typeof ApiV3CategoriesRoute
   ApiV3JobContentRoute: typeof ApiV3JobContentRoute
@@ -581,6 +594,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiLinkedinSearchRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/jobs/search': {
+      id: '/api/jobs/search'
+      path: '/api/jobs/search'
+      fullPath: '/api/jobs/search'
+      preLoaderRoute: typeof ApiJobsSearchRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/auth/sign-out': {
       id: '/api/auth/sign-out'
       path: '/api/auth/sign-out'
@@ -711,6 +731,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiAiUnicornRoute: ApiAiUnicornRoute,
   ApiAuthGetSessionRoute: ApiAuthGetSessionRoute,
   ApiAuthSignOutRoute: ApiAuthSignOutRoute,
+  ApiJobsSearchRoute: ApiJobsSearchRoute,
   ApiLinkedinSearchRoute: ApiLinkedinSearchRoute,
   ApiV3CategoriesRoute: ApiV3CategoriesRoute,
   ApiV3JobContentRoute: ApiV3JobContentRoute,
