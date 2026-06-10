@@ -71,7 +71,7 @@ export const SECTION_JSON_SCHEMAS: Record<SectionLabel, any> = {
             technologies: stringArray,
             url: { type: "string" },
           },
-          required: ["name", "description", "technologies"],
+          required: ["name"],
         },
       },
     },

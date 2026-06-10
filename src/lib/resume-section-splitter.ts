@@ -117,13 +117,27 @@ export function splitExperienceIntoRoleChunks(text: string): string[] {
 
   const isBullet = (l: string) => /^\s*[•·●○◦▪︎\-*]/.test(l);
 
-  for (const line of lines) {
-    const isRoleHeading = DATE_RANGE_REGEX.test(line) && !isBullet(line);
-    if (isRoleHeading && current.some((l) => l.trim())) {
+  // Index every line that carries a date range. A role boundary is the start
+  // of the heading block that owns that date — which is the dated line itself
+  // OR (when the date sits on its own line) the non-bullet line just above it.
+  const roleStartIndexes = new Set<number>();
+  for (let i = 0; i < lines.length; i++) {
+    if (!DATE_RANGE_REGEX.test(lines[i]) || isBullet(lines[i])) continue;
+    // Walk up past the (possibly standalone) date line to the title line that
+    // starts this role's heading block, stopping at the previous role's bullets.
+    let start = i;
+    while (start - 1 >= 0 && !isBullet(lines[start - 1]) && lines[start - 1].trim()) {
+      start--;
+    }
+    roleStartIndexes.add(start);
+  }
+
+  for (let i = 0; i < lines.length; i++) {
+    if (roleStartIndexes.has(i) && current.some((l) => l.trim())) {
       chunks.push(current.join("\n").trim());
       current = [];
     }
-    current.push(line);
+    current.push(lines[i]);
   }
   if (current.some((l) => l.trim())) chunks.push(current.join("\n").trim());
 

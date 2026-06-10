@@ -269,26 +269,31 @@ async function parseChunkedSectionWithAI(
   label: SectionLabel,
   chunks: string[],
   arrayKey: string,
+  perChunkMaxTokens = 2048,
 ): Promise<any | null> {
   if (!sectionText || !sectionText.trim()) return null;
 
   // If there's only one chunk, no benefit to the chunked path.
   if (chunks.length <= 1) {
-    return parseSectionWithAI(env, systemPrompt, sectionText, label, 3072);
+    return parseSectionWithAI(env, systemPrompt, sectionText, label, perChunkMaxTokens + 1024);
   }
 
   const results = await Promise.all(
-    chunks.map((chunk) => parseSectionWithAI(env, systemPrompt, chunk, label, 2048)),
+    chunks.map((chunk) => parseSectionWithAI(env, systemPrompt, chunk, label, perChunkMaxTokens)),
   );
 
   const merged: any[] = [];
   let anySucceeded = false;
-  for (const r of results) {
+  results.forEach((r, i) => {
     if (r && Array.isArray(r[arrayKey])) {
       anySucceeded = true;
       merged.push(...r[arrayKey]);
+    } else {
+      console.warn(`[aiParseResume] ${label} chunk ${i + 1}/${chunks.length} yielded no items`);
     }
-  }
+  });
+
+  console.log(`[aiParseResume] ${label}: merged ${merged.length} items from ${chunks.length} chunks`);
 
   if (!anySucceeded) return null;
   return { [arrayKey]: merged };
@@ -329,6 +334,7 @@ export const aiParseResume = createServerFn({ method: "POST" })
           "experience",
           experienceChunks,
           "experience",
+          3072,
         ),
         parseChunkedSectionWithAI(
           env,
@@ -337,6 +343,7 @@ export const aiParseResume = createServerFn({ method: "POST" })
           "personalProjects",
           projectChunks,
           "personalProjects",
+          3072,
         ),
       ]);
 
