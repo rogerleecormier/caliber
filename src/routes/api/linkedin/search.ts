@@ -372,7 +372,7 @@ export const Route = createFileRoute("/api/linkedin/search")({
         let savedSearchId: number | null = null;
         let sources: string[] = ["linkedin", "adzuna"];
         try {
-          const user = await resolveSessionUser();
+          const user = await resolveSessionUser(request);
           if (!user?.id) {
             return json({ success: false, error: "Authentication required" }, { status: 401 });
           }

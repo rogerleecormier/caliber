@@ -101,25 +101,28 @@ async function resolveRole(
  * Call this from within a TanStack Start server function handler.
  * Returns null if not authenticated or if bindings are unavailable.
  */
-export async function resolveSessionUser(): Promise<SessionUser | null> {
-  let request: ReturnType<typeof getRequest> | null = null;
+export async function resolveSessionUser(request?: Request): Promise<SessionUser | null> {
+  let resolvedRequest: ReturnType<typeof getRequest> | null = request as any || null;
 
   try {
     const env = await getCloudflareEnvAsync();
 
-    try {
-      request = getRequest();
-    } catch {
-      // request context unavailable — skip to DB fallback
+    // Try to get request from context if not provided
+    if (!resolvedRequest) {
+      try {
+        resolvedRequest = getRequest();
+      } catch {
+        // request context unavailable — skip to DB fallback
+      }
     }
 
     // Primary path: better-auth getSession.
     // Isolated in its own try-catch so a throw here still reaches the DB fallback below.
-    if (request) {
+    if (resolvedRequest) {
       try {
         const auth = getAuthInstance(env);
         const session = await auth.api.getSession({
-          headers: request.headers,
+          headers: resolvedRequest.headers,
         });
 
         if (session?.user) {
@@ -137,8 +140,8 @@ export async function resolveSessionUser(): Promise<SessionUser | null> {
     // Handles both intermittent getSession null returns and getSession exceptions (e.g.
     // the AsyncLocalStorage race in better-auth on Cloudflare Workers).
     const secret = (env as Record<string, unknown>).BETTER_AUTH_SECRET as string | undefined;
-    if (env.DB && request && secret) {
-      const cookieHeader = request.headers.get("cookie") ?? "";
+    if (env.DB && resolvedRequest && secret) {
+      const cookieHeader = resolvedRequest.headers.get("cookie") ?? "";
       const signedValue = readCookieValue(cookieHeader, AUTH_COOKIE_CANDIDATES);
       if (!signedValue) return null;
 
