@@ -121,6 +121,11 @@ export async function callWorkersAI(
       temperature: options?.temperature,
       top_p: options?.topP,
       stream: false,
+      // Gemma reasoning models can spend the entire token budget on
+      // chain-of-thought ("reasoning") and never emit "content", hitting
+      // finish_reason "length" with content: null. Disable reasoning so the
+      // full budget goes to the actual JSON output.
+      reasoning: { enabled: false },
     } as any);
   } catch (error) {
     console.error("[callWorkersAI] AI.run() error:", error);
@@ -150,6 +155,11 @@ export async function callWorkersAI(
   } else if (result && Array.isArray(result.choices) && typeof result.choices[0]?.message?.content === "string") {
     // OpenAI-style format: { choices: [{ message: { content: string } }] }
     text = result.choices[0].message.content;
+  } else if (result && Array.isArray(result.choices) && typeof result.choices[0]?.message?.reasoning === "string") {
+    // Reasoning models can leave content null and put everything (including
+    // the JSON answer) in "reasoning" if it ran out of tokens before
+    // emitting a final answer.
+    text = result.choices[0].message.reasoning;
   } else {
     console.error("[callWorkersAI] Unexpected result shape:", JSON.stringify(result).slice(0, 200));
     text = result != null ? JSON.stringify(result) : undefined;
