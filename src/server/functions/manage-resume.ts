@@ -216,6 +216,7 @@ async function parseSectionWithAI(
   systemPrompt: string,
   sectionText: string | undefined,
   label: string,
+  maxTokens = 4096,
 ): Promise<any | null> {
   if (!sectionText || !sectionText.trim()) return null;
 
@@ -226,7 +227,7 @@ async function parseSectionWithAI(
         { role: "system", content: systemPrompt },
         { role: "user", content: sectionText },
       ],
-      { maxTokens: 16384, temperature: 0.1 },
+      { maxTokens, temperature: 0.1 },
     );
 
     const jsonMatch = raw.match(/\{[\s\S]*\}/);
@@ -259,18 +260,22 @@ export const aiParseResume = createServerFn({ method: "POST" })
 
       console.log('[aiParseResume] Detected sections:', Object.keys(sections));
 
-      // AI calls scoped to only their own section's text — verbatim extraction
+      // AI calls scoped to only their own section's text — verbatim extraction.
+      // Run the two large sections (experience, projects) in their own batch
+      // with a higher token budget, and the smaller sections in a second
+      // batch — keeping concurrency low avoids Workers AI request timeouts.
+      const [experienceResult, projectsResult] = await Promise.all([
+        parseSectionWithAI(env, RESUME_PARSE_EXPERIENCE_PROMPT, sections.experience, "experience", 6144),
+        parseSectionWithAI(env, RESUME_PARSE_PROJECTS_PROMPT, sections.personalProjects, "personalProjects", 6144),
+      ]);
+
       const [
-        experienceResult,
-        projectsResult,
         educationResult,
         technicalSkillsResult,
         competenciesResult,
         certificationsResult,
         awardsResult,
       ] = await Promise.all([
-        parseSectionWithAI(env, RESUME_PARSE_EXPERIENCE_PROMPT, sections.experience, "experience"),
-        parseSectionWithAI(env, RESUME_PARSE_PROJECTS_PROMPT, sections.personalProjects, "personalProjects"),
         parseSectionWithAI(env, RESUME_PARSE_EDUCATION_PROMPT, sections.education, "education"),
         parseSectionWithAI(env, RESUME_PARSE_TECHNICAL_SKILLS_PROMPT, sections.technicalSkills, "technicalSkills"),
         parseSectionWithAI(env, RESUME_PARSE_COMPETENCIES_PROMPT, sections.competencies, "competencies"),
