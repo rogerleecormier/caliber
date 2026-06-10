@@ -250,6 +250,26 @@ export const resumeSections = sqliteTable('resume_sections', {
   updatedAt: text('updated_at').notNull(),
 })
 
+// ─── Resume Vector Index ──────────────────────────────────────────────────
+// Tracks vectorized resume chunks for semantic RAG matching.
+// When a resume section changes, chunks are re-embedded and re-indexed in Vectorize.
+export const resumeVectorIndex = sqliteTable('resume_vector_index', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  userId: text('user_id').notNull().references(() => user.id, { onDelete: 'cascade' }),
+  sectionType: text('section_type').notNull(), // 'professional_summary', 'technical_skills', etc.
+  chunkIndex: integer('chunk_index').notNull(), // 0-based index within section
+  chunkText: text('chunk_text').notNull(), // Raw text of this semantic block
+  vectorId: text('vector_id'), // ID in Vectorize namespace (format: "{userId}#{sectionType}#{chunkIndex}")
+  contentHash: text('content_hash').notNull(), // SHA-256 hash of chunkText to detect changes
+  embeddedAt: integer('embedded_at', { mode: 'timestamp' }),
+  createdAt: integer('created_at', { mode: 'timestamp' })
+    .notNull()
+    .default(sql`(unixepoch())`),
+  updatedAt: integer('updated_at', { mode: 'timestamp' })
+    .notNull()
+    .default(sql`(unixepoch())`),
+})
+
 // ─── Job Analyses ─────────────────────────────────────────────────────────────
 // One row per job the user has analyzed. Links to generatedDocuments for PDFs.
 export const jobAnalyses = sqliteTable('job_analyses', {
@@ -459,6 +479,8 @@ export type MasterResume = typeof masterResume.$inferSelect
 export type NewMasterResume = typeof masterResume.$inferInsert
 export type ResumeSection = typeof resumeSections.$inferSelect
 export type NewResumeSection = typeof resumeSections.$inferInsert
+export type ResumeVectorIndex = typeof resumeVectorIndex.$inferSelect
+export type NewResumeVectorIndex = typeof resumeVectorIndex.$inferInsert
 export type JobAnalysis = typeof jobAnalyses.$inferSelect
 export type NewJobAnalysis = typeof jobAnalyses.$inferInsert
 export type GeneratedDocument = typeof generatedDocuments.$inferSelect

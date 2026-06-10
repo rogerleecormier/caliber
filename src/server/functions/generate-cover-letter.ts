@@ -4,7 +4,7 @@ import { resolveSessionUser } from "@/lib/resolve-user";
 import { eq, and } from "drizzle-orm";
 import { getCloudflareEnv } from "@/lib/cloudflare";
 import { getDb } from "@/db/db";
-import { masterResume, pipelineJobs, generatedDocuments } from "@/db/schema";
+import { masterResume, pipelineJobs, generatedDocuments, resumeVectorIndex, resumeSections } from "@/db/schema";
 import {
   allocateTokenBudgets,
   callClaude,
@@ -13,6 +13,9 @@ import {
 } from "@/lib/ai-gateway";
 import { COVER_LETTER_PROMPT, type CoverLetterContent } from "@/lib/ats-format";
 import { generateCoverLetterPdf } from "@/lib/pdf";
+import { matchJobDescriptionToResume, formatGroundTruthContext } from "@/lib/resume-matching";
+import type { ResumeEmbedding } from "@/lib/resume-embedding";
+import { createZeroHallucinationSystemPrompt } from "@/lib/zero-hallucination-prompt";
 
 const COVER_LETTER_OUTPUT_TOKEN_BUDGET = 3_072;
 const COVER_LETTER_PROMPT_OVERHEAD_TOKENS = 3_500;
@@ -60,6 +63,35 @@ export const generateCoverLetter = createServerFn({ method: "POST" })
       }, null, 2);
 
       const rawResumeText = resume.rawText ?? "";
+
+      // AI-03: Fetch resume embeddings for semantic RAG matching
+      let groundTruthContext = "";
+      try {
+        const vectors = await db
+          .select()
+          .from(resumeVectorIndex)
+          .where(eq(resumeVectorIndex.userId, user.id));
+
+        if (vectors.length > 0) {
+          const embeddings: ResumeEmbedding[] = vectors.map((v) => ({
+            vectorId: v.vectorId || "",
+            text: v.chunkText,
+            embedding: [], // Note: embeddings are stored in Vectorize, not in DB
+            tokens: Math.ceil(v.chunkText.length * 0.25),
+          }));
+
+          const jobDesc = analysis.jdText ?? "";
+          if (jobDesc.length > 0) {
+            // Pre-filter job description against resume chunks
+            const matched = await matchJobDescriptionToResume(env, jobDesc, embeddings);
+            groundTruthContext = formatGroundTruthContext(matched);
+          }
+        }
+      } catch (error) {
+        console.warn("Failed to fetch ground truth context:", error);
+        // Fallback: continue without semantic matching
+      }
+
       const [jobDescriptionBudget, rawResumeBudget] = allocateTokenBudgets(
         [analysis.jdText ?? "", rawResumeText],
         COVER_LETTER_CONTEXT_TOKEN_BUDGET,
@@ -81,17 +113,24 @@ export const generateCoverLetter = createServerFn({ method: "POST" })
 
       const extraGuidance = (data.extraGuidance ?? "").trim();
 
+      // AI-03: Inject ground truth context (semantic RAG) into prompt with zero-hallucination constraint
+      const groundTruthSection = groundTruthContext
+        ? `\n\nGROUND TRUTH RESUME CONTEXT (verified semantic matches from master resume):\n${groundTruthContext}\n\nIMPERATIVE: Base all resume references on this context. Do not invent or extrapolate metrics, dates, or achievements.`
+        : "";
+
       const prompt = COVER_LETTER_PROMPT
         .replace("{candidateData}", candidateData)
-        .replace("{rawResumeText}", rawResumeSource)
+        .replace("{rawResumeText}", rawResumeSource + groundTruthSection)
         .replace("{jobTitle}", analysis.title ?? "")
         .replace("{company}", analysis.company ?? "")
         .replace("{jobDescription}", jobDescription)
         .replace("{painPoints}", painPoints || "Improve operational efficiency and team performance")
         .replace("{extraGuidance}", extraGuidance || "None provided");
 
+      const systemPrompt = createZeroHallucinationSystemPrompt("json-only");
+
       const rawResponse = await callClaude(env, [
-        { role: "system", content: "You are a JSON-only API. Output valid JSON and nothing else. No markdown, no prose, no code fences." },
+        { role: "system", content: systemPrompt },
         { role: "user", content: prompt },
       ], { maxTokens: COVER_LETTER_OUTPUT_TOKEN_BUDGET });
 
