@@ -6,6 +6,7 @@ import { getCloudflareEnv } from "@/lib/cloudflare";
 import { getDb } from "@/db/db";
 import { masterResume, resumeSections } from "@/db/schema";
 import { callWorkersAI } from "@/lib/ai-gateway";
+import { RESUME_PARSING_MODEL } from "@/lib/ai/types";
 import {
   JSON_ONLY_DIRECTIVE,
   RESUME_PARSE_AWARDS_PROMPT,
@@ -229,6 +230,7 @@ async function parseSectionWithAI(
         { role: "user", content: sectionText },
       ],
       {
+        model: RESUME_PARSING_MODEL,
         maxTokens,
         temperature: 0.1,
         responseFormat: {

@@ -41,3 +41,11 @@ export const SCORING_MODEL = AI_MODELS.GEMMA_4_26B;
 
 // Strong instruction-following for structured JSON output (resume section tailoring)
 export const RESUME_TAILORING_MODEL = AI_MODELS.GEMMA_4_26B;
+
+// Resume SECTION PARSING (extraction) model. Must be a non-reasoning,
+// instruction-following model that honors response_format JSON mode and does
+// NOT emit chain-of-thought. Gemma 4 26B (-a4b reasoning variant) dumps its
+// thinking into the output and ignores JSON-schema constraints, so it is NOT
+// usable for structured extraction. Llama 3.3 70B (fp8-fast) follows the
+// JSON instruction reliably.
+export const RESUME_PARSING_MODEL = AI_MODELS.LLAMA_3_3_70B;
