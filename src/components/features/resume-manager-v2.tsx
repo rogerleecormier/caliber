@@ -72,7 +72,38 @@ export function ResumeManagerV2({ initial }: { initial: ResumeData | null }) {
         for (let i = 1; i <= doc.numPages; i++) {
           const page = await doc.getPage(i)
           const content = await page.getTextContent()
-          pages.push(content.items.map((item: any) => ('str' in item ? item.str : '')).join(' '))
+
+          // Group text items into lines based on their Y position so that
+          // visual line breaks (section headers, bullets, etc.) are
+          // preserved in the extracted text instead of being collapsed
+          // into one long line per page.
+          const lines: { y: number; items: { x: number; str: string }[] }[] = []
+          for (const item of content.items as any[]) {
+            if (!('str' in item) || !item.str.trim()) continue
+            const x = item.transform[4]
+            const y = item.transform[5]
+            let line = lines.find((l) => Math.abs(l.y - y) < 2)
+            if (!line) {
+              line = { y, items: [] }
+              lines.push(line)
+            }
+            line.items.push({ x, str: item.str })
+          }
+
+          lines.sort((a, b) => b.y - a.y)
+          const pageText = lines
+            .map((line) =>
+              line.items
+                .sort((a, b) => a.x - b.x)
+                .map((i) => i.str)
+                .join(' ')
+                .replace(/\s+/g, ' ')
+                .trim(),
+            )
+            .filter(Boolean)
+            .join('\n')
+
+          pages.push(pageText)
         }
         text = pages.join('\n\n')
       } else if (ext === 'docx') {
