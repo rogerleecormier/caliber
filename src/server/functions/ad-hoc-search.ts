@@ -97,6 +97,8 @@ export const saveSearchAsAgent = createServerFn({ method: "POST" })
     name: string;
     keywords: string;
     location?: string;
+    workplaceTypes?: LinkedInSearchParams["workplaceTypes"];
+    salaryMin?: number | null;
     sources: AdHocSource[];
     runIntervalHours?: number;
     isActive?: boolean;
@@ -110,7 +112,12 @@ export const saveSearchAsAgent = createServerFn({ method: "POST" })
       userId: user.id,
       id: data.id,
       name: data.name,
-      criteria: { keywords: data.keywords, location: data.location ?? "" },
+      criteria: {
+        keywords: data.keywords,
+        location: data.location ?? "",
+        workplaceTypes: data.workplaceTypes ?? [],
+        salaryMin: data.salaryMin ?? null,
+      },
       isActive: data.isActive,
       runIntervalHours: data.runIntervalHours,
       sources: data.sources,

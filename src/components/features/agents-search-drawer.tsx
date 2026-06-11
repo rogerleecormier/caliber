@@ -113,15 +113,32 @@ export function AgentsSearchDrawer({
       ).slice(0, 5)
     : [];
 
+  const requiresLocation = form.workplaceTypes.some((t) => t === "hybrid" || t === "on-site");
+  const citiesByState = Array.from(new Set(POPULAR_CITIES.map((c) => c.state)))
+    .sort()
+    .map((state) => ({
+      state,
+      cities: POPULAR_CITIES.filter((c) => c.state === state),
+    }));
+
   function update<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm((prev) => ({ ...prev, [key]: value }));
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setLoading(true);
     setError(null);
     setPreviewJobCount(null);
+
+    if (requiresLocation) {
+      const loc = form.location.trim().toLowerCase();
+      if (!loc || loc === "united states" || loc === "remote") {
+        setError("Hybrid and on-site searches need a specific city. Pick one from the list or type it in.");
+        return;
+      }
+    }
+
+    setLoading(true);
 
     const searchId = `search-${Date.now()}`;
     searchStatusContext.startSearch(searchId, `Searching for "${form.keywords}"...`);
@@ -164,6 +181,8 @@ export function AgentsSearchDrawer({
           name,
           keywords: form.keywords,
           location: form.location,
+          workplaceTypes: form.workplaceTypes as never,
+          salaryMin: form.salaryMin ? Number(form.salaryMin) : null,
           sources: form.sources,
         },
       });
@@ -175,7 +194,12 @@ export function AgentsSearchDrawer({
             id: result.id!,
             userId: existing?.userId ?? "",
             name,
-            criteria: { keywords: form.keywords, location: form.location },
+            criteria: {
+              keywords: form.keywords,
+              location: form.location,
+              workplaceTypes: form.workplaceTypes,
+              salaryMin: form.salaryMin ? Number(form.salaryMin) : null,
+            },
             isActive: existing?.isActive ?? true,
             runIntervalHours: existing?.runIntervalHours ?? 24,
             sources: form.sources,
@@ -331,6 +355,36 @@ export function AgentsSearchDrawer({
                     ))}
                   </div>
                 </div>
+
+                {requiresLocation && (
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-semibold text-slate-800" htmlFor="drawer-state-city">
+                      Target City (Hybrid/On-site)
+                    </label>
+                    <select
+                      id="drawer-state-city"
+                      value=""
+                      onChange={(e) => {
+                        if (e.target.value) update("location", e.target.value);
+                      }}
+                      className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 h-[40px] focus:border-amber-500 focus:outline-none"
+                    >
+                      <option value="">Pick a primary city by state…</option>
+                      {citiesByState.map((group) => (
+                        <optgroup key={group.state} label={group.state}>
+                          {group.cities.map((c) => (
+                            <option key={c.geoId} value={`${c.city}, ${c.state}`}>
+                              {c.city}
+                            </option>
+                          ))}
+                        </optgroup>
+                      ))}
+                    </select>
+                    <p className="text-xs text-slate-500">
+                      Hybrid and on-site roles require a location. Pick a primary city or type your own above.
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
 

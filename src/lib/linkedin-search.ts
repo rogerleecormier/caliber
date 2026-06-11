@@ -353,6 +353,10 @@ export const POPULAR_CITIES: CityGeoIdOption[] = [
   // NY
   { city: "New York City", state: "New York", geoId: "102448124" },
   { city: "Buffalo", state: "New York", geoId: "105260171" },
+  { city: "Albany", state: "New York", geoId: "ny-albany" },
+  { city: "Syracuse", state: "New York", geoId: "ny-syracuse" },
+  { city: "Rochester", state: "New York", geoId: "ny-rochester" },
+  { city: "Binghamton", state: "New York", geoId: "ny-binghamton" },
   // NC
   { city: "Charlotte", state: "North Carolina", geoId: "105007324" },
   { city: "Raleigh", state: "North Carolina", geoId: "100913968" },

@@ -9,7 +9,7 @@ import type { CloudflareEnv } from '@/lib/cloudflare';
 import { JobAggregatorService } from '@/lib/services';
 import { searchAtsJobs } from '@/lib/ats-search';
 import { canonicalizeJobUrl, upsertNormalizedJobs, type NormalizedJobInput } from '@/lib/normalized-jobs-persistence';
-import type { LinkedInScrapedJob } from '@/lib/linkedin-search';
+import type { LinkedInScrapedJob, LinkedInSearchParams } from '@/lib/linkedin-search';
 
 const DEFAULT_LIMIT = 25;
 
@@ -58,9 +58,14 @@ export async function runAgentPoller(env: CloudflareEnv): Promise<void> {
   for (const config of configs) {
     if (!isDue({ lastRunAt: config.lastRunAt, runIntervalHours: config.runIntervalHours })) continue;
 
-    let criteria: { keywords?: string; location?: string };
+    let criteria: {
+      keywords?: string;
+      location?: string;
+      workplaceTypes?: LinkedInSearchParams["workplaceTypes"];
+      salaryMin?: number | null;
+    };
     try {
-      criteria = JSON.parse(config.criteria) as { keywords?: string; location?: string };
+      criteria = JSON.parse(config.criteria);
     } catch {
       continue;
     }
@@ -106,7 +111,12 @@ export async function runAgentPoller(env: CloudflareEnv): Promise<void> {
     }
 
     if (atsSources.length > 0) {
-      const atsJobs = await searchAtsJobs(db, atsSources, { keywords, location });
+      const atsJobs = await searchAtsJobs(db, atsSources, {
+        keywords,
+        location,
+        workplaceTypes: criteria.workplaceTypes,
+        salaryMin: criteria.salaryMin ?? null,
+      });
       jobs.push(...atsJobs);
     }
 

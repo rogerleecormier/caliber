@@ -48,8 +48,15 @@ export class AdzunaService {
     // if (params.page) queryParams.append('page', String(params.page));
 
     if (params.what) queryParams.append('what', params.what);
-    // Note: Skipping location parameter as it seems to cause 400 errors with certain values
-    // Users can still search by keyword
+
+    // Adzuna's `where` param works best with a bare city/region name (no
+    // ", State" suffix and no generic "United States"/"Remote" values, both
+    // of which previously caused 400 errors).
+    if (params.where) {
+      const city = params.where.split(',')[0]?.trim();
+      const isGeneric = !city || /^(united states|remote|usa|us)$/i.test(city);
+      if (!isGeneric) queryParams.append('where', city);
+    }
 
     const response = await fetch(`${this.baseUrl}/${params.country || 'us'}/search?${queryParams}`, {
       method: 'GET',
