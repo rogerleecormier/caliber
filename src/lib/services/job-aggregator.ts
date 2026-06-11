@@ -112,6 +112,28 @@ export class JobAggregatorService {
     });
 
     // Filter out incomplete jobs (missing required fields)
+    const incomplete = jobs.filter(job =>
+      !job.title?.trim() ||
+      !job.company?.trim() ||
+      !job.location?.trim()
+    );
+
+    if (incomplete.length > 0) {
+      console.warn(`[JobAggregator] Filtered out ${incomplete.length} incomplete jobs:`, {
+        bySource: {
+          adzuna: incomplete.filter(j => j.source === 'adzuna').length,
+          jooble: incomplete.filter(j => j.source === 'jooble').length,
+          remotive: incomplete.filter(j => j.source === 'remotive').length,
+        },
+        examples: incomplete.slice(0, 3).map(j => ({
+          source: j.source,
+          title: j.title || '[MISSING]',
+          company: j.company || '[MISSING]',
+          location: j.location || '[MISSING]',
+        })),
+      });
+    }
+
     const complete = jobs.filter(job =>
       job.title?.trim() &&
       job.company?.trim() &&
