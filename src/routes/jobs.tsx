@@ -283,9 +283,16 @@ function JobsPage() {
             {aggregatedResults ? (
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
-                  <h3 className="text-lg font-semibold">
-                    {aggregatedResults.jobs.length} jobs found
-                  </h3>
+                  <div>
+                    <h3 className="text-lg font-semibold">
+                      {aggregatedResults.jobs.length} unique jobs found
+                    </h3>
+                    {aggregatedResults.deduped > 0 && (
+                      <p className="text-sm text-gray-500">
+                        ({aggregatedResults.deduped + aggregatedResults.jobs.length} results across {Object.values(aggregatedResults.sources).filter((s: any) => s.success).length} sources, {aggregatedResults.deduped} duplicates removed)
+                      </p>
+                    )}
+                  </div>
                   <Button
                     variant="outline"
                     onClick={() => {
