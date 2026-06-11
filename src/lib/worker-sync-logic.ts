@@ -804,19 +804,23 @@ export async function syncAggregator(
         if (!sourceUrl) return null
 
         const categoryId = determineCategoryId(title, description, job.tags || [])
+        const now = new Date().toISOString()
 
         return {
-          title,
-          company,
-          descriptionRaw: description,
-          isCleansed: 0,
+          userId: null,
+          jobTitle: title,
+          employerName: company,
+          description,
           sourceUrl,
-          sourceName,
-          payRange: salary,
-          postDate: postDate || new Date(),
+          canonicalSourceUrl: sourceUrl,
+          sourceOrigin: (sourceName || 'unknown').toLowerCase(),
+          salary,
+          postDateText: (postDate || new Date()).toISOString(),
           categoryId,
           remoteType: 'fully_remote',
-          updatedAt: new Date() // For updates
+          discoveryTimestamp: now,
+          createdAt: now,
+          updatedAt: now,
         }
       }).filter(Boolean) as any[]
 
@@ -824,10 +828,10 @@ export async function syncAggregator(
         // 2. Check existing jobs in one query
         const sourceUrls = jobsWithMetadata.map(j => j.sourceUrl)
         const existingJobs = await db.select({
-          sourceUrl: schema.jobs.sourceUrl
+          sourceUrl: schema.normalizedJobs.sourceUrl
         })
-          .from(schema.jobs)
-          .where(inArray(schema.jobs.sourceUrl, sourceUrls))
+          .from(schema.normalizedJobs)
+          .where(inArray(schema.normalizedJobs.sourceUrl, sourceUrls))
 
         const existingUrls = new Set(existingJobs.map(j => j.sourceUrl))
 
@@ -840,15 +844,15 @@ export async function syncAggregator(
           // Drizzle's multi-row insert().values([...]) has issues with auto-increment IDs in D1
           // We use db.batch() with individual upserts instead, which is more reliable for D1
           const batchOps = jobsWithMetadata.map(job =>
-            db.insert(schema.jobs).values(job).onConflictDoUpdate({
-              target: schema.jobs.sourceUrl,
+            db.insert(schema.normalizedJobs).values(job).onConflictDoUpdate({
+              target: [schema.normalizedJobs.userId, schema.normalizedJobs.canonicalSourceUrl],
               set: {
-                title: job.title,
-                company: job.company,
-                descriptionRaw: job.descriptionRaw,
-                updatedAt: new Date(),
+                jobTitle: job.jobTitle,
+                employerName: job.employerName,
+                description: job.description,
+                updatedAt: job.updatedAt,
                 categoryId: job.categoryId,
-                payRange: job.payRange
+                salary: job.salary
               }
             })
           )
@@ -861,19 +865,19 @@ export async function syncAggregator(
           // Fallback to individual sequential processing if batch fails
           for (const job of jobsWithMetadata) {
             try {
-              await db.insert(schema.jobs).values(job).onConflictDoUpdate({
-                target: schema.jobs.sourceUrl,
+              await db.insert(schema.normalizedJobs).values(job).onConflictDoUpdate({
+                target: [schema.normalizedJobs.userId, schema.normalizedJobs.canonicalSourceUrl],
                 set: {
-                  title: job.title,
-                  company: job.company,
-                  descriptionRaw: job.descriptionRaw,
-                  updatedAt: new Date(),
+                  jobTitle: job.jobTitle,
+                  employerName: job.employerName,
+                  description: job.description,
+                  updatedAt: job.updatedAt,
                   categoryId: job.categoryId,
-                  payRange: job.payRange
+                  salary: job.salary
                 }
               })
             } catch (e: any) {
-              log('error', `Individual insert failed for ${job.title}: ${e.message}`)
+              log('error', `Individual insert failed for ${job.jobTitle}: ${e.message}`)
             }
           }
         }

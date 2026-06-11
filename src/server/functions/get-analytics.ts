@@ -2,7 +2,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { getCloudflareEnv } from "@/lib/cloudflare";
 import { getDb } from "@/db/db";
-import { pipelineJobs, generatedDocuments } from "@/db/schema";
+import { normalizedJobs, generatedDocuments } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { resolveSessionUser } from "@/lib/resolve-user";
 
@@ -157,33 +157,33 @@ export const getAnalytics = createServerFn({ method: "GET" })
       const period = data.period ?? "all_time";
       const db = getDb(env.DB);
 
-      // 1. Fetch user pipeline jobs
+      // 1. Fetch user normalized jobs
       const userJobs = await db
         .select({
-          id: pipelineJobs.id,
-          title: pipelineJobs.title,
-          company: pipelineJobs.company,
-          location: pipelineJobs.location,
-          industry: pipelineJobs.industry,
-          sourceName: pipelineJobs.sourceName,
-          sourceUrl: pipelineJobs.sourceUrl,
-          workplaceType: pipelineJobs.workplaceType,
-          salary: pipelineJobs.salary,
-          atsScore: pipelineJobs.atsScore,
-          careerScore: pipelineJobs.careerScore,
-          outlookScore: pipelineJobs.outlookScore,
-          masterScore: pipelineJobs.masterScore,
-          isUnicorn: pipelineJobs.isUnicorn,
-          matchScore: pipelineJobs.matchScore,
-          pursue: pipelineJobs.pursue,
-          status: pipelineJobs.status,
-          keywords: pipelineJobs.keywords,
-          createdAt: pipelineJobs.createdAt,
-          analyzedAt: pipelineJobs.analyzedAt,
-          postDateText: pipelineJobs.postDateText,
+          id: normalizedJobs.id,
+          title: normalizedJobs.jobTitle,
+          company: normalizedJobs.employerName,
+          location: normalizedJobs.location,
+          industry: normalizedJobs.industry,
+          sourceName: normalizedJobs.sourceOrigin,
+          sourceUrl: normalizedJobs.sourceUrl,
+          workplaceType: normalizedJobs.workplaceType,
+          salary: normalizedJobs.salary,
+          atsScore: normalizedJobs.atsScore,
+          careerScore: normalizedJobs.careerScore,
+          outlookScore: normalizedJobs.outlookScore,
+          masterScore: normalizedJobs.masterScore,
+          isUnicorn: normalizedJobs.isUnicorn,
+          matchScore: normalizedJobs.matchScore,
+          pursue: normalizedJobs.pursue,
+          status: normalizedJobs.currentStage,
+          keywords: normalizedJobs.keywords,
+          createdAt: normalizedJobs.createdAt,
+          analyzedAt: normalizedJobs.analyzedAt,
+          postDateText: normalizedJobs.postDateText,
         })
-        .from(pipelineJobs)
-        .where(eq(pipelineJobs.userId, user.id));
+        .from(normalizedJobs)
+        .where(eq(normalizedJobs.userId, user.id));
 
       if (userJobs.length === 0) {
         return EMPTY(period);

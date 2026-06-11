@@ -4,7 +4,7 @@ import { resolveSessionUser } from "@/lib/resolve-user";
 import { eq, and } from "drizzle-orm";
 import { getCloudflareEnv } from "@/lib/cloudflare";
 import { getDb } from "@/db/db";
-import { masterResume, pipelineJobs, generatedDocuments, resumeSections } from "@/db/schema";
+import { masterResume, normalizedJobs, generatedDocuments, resumeSections } from "@/db/schema";
 import {
   callClaude,
 } from "@/lib/ai-gateway";
@@ -106,13 +106,13 @@ export const generateResume = createServerFn({ method: "POST" })
 
       const [analysis] = await db
         .select()
-        .from(pipelineJobs)
-        .where(and(eq(pipelineJobs.id, data.analysisId), eq(pipelineJobs.userId, user.id)))
+        .from(normalizedJobs)
+        .where(and(eq(normalizedJobs.id, data.analysisId), eq(normalizedJobs.userId, user.id)))
         .limit(1);
       if (!analysis) throw new Error("Analysis not found");
 
-      const jobTitle = analysis.title ?? "";
-      const company = analysis.company ?? "";
+      const jobTitle = analysis.jobTitle ?? "";
+      const company = analysis.employerName ?? "";
       const jobDescription = analysis.jdText ?? "";
 
       // Try to fetch from section-based DB first

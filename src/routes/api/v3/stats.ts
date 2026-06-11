@@ -6,7 +6,7 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { json } from '@tanstack/react-start'
 import { getDbFromContext, schema } from '../../../db/db'
-import { sql } from 'drizzle-orm'
+import { isNull, sql } from 'drizzle-orm'
 
 export const Route = createFileRoute('/api/v3/stats')({
   server: {
@@ -16,14 +16,15 @@ export const Route = createFileRoute('/api/v3/stats')({
           const ctx = context as any
           const db = await getDbFromContext(ctx)
 
-          // Total jobs by source
+          // Total jobs by source (global ATS catalog: userId IS NULL)
           const jobsBySource = await db.select({
-            sourceName: schema.jobs.sourceName,
+            sourceName: schema.normalizedJobs.sourceOrigin,
             count: sql<number>`count(*)`
           })
-          .from(schema.jobs)
-          .groupBy(schema.jobs.sourceName)
-          
+          .from(schema.normalizedJobs)
+          .where(isNull(schema.normalizedJobs.userId))
+          .groupBy(schema.normalizedJobs.sourceOrigin)
+
           const sourceMap: Record<string, number> = {}
           for (const row of jobsBySource) {
             const key = (row.sourceName || 'unknown').toLowerCase()
@@ -33,7 +34,7 @@ export const Route = createFileRoute('/api/v3/stats')({
           // Total jobs
           const totalJobsResult = await db.select({
             count: sql<number>`count(*)`
-          }).from(schema.jobs)
+          }).from(schema.normalizedJobs).where(isNull(schema.normalizedJobs.userId))
           const totalJobs = Number(totalJobsResult[0]?.count) || 0
           
           // Company counts

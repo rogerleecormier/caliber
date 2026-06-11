@@ -1,5 +1,5 @@
 import { getDb, schema } from '@/db/db';
-import { and, inArray, like } from 'drizzle-orm';
+import { and, inArray, isNull, like } from 'drizzle-orm';
 import type { LinkedInScrapedJob, LinkedInSearchParams } from '@/lib/linkedin-search';
 
 // State code to full name dictionary for US locations
@@ -121,29 +121,30 @@ export async function searchAtsJobs(
   criteria: LinkedInSearchParams
 ): Promise<LinkedInScrapedJob[]> {
   const activeAtsSources: string[] = [];
-  if (sources.includes('greenhouse')) activeAtsSources.push('Greenhouse');
-  if (sources.includes('lever')) activeAtsSources.push('Lever');
-  if (sources.includes('workable')) activeAtsSources.push('Workable');
+  if (sources.includes('greenhouse')) activeAtsSources.push('greenhouse');
+  if (sources.includes('lever')) activeAtsSources.push('lever');
+  if (sources.includes('workable')) activeAtsSources.push('workable');
 
   if (activeAtsSources.length === 0 || !criteria.keywords) {
     return [];
   }
 
-  // Fetch initial base set matching target platforms and title keyword
+  // Fetch initial base set matching target platforms and title keyword (global ATS catalog)
   const matchedAtsJobs = await db
     .select()
-    .from(schema.jobs)
+    .from(schema.normalizedJobs)
     .where(
       and(
-        inArray(schema.jobs.sourceName, activeAtsSources),
-        like(schema.jobs.title, `%${criteria.keywords}%`)
+        isNull(schema.normalizedJobs.userId),
+        inArray(schema.normalizedJobs.sourceOrigin, activeAtsSources),
+        like(schema.normalizedJobs.jobTitle, `%${criteria.keywords}%`)
       )
     );
 
   // Apply granular filters in-memory
   const filteredJobs = matchedAtsJobs.filter((job) => {
-    const title = job.title;
-    const desc = job.descriptionRaw || job.description || null;
+    const title = job.jobTitle;
+    const desc = job.description || job.descriptionPruned || null;
 
     // 1. Location match filter
     if (criteria.location && !isGenericLocation(criteria.location)) {
@@ -162,7 +163,7 @@ export async function searchAtsJobs(
 
     // 3. Salary floor filter (keeps jobs without salary, discards jobs explicitly below floor)
     if (criteria.salaryMin != null) {
-      const { min, max } = parseSalaryMinMax(job.payRange);
+      const { min, max } = parseSalaryMinMax(job.salary);
       if (min !== null || max !== null) {
         if (max !== null && max < criteria.salaryMin) {
           return false;
@@ -177,8 +178,8 @@ export async function searchAtsJobs(
   });
 
   return filteredJobs.map((job) => {
-    const title = job.title;
-    const desc = job.descriptionRaw || job.description || null;
+    const title = job.jobTitle;
+    const desc = job.description || job.descriptionPruned || null;
     const workplace = classifyWorkplaceType(title, desc);
 
     // Format location information creatively for UI presentation
@@ -194,18 +195,18 @@ export async function searchAtsJobs(
 
     return {
       id: `ats-${job.id}`,
-      title: job.title,
-      company: job.company || 'Unknown',
+      title: job.jobTitle,
+      company: job.employerName || 'Unknown',
       location: jobLocation,
       sourceUrl: job.sourceUrl,
-      sourceName: job.sourceName as any,
-      postDateText: job.postDate ? new Date(job.postDate).toLocaleDateString() : null,
-      firstSeenAt: job.createdAt?.toISOString() || null,
-      createdAt: job.createdAt?.toISOString() || null,
+      sourceName: job.sourceOrigin as any,
+      postDateText: job.postDateText || null,
+      firstSeenAt: job.createdAt || null,
+      createdAt: job.createdAt || null,
       workplaceType: workplace,
-      salary: job.payRange || null,
-      snippet: job.descriptionRaw ? job.descriptionRaw.substring(0, 300) : null,
-      description: job.descriptionRaw || null,
+      salary: job.salary || null,
+      snippet: job.description ? job.description.substring(0, 300) : null,
+      description: job.description || null,
     };
   });
 }

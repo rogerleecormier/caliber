@@ -78,6 +78,20 @@
       "when": 1779664999459,
       "tag": "0010_better_auth_tables",
       "breakpoints": true
+    },
+    {
+      "idx": 28,
+      "version": "6",
+      "when": 1781000000000,
+      "tag": "0028_unify_normalized_jobs",
+      "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "6",
+      "when": 1781000001000,
+      "tag": "0029_user_show_global_jobs",
+      "breakpoints": true
     }
   ]
 }

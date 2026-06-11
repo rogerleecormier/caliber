@@ -41,7 +41,6 @@ import {
   getSavedPipelineSearches,
   setPipelineJobStatus,
 } from "@/server/functions/jobs-pipeline";
-import type { LinkedInScrapedJob } from "@/lib/linkedin-search";
 import {
   PIPELINE_STATUSES,
   STATUS_TONES,
@@ -374,10 +373,8 @@ function JobsPage() {
         hasResume={hasResume}
         fullName={fullName}
         initialSavedSearches={loaderSavedSearches}
-        preload={null}
         cronStartHour={cronStartHour}
         cronFrequency={cronFrequency}
-        onSearchComplete={() => {}}
       />
     </div>
   );
@@ -655,28 +652,6 @@ function JobsListContentWrapper({
     } finally {
       setPendingBulkAction(null);
     }
-  }
-
-  function handleSearchComplete(
-    freshJobs: LinkedInScrapedJob[],
-    meta: { warnings: string[]; searchUrl: string },
-  ) {
-    setSearchWarnings(meta.warnings);
-    const existingUrls = new Set(jobs.map((j) => j.sourceUrl));
-    const incoming = freshJobs
-      .filter((j) => !existingUrls.has(j.sourceUrl))
-      .map((j) => ({ ...j, isNew: true } as unknown as HubJob));
-    if (incoming.length > 0) {
-      jobsQuery.updateJobsOptimistically((data) => {
-        if (!data) return data;
-        return {
-          ...data,
-          rows: [...incoming, ...data.rows],
-          total: data.total + incoming.length,
-        };
-      });
-    }
-    void jobsQuery.invalidateJobs();
   }
 
   function openFreshDrawer() {

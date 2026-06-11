@@ -4,7 +4,7 @@ import { resolveSessionUser } from "@/lib/resolve-user";
 import { eq, and } from "drizzle-orm";
 import { getCloudflareEnv } from "@/lib/cloudflare";
 import { getDb } from "@/db/db";
-import { masterResume, pipelineJobs, generatedDocuments, resumeVectorIndex, resumeSections } from "@/db/schema";
+import { masterResume, normalizedJobs, generatedDocuments, resumeVectorIndex, resumeSections } from "@/db/schema";
 import {
   allocateTokenBudgets,
   callClaude,
@@ -40,8 +40,8 @@ export const generateCoverLetter = createServerFn({ method: "POST" })
 
       const [analysis] = await db
         .select()
-        .from(pipelineJobs)
-        .where(and(eq(pipelineJobs.id, data.analysisId), eq(pipelineJobs.userId, user.id)))
+        .from(normalizedJobs)
+        .where(and(eq(normalizedJobs.id, data.analysisId), eq(normalizedJobs.userId, user.id)))
         .limit(1);
       if (!analysis) throw new Error("Analysis not found");
 
@@ -121,8 +121,8 @@ export const generateCoverLetter = createServerFn({ method: "POST" })
       const prompt = COVER_LETTER_PROMPT
         .replace("{candidateData}", candidateData)
         .replace("{rawResumeText}", rawResumeSource + groundTruthSection)
-        .replace("{jobTitle}", analysis.title ?? "")
-        .replace("{company}", analysis.company ?? "")
+        .replace("{jobTitle}", analysis.jobTitle ?? "")
+        .replace("{company}", analysis.employerName ?? "")
         .replace("{jobDescription}", jobDescription)
         .replace("{painPoints}", painPoints || "Improve operational efficiency and team performance")
         .replace("{extraGuidance}", extraGuidance || "None provided");
@@ -158,7 +158,7 @@ export const generateCoverLetter = createServerFn({ method: "POST" })
 
       const timestamp = Date.now();
       const r2Key = `documents/${data.analysisId}/cover_letter_${timestamp}.pdf`;
-      const fileName = `CoverLetter_${(analysis.company ?? "Company").replace(/\s+/g, "_")}_${(analysis.title ?? "Position").replace(/\s+/g, "_")}.pdf`;
+      const fileName = `CoverLetter_${(analysis.employerName ?? "Company").replace(/\s+/g, "_")}_${(analysis.jobTitle ?? "Position").replace(/\s+/g, "_")}.pdf`;
 
       await env.R2.put(r2Key, pdfBytes, {
         httpMetadata: { contentType: "application/pdf" },

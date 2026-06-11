@@ -7,8 +7,6 @@
  * SQLite single-writer lock contention.
  */
 
-import type { LinkedInScrapedJob, LinkedInSearchParams } from '@/lib/linkedin-search'
-
 /**
  * ATS job message — sent by the ATS sync worker (Greenhouse/Lever/Workable)
  */
@@ -26,19 +24,6 @@ export interface AtsJobMessage {
 }
 
 /**
- * Pipeline job message — sent by LinkedIn search cron
- */
-export interface PipelineJobMessage {
-  type: 'pipeline_job'
-  userId: string
-  savedSearchId: number | null
-  searchUrl: string
-  criteria: LinkedInSearchParams
-  job: LinkedInScrapedJob
-  shouldBackfillWorkplaceType?: boolean
-}
-
-/**
  * Greenhouse org discovery message — sent when Greenhouse URLs are detected
  */
 export interface GreenhouseOrgMessage {
@@ -49,7 +34,7 @@ export interface GreenhouseOrgMessage {
 /**
  * Union type for all job ingestion messages
  */
-export type JobIngestionMessage = AtsJobMessage | PipelineJobMessage | GreenhouseOrgMessage
+export type JobIngestionMessage = AtsJobMessage | GreenhouseOrgMessage
 
 /**
  * Enqueue a job for ingestion. Logs errors but does not throw,

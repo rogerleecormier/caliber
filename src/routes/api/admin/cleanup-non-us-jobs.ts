@@ -31,7 +31,7 @@ export const Route = createFileRoute("/api/admin/cleanup-non-us-jobs")({
           const result = await cleanupNonUSJobs(db)
           return json({
             success: true,
-            message: `Deleted ${result.deletedLinkedin} non-US LinkedIn jobs and ${result.deletedPipeline} non-US pipeline jobs`,
+            message: `Deleted ${result.deleted} non-US jobs`,
             ...result,
           })
         } catch (error) {

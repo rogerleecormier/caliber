@@ -2,15 +2,14 @@ import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { listUsers, createUser, deleteUser } from "@/server/functions/admin";
 import {
-  getLinkedinAdminSettings,
-  runLinkedinSemanticDedupe,
-  updateLinkedinAdminSettings,
-} from "@/server/functions/linkedin-admin";
+  getAgentAdminSettings,
+  updateAgentAdminSettings,
+} from "@/server/functions/agent-admin";
 import { PageHero, PageSection } from "@caliber/ui-kit";
 import { Clock, Shield, Trash2 } from "lucide-react";
 
 type AdminUser = { id: string; email: string; role: string | null; createdAt: string | Date };
-type LinkedinSettings = Awaited<ReturnType<typeof getLinkedinAdminSettings>>;
+type AgentSettings = Awaited<ReturnType<typeof getAgentAdminSettings>>;
 
 export const Route = createFileRoute("/admin")({
   beforeLoad: ({ context }) => {
@@ -28,9 +27,8 @@ function AdminPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [loadingUsers, setLoadingUsers] = useState(false);
-  const [settings, setSettings] = useState<LinkedinSettings | null>(null);
+  const [settings, setSettings] = useState<AgentSettings | null>(null);
   const [savingSettings, setSavingSettings] = useState(false);
-  const [runningLinkedinDedupe, setRunningLinkedinDedupe] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
 
   async function fetchUsers() {
@@ -48,7 +46,7 @@ function AdminPage() {
 
   useEffect(() => { fetchUsers(); }, []);
   useEffect(() => {
-    getLinkedinAdminSettings({})
+    getAgentAdminSettings({})
       .then(setSettings)
       .catch((err) => setError(err instanceof Error ? err.message : "Failed to load settings"));
   }, []);
@@ -88,37 +86,15 @@ function AdminPage() {
     setError("");
     setSuccessMessage("");
     try {
-      const next = await updateLinkedinAdminSettings({
+      const next = await updateAgentAdminSettings({
         data: settings,
       });
       setSettings(next);
-      setSuccessMessage("LinkedIn settings saved.");
+      setSuccessMessage("Agent settings saved.");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to save settings");
     } finally {
       setSavingSettings(false);
-    }
-  }
-
-  async function handleRunLinkedinDedupe() {
-    if (!window.confirm("Run LinkedIn dedupe now? This will permanently remove older duplicate job rows.")) {
-      return;
-    }
-
-    setRunningLinkedinDedupe(true);
-    setError("");
-    setSuccessMessage("");
-    try {
-      const result = await runLinkedinSemanticDedupe({});
-      setSuccessMessage(
-        result.deletedCount > 0
-          ? `LinkedIn dedupe complete. Removed ${result.deletedCount} duplicate jobs (${result.exactUrlDeletedCount} exact URL matches, ${result.semanticDeletedCount} semantic matches).`
-          : "LinkedIn dedupe complete. No duplicate jobs were found.",
-      );
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to run LinkedIn dedupe");
-    } finally {
-      setRunningLinkedinDedupe(false);
     }
   }
 
@@ -208,7 +184,7 @@ function AdminPage() {
       </PageSection>
 
       <PageSection
-        title="LinkedIn Cron Schedule"
+        title="Search Agent Cron Schedule"
         description="Control how frequently search agents run and add randomized variance to avoid predictable request patterns."
       >
         {!settings ? (
@@ -221,7 +197,7 @@ function AdminPage() {
                 <p className="text-xs text-muted-foreground">How often each search agent is eligible to run.</p>
                 <select
                   value={settings.linkedinSearchCronFrequency}
-                  onChange={(e) => setSettings({ ...settings, linkedinSearchCronFrequency: e.target.value as LinkedinSettings["linkedinSearchCronFrequency"] })}
+                  onChange={(e) => setSettings({ ...settings, linkedinSearchCronFrequency: e.target.value as AgentSettings["linkedinSearchCronFrequency"] })}
                   className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                 >
                   <option value="hourly">Every Hour</option>
@@ -274,7 +250,7 @@ function AdminPage() {
                 <div className="space-y-1">
                   <p className="font-medium">How variance works</p>
                   <p className="text-xs">
-                    On each cron tick, a random number of minutes (0–{settings.linkedinCronVarianceMinutes}) is subtracted from the interval threshold before checking whether a search is due. This means searches may run slightly earlier than the exact interval, making timing less predictable to LinkedIn's bot detection.
+                    On each cron tick, a random number of minutes (0–{settings.linkedinCronVarianceMinutes}) is subtracted from the interval threshold before checking whether a search is due. This means searches may run slightly earlier than the exact interval, making timing less predictable to source-site bot detection.
                   </p>
                 </div>
               </div>
@@ -294,8 +270,8 @@ function AdminPage() {
       </PageSection>
 
       <PageSection
-        title="LinkedIn General Settings"
-        description="Control job retention, deduplication, and visibility across users."
+        title="Search Agent General Settings"
+        description="Control job retention and visibility across users."
       >
         {!settings ? (
           <p className="text-sm text-muted-foreground">Loading settings...</p>
@@ -351,14 +327,6 @@ function AdminPage() {
                 className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
               >
                 {savingSettings ? "Saving..." : "Save General Settings"}
-              </button>
-              <button
-                type="button"
-                onClick={handleRunLinkedinDedupe}
-                disabled={runningLinkedinDedupe}
-                className="rounded-lg border border-input bg-background px-4 py-2 text-sm font-semibold hover:bg-muted disabled:opacity-50"
-              >
-                {runningLinkedinDedupe ? "Running Dedupe..." : "Run LinkedIn Dedupe Now"}
               </button>
             </div>
           </form>

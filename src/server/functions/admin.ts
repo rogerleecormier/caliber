@@ -10,11 +10,9 @@ import {
   masterResume,
   jobAnalyses,
   analyticsSummary,
-  linkedinJobResults,
-  linkedinSavedSearches,
   generatedDocuments,
-  pipelineJobs,
-  searchLogs,
+  normalizedJobs,
+  searchConfigurations,
 } from "@/db/schema";
 
 async function requireAdmin(ctx?: any) {
@@ -70,28 +68,26 @@ export const deleteUser = createServerFn({ method: "POST" })
       .where(eq(jobAnalyses.userId, data.userId));
     const analysisIds = userAnalyses.map((a) => a.id);
 
-    const userPipelineJobs = await db
-      .select({ id: pipelineJobs.id })
-      .from(pipelineJobs)
-      .where(eq(pipelineJobs.userId, data.userId));
-    const pipelineJobIds = userPipelineJobs.map((pj) => pj.id);
+    const userNormalizedJobs = await db
+      .select({ id: normalizedJobs.id })
+      .from(normalizedJobs)
+      .where(eq(normalizedJobs.userId, data.userId));
+    const normalizedJobIds = userNormalizedJobs.map((j) => j.id);
 
-    // 2. Delete generated documents first (child of job_analyses and pipeline_jobs)
+    // 2. Delete generated documents first (child of job_analyses and normalized_jobs)
     if (analysisIds.length > 0) {
       await db.delete(generatedDocuments).where(inArray(generatedDocuments.jobAnalysisId, analysisIds));
     }
-    if (pipelineJobIds.length > 0) {
-      await db.delete(generatedDocuments).where(inArray(generatedDocuments.pipelineJobId, pipelineJobIds));
+    if (normalizedJobIds.length > 0) {
+      await db.delete(generatedDocuments).where(inArray(generatedDocuments.pipelineJobId, normalizedJobIds));
     }
 
     // 3. Delete other child tables referencing users or saved searches
-    await db.delete(pipelineJobs).where(eq(pipelineJobs.userId, data.userId));
-    await db.delete(searchLogs).where(eq(searchLogs.userId, data.userId));
+    await db.delete(normalizedJobs).where(eq(normalizedJobs.userId, data.userId));
     await db.delete(masterResume).where(eq(masterResume.userId, data.userId));
     await db.delete(jobAnalyses).where(eq(jobAnalyses.userId, data.userId));
     await db.delete(analyticsSummary).where(eq(analyticsSummary.userId, data.userId));
-    await db.delete(linkedinJobResults).where(eq(linkedinJobResults.userId, data.userId));
-    await db.delete(linkedinSavedSearches).where(eq(linkedinSavedSearches.userId, data.userId));
+    await db.delete(searchConfigurations).where(eq(searchConfigurations.userId, data.userId));
 
     // 4. Delete the user records themselves
     await db.delete(userTable).where(eq(userTable.id, data.userId));

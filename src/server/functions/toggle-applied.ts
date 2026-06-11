@@ -4,7 +4,7 @@ import { resolveSessionUser } from "@/lib/resolve-user";
 import { eq, and } from "drizzle-orm";
 import { getCloudflareEnv } from "@/lib/cloudflare";
 import { getDb } from "@/db/db";
-import { pipelineJobs } from "@/db/schema";
+import { normalizedJobs } from "@/db/schema";
 import { type PipelineStatus, PIPELINE_STATUSES, normalizePipelineStatus } from "@/lib/pipeline-constants";
 
 export type ApplicationOutcome = PipelineStatus | null;
@@ -22,14 +22,14 @@ export const toggleApplied = createServerFn({ method: "POST" })
     const newStatus: PipelineStatus = data.applied ? 'Applied' : 'Analyzed';
 
     const [updated] = await db
-      .update(pipelineJobs)
-      .set({ status: newStatus, updatedAt: new Date().toISOString() })
-      .where(and(eq(pipelineJobs.id, data.id), eq(pipelineJobs.userId, user.id)))
+      .update(normalizedJobs)
+      .set({ currentStage: newStatus, updatedAt: new Date().toISOString() })
+      .where(and(eq(normalizedJobs.id, data.id), eq(normalizedJobs.userId, user.id)))
       .returning();
 
     if (!updated) throw new Error("Not found or not authorized");
 
-    const status = normalizePipelineStatus(updated.status);
+    const status = normalizePipelineStatus(updated.currentStage);
     return {
       id: updated.id,
       applied: ['Applied', 'Interviewed', 'Hired'].includes(status),
@@ -54,17 +54,17 @@ export const setApplicationOutcome = createServerFn({ method: "POST" })
     const newStatus: PipelineStatus = data.status ?? 'Analyzed';
 
     const [updated] = await db
-      .update(pipelineJobs)
+      .update(normalizedJobs)
       .set({
-        status: newStatus,
+        currentStage: newStatus,
         updatedAt: new Date().toISOString(),
       })
-      .where(and(eq(pipelineJobs.id, data.id), eq(pipelineJobs.userId, user.id)))
+      .where(and(eq(normalizedJobs.id, data.id), eq(normalizedJobs.userId, user.id)))
       .returning();
 
     if (!updated) throw new Error("Not found or not authorized");
 
-    const status = normalizePipelineStatus(updated.status);
+    const status = normalizePipelineStatus(updated.currentStage);
     return {
       id: updated.id,
       applied: ['Applied', 'Interviewed', 'Hired'].includes(status),

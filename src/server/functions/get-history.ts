@@ -4,7 +4,7 @@ import { desc, eq, and, sql } from "drizzle-orm";
 import { getCloudflareEnv } from "@/lib/cloudflare";
 import type { CloudflareEnv } from "@/lib/cloudflare";
 import { getDb } from "@/db/db";
-import { pipelineJobs, generatedDocuments } from "@/db/schema";
+import { normalizedJobs, generatedDocuments } from "@/db/schema";
 import { resolveSessionUser } from "@/lib/resolve-user";
 import { aggregateAnalytics } from "@/server/cron/aggregate-analytics";
 import {
@@ -49,13 +49,13 @@ export const getHistory = createServerFn({ method: "GET" })
 
       // Only show analyzed+ jobs in history (not Discovered)
       const baseConditions = [
-        eq(pipelineJobs.userId, user.id),
-        sql`${pipelineJobs.status} != 'Discovered'`,
+        eq(normalizedJobs.userId, user.id),
+        sql`${normalizedJobs.currentStage} != 'Discovered'`,
       ];
 
       if (query) {
         baseConditions.push(
-          sql`(lower(coalesce(${pipelineJobs.title}, '')) LIKE ${'%' + query + '%'} OR lower(coalesce(${pipelineJobs.company}, '')) LIKE ${'%' + query + '%'})`,
+          sql`(lower(coalesce(${normalizedJobs.jobTitle}, '')) LIKE ${'%' + query + '%'} OR lower(coalesce(${normalizedJobs.employerName}, '')) LIKE ${'%' + query + '%'})`,
         );
       }
 
@@ -63,50 +63,50 @@ export const getHistory = createServerFn({ method: "GET" })
 
       const analyses = await db
         .select()
-        .from(pipelineJobs)
+        .from(normalizedJobs)
         .where(whereClause)
-        .orderBy(desc(pipelineJobs.analyzedAt), desc(pipelineJobs.createdAt))
+        .orderBy(desc(normalizedJobs.analyzedAt), desc(normalizedJobs.createdAt))
         .limit(pageSize)
         .offset(offset);
 
       const [countRow] = await db
         .select({ count: sql<number>`count(*)` })
-        .from(pipelineJobs)
+        .from(normalizedJobs)
         .where(whereClause);
 
       const [appliedRow] = await db
         .select({ count: sql<number>`count(*)` })
-        .from(pipelineJobs)
+        .from(normalizedJobs)
         .where(and(
-          eq(pipelineJobs.userId, user.id),
-          sql`${pipelineJobs.status} IN ('Applied', 'Interviewed', 'Hired')`,
+          eq(normalizedJobs.userId, user.id),
+          sql`${normalizedJobs.currentStage} IN ('Applied', 'Interviewed', 'Hired')`,
         ));
 
       const [pursuedRow] = await db
         .select({ count: sql<number>`count(*)` })
-        .from(pipelineJobs)
+        .from(normalizedJobs)
         .where(and(
-          eq(pipelineJobs.userId, user.id),
-          eq(pipelineJobs.pursue, 1),
+          eq(normalizedJobs.userId, user.id),
+          eq(normalizedJobs.pursue, 1),
         ));
 
       const [docCountRow] = await db
         .select({ count: sql<number>`count(*)` })
         .from(generatedDocuments)
-        .where(sql`${generatedDocuments.pipelineJobId} IN (SELECT id FROM pipeline_jobs WHERE user_id = ${user.id})`);
+        .where(sql`${generatedDocuments.pipelineJobId} IN (SELECT id FROM normalized_jobs WHERE user_id = ${user.id})`);
 
       // Pipeline counts
       const statusRows = await db
         .select({
-          status: pipelineJobs.status,
+          status: normalizedJobs.currentStage,
           count: sql<number>`count(*)`,
         })
-        .from(pipelineJobs)
+        .from(normalizedJobs)
         .where(and(
-          eq(pipelineJobs.userId, user.id),
-          sql`${pipelineJobs.status} != 'Discovered'`,
+          eq(normalizedJobs.userId, user.id),
+          sql`${normalizedJobs.currentStage} != 'Discovered'`,
         ))
-        .groupBy(pipelineJobs.status);
+        .groupBy(normalizedJobs.currentStage);
 
       const pipelineCounts = { ...EMPTY_PIPELINE_COUNTS };
       for (const row of statusRows) {
@@ -129,14 +129,14 @@ export const getHistory = createServerFn({ method: "GET" })
             .where(eq(generatedDocuments.pipelineJobId, a.id))
             .orderBy(desc(generatedDocuments.id));
 
-          const status = normalizePipelineStatus(a.status);
+          const status = normalizePipelineStatus(a.currentStage);
           const isApplied = ['Applied', 'Interviewed', 'Hired'].includes(status);
 
           return {
             id: a.id,
             createdAt: a.analyzedAt ?? a.createdAt ?? "",
-            jobTitle: a.title ?? "Untitled",
-            company: a.company ?? "Unknown",
+            jobTitle: a.jobTitle ?? "Untitled",
+            company: a.employerName ?? "Unknown",
             matchScore: a.matchScore ?? 0,
             jobUrl: a.sourceUrl,
             pursue: a.pursue === 1,
@@ -223,8 +223,8 @@ export const deleteHistoryItem = createServerFn({ method: "POST" })
     const db = getDb(env.DB);
     const [job] = await db
       .select()
-      .from(pipelineJobs)
-      .where(and(eq(pipelineJobs.id, data.id), eq(pipelineJobs.userId, user.id)))
+      .from(normalizedJobs)
+      .where(and(eq(normalizedJobs.id, data.id), eq(normalizedJobs.userId, user.id)))
       .limit(1);
 
     if (!job) throw new Error("Job not found or not authorized");
@@ -245,7 +245,7 @@ export const deleteHistoryItem = createServerFn({ method: "POST" })
     }
 
     await db.delete(generatedDocuments).where(eq(generatedDocuments.pipelineJobId, job.id));
-    await db.delete(pipelineJobs).where(and(eq(pipelineJobs.id, job.id), eq(pipelineJobs.userId, user.id)));
+    await db.delete(normalizedJobs).where(and(eq(normalizedJobs.id, job.id), eq(normalizedJobs.userId, user.id)));
 
     aggregateAnalytics(env as CloudflareEnv, user.id).catch((e) =>
       console.error("[deleteHistoryItem] aggregateAnalytics error:", e),

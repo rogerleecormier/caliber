@@ -12,7 +12,7 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { json } from '@tanstack/react-start'
 import { getDbFromContext, schema } from '../../../../db/db'
-import { sql, eq, and, lt } from 'drizzle-orm'
+import { sql, eq, and, lt, isNull } from 'drizzle-orm'
 
 const DEFAULT_STALE_DAYS = 30
 
@@ -60,25 +60,26 @@ export const Route = createFileRoute('/api/v3/jobs/prune')({
             timestamp: new Date().toISOString()
           })
           
-          // Build query conditions
+          // Build query conditions (global ATS catalog only: userId IS NULL)
           const conditions = [
-            lt(schema.jobs.updatedAt, cutoffDate)
+            isNull(schema.normalizedJobs.userId),
+            lt(schema.normalizedJobs.updatedAt, cutoffDate.toISOString())
           ]
-          
+
           if (sourceParam) {
-            conditions.push(eq(schema.jobs.sourceName, sourceParam))
+            conditions.push(eq(schema.normalizedJobs.sourceOrigin, sourceParam))
           }
-          
+
           // Find stale jobs
           const staleJobs = await db.select({
-            id: schema.jobs.id,
-            title: schema.jobs.title,
-            company: schema.jobs.company,
-            sourceName: schema.jobs.sourceName,
-            sourceUrl: schema.jobs.sourceUrl,
-            updatedAt: schema.jobs.updatedAt
+            id: schema.normalizedJobs.id,
+            title: schema.normalizedJobs.jobTitle,
+            company: schema.normalizedJobs.employerName,
+            sourceName: schema.normalizedJobs.sourceOrigin,
+            sourceUrl: schema.normalizedJobs.sourceUrl,
+            updatedAt: schema.normalizedJobs.updatedAt
           })
-          .from(schema.jobs)
+          .from(schema.normalizedJobs)
           .where(and(...conditions))
           .limit(500) // Limit to prevent resource exhaustion
           
@@ -93,7 +94,7 @@ export const Route = createFileRoute('/api/v3/jobs/prune')({
             const batchSize = 100
             for (let i = 0; i < jobIds.length; i += batchSize) {
               const batch = jobIds.slice(i, i + batchSize)
-              await db.delete(schema.jobs)
+              await db.delete(schema.normalizedJobs)
                 .where(sql`id IN (${sql.join(batch.map(id => sql`${id}`), sql`, `)})`)
               jobsDeleted += batch.length
             }

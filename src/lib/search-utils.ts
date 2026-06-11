@@ -1,7 +1,14 @@
 import Fuse from 'fuse.js'
-import type { Job, Category } from '../db/schema'
 
-export interface JobWithCategory extends Job {
+// Job/Category tables were dropped in the normalized-jobs unification.
+// This legacy catalog-browser type is stubbed pending a follow-on epic rebuild.
+interface Category {
+  id: number
+  name: string
+  slug: string
+}
+
+export interface JobWithCategory {
   id: number
   title: string
   company: string | null

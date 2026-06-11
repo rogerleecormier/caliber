@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { json } from "@tanstack/react-start";
 import { getAIFromContext, type AIEnv } from "../../../lib/ai";
 import { getDbFromContext, schema } from "../../../db/db";
-import { like, or, desc } from "drizzle-orm";
+import { like, or, desc, isNull, and } from "drizzle-orm";
 
 export const Route = createFileRoute("/api/ai/recommend")({
   server: {
@@ -57,28 +57,22 @@ export const Route = createFileRoute("/api/ai/recommend")({
           // Build search conditions - match on title, company, or description
           const conditions = searchTerms.map(term =>
             or(
-              like(schema.jobs.title, `%${term}%`),
-              like(schema.jobs.company, `%${term}%`),
-              like(schema.jobs.description, `%${term}%`)
+              like(schema.normalizedJobs.jobTitle, `%${term}%`),
+              like(schema.normalizedJobs.employerName, `%${term}%`),
+              like(schema.normalizedJobs.description, `%${term}%`)
             )
           );
 
-          // Query for jobs matching ANY of the terms, ordered by newest
+          // Query for jobs matching ANY of the terms, ordered by newest (global ATS catalog only)
           const matchedJobs = await db
             .select()
-            .from(schema.jobs)
-            .where(or(...conditions))
-            .orderBy(desc(schema.jobs.postDate))
+            .from(schema.normalizedJobs)
+            .where(and(isNull(schema.normalizedJobs.userId), or(...conditions)))
+            .orderBy(desc(schema.normalizedJobs.discoveryTimestamp))
             .limit(3);
 
-          // Get categories for the matched jobs
-          const categoriesData = await db.select().from(schema.categories);
-          const categoriesMap = new Map(categoriesData.map((c) => [c.id, c]));
-
-          // Transform jobs with category
           const jobsWithCategories = matchedJobs.map((job) => ({
             ...job,
-            category: categoriesMap.get(job.categoryId) || { id: 0, name: "Unknown", slug: "unknown" },
             isAIRecommended: true,
           }));
 

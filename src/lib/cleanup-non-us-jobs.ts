@@ -1,60 +1,23 @@
-import { linkedinJobResults, pipelineJobs } from '@/db/schema'
+import { normalizedJobs } from '@/db/schema'
 import { inArray } from 'drizzle-orm'
 import type { DrizzleD1Database } from '@/db/db'
+import { isUSLocation } from '@/lib/normalized-jobs-persistence'
 
-function isUSLocation(location: string | null): boolean {
-  if (!location) return false
-  const normalized = location.toLowerCase()
-  const usIndicators = ['united states', 'usa', 'us,', ', us']
-  return usIndicators.some((indicator) => normalized.includes(indicator))
-}
+export async function cleanupNonUSJobs(db: DrizzleD1Database): Promise<{ deleted: number }> {
+  const allJobs = await db.select({ id: normalizedJobs.id, location: normalizedJobs.location }).from(normalizedJobs)
 
-export async function cleanupNonUSJobs(db: DrizzleD1Database): Promise<{ deletedLinkedin: number; deletedPipeline: number }> {
-  // Get all jobs and filter in memory
-  const allLinkedinJobs = await db.select().from(linkedinJobResults)
-  const allPipelineJobs = await db.select().from(pipelineJobs)
-
-  const nonUSLinkedinIds = allLinkedinJobs
+  const nonUSIds = allJobs
     .filter((job) => !isUSLocation(job.location))
     .map((job) => job.id)
 
-  const nonUSPipelineIds = allPipelineJobs
-    .filter((job) => !isUSLocation(job.location))
-    .map((job) => job.id)
-
-  let deletedLinkedin = 0
-  let deletedPipeline = 0
-
-  // Delete in batches to avoid hitting query parameter limits
+  let deleted = 0
   const batchSize = 20
 
-  if (nonUSLinkedinIds.length > 0) {
-    for (let i = 0; i < nonUSLinkedinIds.length; i += batchSize) {
-      const batch = nonUSLinkedinIds.slice(i, i + batchSize)
-      await db.delete(linkedinJobResults).where(inArray(linkedinJobResults.id, batch))
-      deletedLinkedin += batch.length
-    }
+  for (let i = 0; i < nonUSIds.length; i += batchSize) {
+    const batch = nonUSIds.slice(i, i + batchSize)
+    await db.delete(normalizedJobs).where(inArray(normalizedJobs.id, batch))
+    deleted += batch.length
   }
 
-  if (nonUSPipelineIds.length > 0) {
-    for (let i = 0; i < nonUSPipelineIds.length; i += batchSize) {
-      const batch = nonUSPipelineIds.slice(i, i + batchSize)
-      try {
-        await db.delete(pipelineJobs).where(inArray(pipelineJobs.id, batch))
-        deletedPipeline += batch.length
-      } catch (error) {
-        // If batch fails, try deleting one by one
-        for (const id of batch) {
-          try {
-            await db.delete(pipelineJobs).where(inArray(pipelineJobs.id, [id]))
-            deletedPipeline += 1
-          } catch (singleError) {
-            console.error(`Failed to delete pipeline job ${id}:`, singleError)
-          }
-        }
-      }
-    }
-  }
-
-  return { deletedLinkedin, deletedPipeline }
+  return { deleted }
 }

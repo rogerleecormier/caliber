@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { getScoreBorderColor } from "@/lib/scoreUtils";
 import { getDocumentDownload } from "@/server/functions/get-history";
+import { FlagToggle } from "@/components/features/flag-toggle";
 
 export type JobStatus = "Discovered" | "Analyzed" | "Prepped" | "Applied" | "Interviewed" | "Hired" | "Not Hired" | "Archived";
 
@@ -52,6 +53,7 @@ export type JobResultCardJob = {
   isUnicorn?: number | boolean | null;
   unicornReason?: string | null;
   matchScore?: number | null;
+  isFlagged?: boolean | number | null;
   documents?: Array<{ id: number; docType: string; r2Key: string; fileName: string }>;
 };
 
@@ -161,6 +163,11 @@ export function JobResultCard({
           className="absolute right-3 top-3 h-4 w-4 shrink-0 rounded border-slate-300 text-primary-600 z-10"
           aria-label={`Select ${job.title} at ${job.company}`}
         />
+      ) : null}
+      {job.id != null ? (
+        <div className="absolute right-2 top-2 z-10">
+          <FlagToggle jobId={job.id} initialFlagged={!!job.isFlagged} />
+        </div>
       ) : null}
       <PrimaryCard
         title={job.title}

@@ -2,15 +2,16 @@
  * Greenhouse Job Sync Cron
  *
  * Queries the greenhouse_orgs table for active organizations,
- * fetches jobs from the Greenhouse API, and upserts them to the jobs table.
+ * fetches jobs from the Greenhouse API, and upserts them into the
+ * unified normalized_jobs table (userId = null, global catalog rows).
  */
 
 import type { DrizzleD1Database } from '@/db/db'
 import * as schema from '@/db/schema'
-import { eq, and } from 'drizzle-orm'
+import { eq, and, sql } from 'drizzle-orm'
 import { pruneJobDescription } from '@/lib/prune-job-description'
 import { determineCategoryId } from '@/lib/job-sources'
-import { sql } from 'drizzle-orm'
+import { canonicalizeJobUrl } from '@/lib/normalized-jobs-persistence'
 
 interface GreenhouseJob {
   id: string
@@ -81,7 +82,7 @@ export async function runGreenhouseSyncCron(db: DrizzleD1Database): Promise<void
 }
 
 /**
- * Fetch jobs from Greenhouse API for a specific org and upsert to jobs table
+ * Fetch jobs from Greenhouse API for a specific org and upsert into normalized_jobs
  */
 async function syncGreenhouseOrgJobs(
   db: DrizzleD1Database,
@@ -104,66 +105,70 @@ async function syncGreenhouseOrgJobs(
   }
 
   let upsertCount = 0
+  const now = new Date().toISOString()
 
   for (const ghJob of data.jobs) {
     try {
       const sourceUrl = `https://boards.greenhouse.io/${orgName}/jobs/${ghJob.id}`
+      const canonicalSourceUrl = canonicalizeJobUrl(sourceUrl)
       const categoryId = determineCategoryId(ghJob.title, ghJob.content || '', [])
-      const postDate = ghJob.updated_at ? new Date(ghJob.updated_at) : new Date()
+      const postDateText = ghJob.updated_at ?? null
       const descriptionPruned = pruneJobDescription(ghJob.content || '')
 
       const existing = await db
         .select()
-        .from(schema.jobs)
-        .where(eq(schema.jobs.sourceUrl, sourceUrl))
+        .from(schema.normalizedJobs)
+        .where(
+          and(
+            sql`${schema.normalizedJobs.userId} IS NULL`,
+            eq(schema.normalizedJobs.canonicalSourceUrl, canonicalSourceUrl),
+          ),
+        )
         .limit(1)
 
       if (existing.length > 0) {
         const jobId = existing[0].id
         await db
-          .update(schema.jobs)
+          .update(schema.normalizedJobs)
           .set({
-            title: ghJob.title,
-            company: orgName,
-            descriptionRaw: ghJob.content || '',
+            jobTitle: ghJob.title,
+            employerName: orgName,
+            description: ghJob.content || '',
             descriptionPruned,
-            isCleansed: 0,
-            updatedAt: new Date(),
-            postDate: postDate || existing[0].postDate,
             categoryId,
+            postDateText,
+            lastSeenAt: now,
+            updatedAt: now,
           })
-          .where(eq(schema.jobs.id, jobId))
+          .where(eq(schema.normalizedJobs.id, jobId))
 
-        await updateJobFts(
-          db,
-          jobId,
-          ghJob.title,
-          orgName,
-          descriptionPruned,
-        )
+        await updateJobFts(db, jobId, ghJob.title, orgName, descriptionPruned, now)
       } else {
-        const result = await db.insert(schema.jobs).values({
-          title: ghJob.title,
-          company: orgName,
-          descriptionRaw: ghJob.content || '',
-          descriptionPruned,
-          isCleansed: 0,
+        const result = await db.insert(schema.normalizedJobs).values({
+          userId: null,
+          sourceOrigin: 'greenhouse',
+          externalReferenceId: String(ghJob.id),
+          jobTitle: ghJob.title,
+          employerName: orgName,
           sourceUrl,
-          sourceName: 'Greenhouse',
-          postDate,
-          categoryId,
+          canonicalSourceUrl,
+          description: ghJob.content || '',
+          descriptionPruned,
+          postDateText,
           remoteType: 'fully_remote',
+          categoryId,
+          currentStage: 'Discovered',
+          isFlagged: false,
+          isUnicorn: 0,
+          discoveryTimestamp: now,
+          lastSeenAt: now,
+          createdAt: now,
+          updatedAt: now,
         })
 
         const jobId = result.meta.last_row_id as number
         if (jobId) {
-          await insertJobFts(
-            db,
-            jobId,
-            ghJob.title,
-            orgName,
-            descriptionPruned,
-          )
+          await insertJobFts(db, jobId, ghJob.title, orgName, descriptionPruned, now)
         }
       }
 
@@ -184,7 +189,7 @@ async function syncGreenhouseOrgJobs(
 }
 
 /**
- * Insert a job into the FTS5 index
+ * Insert a job into the normalized_jobs FTS5 index
  */
 async function insertJobFts(
   db: DrizzleD1Database,
@@ -192,12 +197,13 @@ async function insertJobFts(
   title: string,
   company: string,
   descriptionPruned: string,
+  createdAt: string,
 ): Promise<void> {
   try {
     await db.run(
       sql`
-        INSERT INTO jobs_fts (rowid, job_id, title, company, description_pruned)
-        VALUES (${jobId}, ${jobId}, ${title}, ${company}, ${descriptionPruned})
+        INSERT INTO normalized_jobs_fts (rowid, job_id, title, company, description_pruned, created_at)
+        VALUES (${jobId}, ${jobId}, ${title}, ${company}, ${descriptionPruned}, ${createdAt})
       `,
     )
   } catch (error) {
@@ -209,7 +215,7 @@ async function insertJobFts(
 }
 
 /**
- * Update a job in the FTS5 index
+ * Update a job in the normalized_jobs FTS5 index
  */
 async function updateJobFts(
   db: DrizzleD1Database,
@@ -217,18 +223,14 @@ async function updateJobFts(
   title: string,
   company: string,
   descriptionPruned: string,
+  createdAt: string,
 ): Promise<void> {
   try {
+    await db.run(sql`DELETE FROM normalized_jobs_fts WHERE rowid = ${jobId}`)
     await db.run(
       sql`
-        DELETE FROM jobs_fts WHERE rowid = ${jobId}
-      `,
-    )
-
-    await db.run(
-      sql`
-        INSERT INTO jobs_fts (rowid, job_id, title, company, description_pruned)
-        VALUES (${jobId}, ${jobId}, ${title}, ${company}, ${descriptionPruned})
+        INSERT INTO normalized_jobs_fts (rowid, job_id, title, company, description_pruned, created_at)
+        VALUES (${jobId}, ${jobId}, ${title}, ${company}, ${descriptionPruned}, ${createdAt})
       `,
     )
   } catch (error) {

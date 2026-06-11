@@ -11,43 +11,6 @@ export const categories = sqliteTable('categories', {
     .default(sql`(unixepoch())`),
 })
 
-export const jobs = sqliteTable('jobs', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
-  title: text('title').notNull(),
-  company: text('company'),
-  description: text('description'),
-  descriptionRaw: text('description_raw'), // Raw/dirty data from source
-  descriptionPruned: text('description_pruned'), // Cleaned, boilerplate-removed text (ENG-02)
-  fullDescription: text('full_description'),
-  isCleansed: integer('is_cleansed').default(0), // 0 = needs cleansing, 1 = cleansed
-  payRange: text('pay_range'),
-  postDate: integer('post_date', { mode: 'timestamp' }),
-  sourceUrl: text('source_url').notNull().unique(),
-  sourceName: text('source_name').notNull(),
-  categoryId: integer('category_id')
-    .notNull()
-    .references(() => categories.id),
-  remoteType: text('remote_type').notNull().default('fully_remote'),
-  createdAt: integer('created_at', { mode: 'timestamp' })
-    .notNull()
-    .default(sql`(unixepoch())`),
-  updatedAt: integer('updated_at', { mode: 'timestamp' })
-    .notNull()
-    .default(sql`(unixepoch())`),
-})
-
-// FTS5 virtual table for fast full-text search on job descriptions (ENG-02)
-// Note: FTS5 virtual table with content= for external content indexing
-export const jobsFts = sqliteTable('jobs_fts', {
-  jobId: integer('job_id').notNull(),
-  title: text('title'),
-  company: text('company'),
-  descriptionPruned: text('description_pruned'),
-  createdAt: integer('created_at', { mode: 'timestamp' })
-    .notNull()
-    .default(sql`(unixepoch())`),
-})
-
 
 export const discoveredCompanies = sqliteTable('discovered_companies', {
   slug: text('slug').primaryKey(),
@@ -128,18 +91,6 @@ export const companyJobProgress = sqliteTable('company_job_progress', {
     .default(sql`(unixepoch())`),
 })
 
-export const duplicateJobs = sqliteTable('duplicate_jobs', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
-  jobId1: integer('job_id_1').notNull().references(() => jobs.id),
-  jobId2: integer('job_id_2').notNull().references(() => jobs.id),
-  similarityScore: integer('similarity_score').notNull(), // 0-100
-  resolved: integer('resolved', { mode: 'boolean' }).notNull().default(false),
-  resolvedAt: integer('resolved_at', { mode: 'timestamp' }),
-  createdAt: integer('created_at', { mode: 'timestamp' })
-    .notNull()
-    .default(sql`(unixepoch())`),
-})
-
 export const greenhouseOrgs = sqliteTable('greenhouse_orgs', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   orgName: text('org_name').notNull().unique(),
@@ -155,12 +106,8 @@ export const greenhouseOrgs = sqliteTable('greenhouse_orgs', {
 
 export type Category = typeof categories.$inferSelect
 export type NewCategory = typeof categories.$inferInsert
-export type Job = typeof jobs.$inferSelect
-export type NewJob = typeof jobs.$inferInsert
 export type SyncHistory = typeof syncHistory.$inferSelect
 export type NewSyncHistory = typeof syncHistory.$inferInsert
-export type DuplicateJob = typeof duplicateJobs.$inferSelect
-export type NewDuplicateJob = typeof duplicateJobs.$inferInsert
 export type CompanyJobProgress = typeof companyJobProgress.$inferSelect
 export type NewCompanyJobProgress = typeof companyJobProgress.$inferInsert
 
@@ -181,6 +128,7 @@ export const user = sqliteTable('user', {
   banned: integer('banned', { mode: 'boolean' }),
   banReason: text('ban_reason'),
   banExpires: integer('ban_expires', { mode: 'timestamp' }),
+  showGlobalJobs: integer('show_global_jobs', { mode: 'boolean' }).notNull().default(false),
 })
 
 export const session = sqliteTable('session', {
@@ -352,82 +300,58 @@ export const appSettings = sqliteTable('app_settings', {
   updatedAt: text('updated_at').notNull(),
 })
 
-export const linkedinSavedSearches = sqliteTable('linkedin_saved_searches', {
+// ─────────────────────────────────────────────────────────────────────────────
+// Search Configurations — persisted background search agents (cron-driven)
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const searchConfigurations = sqliteTable('search_configurations', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   userId: text('user_id').notNull().references(() => user.id),
   name: text('name').notNull(),
   criteria: text('criteria').notNull(),
   isActive: integer('is_active').notNull().default(1),
   runIntervalHours: integer('run_interval_hours').notNull().default(24), // customizable interval in hours (e.g. 1, 2, 4, 8, 12, 24)
-  sources: text('sources').notNull().default('["linkedin", "greenhouse", "lever"]'), // target sources for this search agent
+  sources: text('sources').notNull().default('["adzuna", "greenhouse", "lever"]'), // target sources for this search agent
   lastRunAt: text('last_run_at'),
   createdAt: text('created_at').notNull(),
   updatedAt: text('updated_at').notNull(),
 })
 
-export const linkedinJobResults = sqliteTable('linkedin_job_results', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
-  userId: text('user_id').notNull().references(() => user.id),
-  savedSearchId: integer('saved_search_id').references(() => linkedinSavedSearches.id),
-  externalJobId: text('external_job_id').notNull(),
-  title: text('title').notNull(),
-  company: text('company').notNull(),
-  location: text('location').notNull(),
-  sourceUrl: text('source_url').notNull(),
-  canonicalSourceUrl: text('canonical_source_url').notNull(),
-  sourceName: text('source_name').notNull().default('LinkedIn'),
-  searchUrl: text('search_url'),
-  criteria: text('criteria').notNull(),
-  salary: text('salary'),
-  snippet: text('snippet'),
-  description: text('description'),
-  postDateText: text('post_date_text'),
-  workplaceType: text('workplace_type'),
-  atsScore: integer('ats_score'),
-  careerScore: integer('career_score'),
-  outlookScore: integer('outlook_score'),
-  masterScore: integer('master_score'),
-  atsReason: text('ats_reason'),
-  careerReason: text('career_reason'),
-  outlookReason: text('outlook_reason'),
-  isUnicorn: integer('is_unicorn').notNull().default(0),
-  unicornReason: text('unicorn_reason'),
-  status: text('status', { enum: ['Analyzed', 'Prepped', 'Applied', 'Interviewed', 'Hired', 'Archived'] }).notNull().default('Analyzed'),
-  firstSeenAt: text('first_seen_at').notNull(),
-  lastSeenAt: text('last_seen_at').notNull(),
-  createdAt: text('created_at').notNull(),
-  updatedAt: text('updated_at').notNull(),
-})
-
 // ─────────────────────────────────────────────────────────────────────────────
-// Unified Pipeline — single table for ALL jobs (agent-discovered + analyzed)
+// Normalized Jobs — unified storage for ALL jobs (global ATS catalog +
+// per-user agent-discovered/analyzed pipeline). userId is null for global
+// catalog rows (no owner); set for jobs discovered by a user's search agent.
 // ─────────────────────────────────────────────────────────────────────────────
 
-export const pipelineJobs = sqliteTable('pipeline_jobs', {
+export const normalizedJobs = sqliteTable('normalized_jobs', {
   id: integer('id').primaryKey({ autoIncrement: true }),
-  userId: text('user_id').notNull().references(() => user.id),
-  savedSearchId: integer('saved_search_id').references(() => linkedinSavedSearches.id),
+  userId: text('user_id').references(() => user.id),
+  savedSearchId: integer('saved_search_id').references(() => searchConfigurations.id),
 
-  // ── Identity ──
-  externalJobId: text('external_job_id'),
-  title: text('title').notNull(),
-  company: text('company').notNull(),
+  // ── Identity / normalization ──
+  sourceOrigin: text('source_origin').notNull(), // 'greenhouse' | 'lever' | 'workable' | 'adzuna' | 'jooble' | 'remotive'
+  externalReferenceId: text('external_reference_id'),
+  jobTitle: text('job_title').notNull(),
+  employerName: text('employer_name').notNull(),
   location: text('location'),
   industry: text('industry'),
   sourceUrl: text('source_url').notNull(),
   canonicalSourceUrl: text('canonical_source_url').notNull(),
-  sourceName: text('source_name').notNull().default('LinkedIn'),
+  rawPayload: text('raw_payload'), // JSON of original source response
 
-  // ── Discovery fields (from search agents) ──
+  // ── Content ──
   searchUrl: text('search_url'),
   criteria: text('criteria'),
+  description: text('description'),
+  descriptionPruned: text('description_pruned'), // Cleaned, boilerplate-removed text
   salary: text('salary'),
   snippet: text('snippet'),
-  description: text('description'),
   postDateText: text('post_date_text'),
   workplaceType: text('workplace_type'),
+  remoteType: text('remote_type').notNull().default('fully_remote'),
+  categoryId: integer('category_id').references(() => categories.id),
 
-  // ── Agent scoring (quick scores from agent) ──
+  // ── Quick AI scores (agent triage) ──
   atsScore: integer('ats_score'),
   careerScore: integer('career_score'),
   outlookScore: integer('outlook_score'),
@@ -451,38 +375,21 @@ export const pipelineJobs = sqliteTable('pipeline_jobs', {
   careerAnalysis: text('career_analysis'),
   insights: text('insights'),
 
-  // ── Pipeline status ──
-  status: text('status', {
+  // ── Pipeline tracker ──
+  currentStage: text('current_stage', {
     enum: ['Discovered', 'Analyzed', 'Prepped', 'Applied', 'Interviewed', 'Hired', 'Not Hired', 'Archived'],
   }).notNull().default('Discovered'),
+  finalResolution: text('final_resolution', {
+    enum: ['Hired', 'Not Hired', 'Withdrawn'],
+  }),
+  isFlagged: integer('is_flagged', { mode: 'boolean' }).notNull().default(false),
 
   // ── Timestamps ──
-  firstSeenAt: text('first_seen_at').notNull(),
+  discoveryTimestamp: text('discovery_timestamp').notNull(),
   lastSeenAt: text('last_seen_at').notNull(),
   analyzedAt: text('analyzed_at'),
   createdAt: text('created_at').notNull(),
   updatedAt: text('updated_at').notNull(),
-})
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Search Activity Logs — comprehensive agent/search activity tracking
-// ─────────────────────────────────────────────────────────────────────────────
-
-export const searchLogs = sqliteTable('search_logs', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
-  userId: text('user_id').notNull().references(() => user.id),
-  savedSearchId: integer('saved_search_id').references(() => linkedinSavedSearches.id),
-  eventType: text('event_type').notNull(),
-  // 'search_started' | 'search_completed' | 'job_found' | 'job_skipped_duplicate' |
-  // 'job_skipped_filtered' | 'ats_search_started' | 'ats_search_completed' |
-  // 'analysis_started' | 'analysis_completed' | 'analysis_error' |
-  // 'cron_triggered' | 'manual_search' | 'error'
-  platform: text('platform'),        // 'linkedin' | 'greenhouse' | 'lever' | 'workable' | 'manual'
-  agentName: text('agent_name'),
-  message: text('message').notNull(),
-  metadata: text('metadata', { mode: 'json' }).$type<Record<string, unknown>>(),
-  level: text('level').notNull().default('info'), // 'info' | 'success' | 'warning' | 'error'
-  createdAt: text('created_at').notNull(),
 })
 
 // ─── Inferred Types (user-centric tables) ─────────────────────────────────────
@@ -502,13 +409,9 @@ export type AnalyticsSummary = typeof analyticsSummary.$inferSelect
 export type NewAnalyticsSummary = typeof analyticsSummary.$inferInsert
 export type AppSettings = typeof appSettings.$inferSelect
 export type NewAppSettings = typeof appSettings.$inferInsert
-export type LinkedinSavedSearch = typeof linkedinSavedSearches.$inferSelect
-export type NewLinkedinSavedSearch = typeof linkedinSavedSearches.$inferInsert
-export type LinkedinJobResult = typeof linkedinJobResults.$inferSelect
-export type NewLinkedinJobResult = typeof linkedinJobResults.$inferInsert
-export type PipelineJob = typeof pipelineJobs.$inferSelect
-export type NewPipelineJob = typeof pipelineJobs.$inferInsert
-export type SearchLog = typeof searchLogs.$inferSelect
-export type NewSearchLog = typeof searchLogs.$inferInsert
+export type SearchConfiguration = typeof searchConfigurations.$inferSelect
+export type NewSearchConfiguration = typeof searchConfigurations.$inferInsert
+export type NormalizedJob = typeof normalizedJobs.$inferSelect
+export type NewNormalizedJob = typeof normalizedJobs.$inferInsert
 export type GreenhouseOrg = typeof greenhouseOrgs.$inferSelect
 export type NewGreenhouseOrg = typeof greenhouseOrgs.$inferInsert

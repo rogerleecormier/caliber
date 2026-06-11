@@ -1,5 +1,5 @@
 import { getDb } from "@/db/db";
-import { pipelineJobs, analyticsSummary, generatedDocuments } from "@/db/schema";
+import { normalizedJobs, analyticsSummary, generatedDocuments } from "@/db/schema";
 import { eq, and, sql } from "drizzle-orm";
 import type { CloudflareEnv } from "@/lib/cloudflare";
 
@@ -71,7 +71,7 @@ export async function aggregateAnalytics(env: CloudflareEnv, userId?: string): P
   const db = getDb(env.DB);
 
   if (!userId) {
-    const allUsers = await db.select({ userId: pipelineJobs.userId }).from(pipelineJobs).where(sql`${pipelineJobs.matchScore} IS NOT NULL`);
+    const allUsers = await db.select({ userId: normalizedJobs.userId }).from(normalizedJobs).where(sql`${normalizedJobs.matchScore} IS NOT NULL`);
     const uniqueIds = [...new Set(allUsers.map((u) => u.userId).filter((id): id is string => id !== null))];
     for (const uid of uniqueIds) {
       await aggregateAnalytics(env, uid);
@@ -79,7 +79,7 @@ export async function aggregateAnalytics(env: CloudflareEnv, userId?: string): P
     return;
   }
 
-  const allAnalyses = await db.select().from(pipelineJobs).where(and(eq(pipelineJobs.userId, userId), sql`${pipelineJobs.matchScore} IS NOT NULL`));
+  const allAnalyses = await db.select().from(normalizedJobs).where(and(eq(normalizedJobs.userId, userId), sql`${normalizedJobs.matchScore} IS NOT NULL`));
   const now = new Date().toISOString();
   const period = "all_time";
 
@@ -146,8 +146,8 @@ export async function aggregateAnalytics(env: CloudflareEnv, userId?: string): P
   // Top job titles / focus areas (applied only, normalized so near-identical titles roll up together)
   const titleMap = new Map<string, { count: number; displayTitle: string }>();
   for (const a of allAnalyses) {
-    if (['Applied', 'Interviewed', 'Hired', 'Not Hired'].includes(a.status)) {
-      const rawTitle = (a.title ?? "").trim();
+    if (['Applied', 'Interviewed', 'Hired', 'Not Hired'].includes(a.currentStage)) {
+      const rawTitle = (a.jobTitle ?? "").trim();
       if (!rawTitle) continue;
       const canonicalTitle = canonicalizeJobTitle(rawTitle);
       if (!canonicalTitle) continue;
@@ -190,7 +190,7 @@ export async function aggregateAnalytics(env: CloudflareEnv, userId?: string): P
     averageMatchScore: Math.round(averageMatchScore * 10) / 10,
     totalAnalyses: allAnalyses.length,
     totalResumesGenerated: allResumeDocs.length,
-    totalApplied: allAnalyses.filter((a) => ['Applied', 'Interviewed', 'Hired', 'Not Hired'].includes(a.status)).length,
+    totalApplied: allAnalyses.filter((a) => ['Applied', 'Interviewed', 'Hired', 'Not Hired'].includes(a.currentStage)).length,
     totalPursued: allAnalyses.filter((a) => a.pursue === 1).length,
     updatedAt: now,
   };

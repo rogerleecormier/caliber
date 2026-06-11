@@ -1,6 +1,7 @@
 import { ExternalLink, Sparkles } from "lucide-react";
 import type { JobResultCardJob, JobStatus } from "./job-result-card";
 import { getScoreBorderColor } from "@/lib/scoreUtils";
+import { FlagToggle } from "@/components/features/flag-toggle";
 import type { ChangeEvent } from "react";
 
 interface JobTableViewProps {
@@ -94,6 +95,7 @@ export function JobTableView({
             <th className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wide text-slate-600">
               Actions
             </th>
+            <th className="w-10 px-4 py-3" />
           </tr>
         </thead>
         <tbody className="divide-y divide-slate-100">
@@ -203,6 +205,11 @@ export function JobTableView({
                       </button>
                     )}
                   </div>
+                </td>
+                <td className="px-4 py-3 text-center">
+                  {job.id != null && (
+                    <FlagToggle jobId={job.id} initialFlagged={!!job.isFlagged} />
+                  )}
                 </td>
               </tr>
             );

@@ -3,7 +3,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { and, eq } from "drizzle-orm";
 import { getCloudflareEnv, type CloudflareEnv } from "@/lib/cloudflare";
 import { getDb } from "@/db/db";
-import { masterResume, pipelineJobs } from "@/db/schema";
+import { masterResume, normalizedJobs } from "@/db/schema";
 import { resolveSessionUser } from "@/lib/resolve-user";
 import { scrapeJobInternal } from "./scrape-job";
 import { aggregateAnalytics } from "@/server/cron/aggregate-analytics";
@@ -12,7 +12,7 @@ import {
   buildResumeEvidenceText,
   cleanJobUrl,
 } from "./analyze-job-pipeline";
-import { logSearchEvent } from "@/lib/pipeline-persistence";
+import { canonicalizeJobUrl } from "@/lib/normalized-jobs-persistence";
 import { scoreJobAgainstProfile } from "@/lib/ai/job-score";
 
 export const analyzeJob = createServerFn({ method: "POST" })
@@ -31,16 +31,6 @@ export const analyzeJob = createServerFn({ method: "POST" })
     if (!user) throw new Error("Not authenticated");
 
     const cleanedUrl = data.url ? cleanJobUrl(data.url) : "text-input";
-
-    // Log analysis start
-    logSearchEvent({
-      userId: user.id,
-      eventType: 'analysis_started',
-      platform: 'manual',
-      message: `Analysis started for ${cleanedUrl === 'text-input' ? 'pasted text' : cleanedUrl}`,
-      metadata: { url: cleanedUrl, pipelineJobId: data.pipelineJobId },
-      level: 'info',
-    }).catch(() => {});
 
     let jdText: string;
     if (data.jdText?.trim()) {
@@ -79,27 +69,28 @@ export const analyzeJob = createServerFn({ method: "POST" })
 
     const now = new Date().toISOString();
 
-    // Check if a pipeline job already exists for this URL (from an agent)
-    let pipelineJobId = data.pipelineJobId ?? null;
+    // Check if a normalized job already exists for this URL (from an agent)
+    let normalizedJobId = data.pipelineJobId ?? null;
+    const canonicalSourceUrl = canonicalizeJobUrl(cleanedUrl);
 
-    if (!pipelineJobId && cleanedUrl !== 'text-input') {
+    if (!normalizedJobId && cleanedUrl !== 'text-input') {
       const [existing] = await db
-        .select({ id: pipelineJobs.id })
-        .from(pipelineJobs)
+        .select({ id: normalizedJobs.id })
+        .from(normalizedJobs)
         .where(and(
-          eq(pipelineJobs.userId, user.id),
-          eq(pipelineJobs.canonicalSourceUrl, cleanedUrl),
+          eq(normalizedJobs.userId, user.id),
+          eq(normalizedJobs.canonicalSourceUrl, canonicalSourceUrl),
         ))
         .limit(1);
-      if (existing) pipelineJobId = existing.id;
+      if (existing) normalizedJobId = existing.id;
     }
 
     let insertedId: number;
 
-    if (pipelineJobId) {
-      // Update existing pipeline job with analysis data
+    if (normalizedJobId) {
+      // Update existing normalized job with analysis data
       await db
-        .update(pipelineJobs)
+        .update(normalizedJobs)
         .set({
           jdText,
           matchScore: analysis.matchScore,
@@ -122,25 +113,25 @@ export const analyzeJob = createServerFn({ method: "POST" })
           careerAnalysis: JSON.stringify(analysis.careerAnalysis),
           insights: analysis.insights ? JSON.stringify(analysis.insights) : null,
           industry: analysis.industry ?? undefined,
-          status: 'Analyzed',
+          currentStage: 'Analyzed',
           analyzedAt: now,
           updatedAt: now,
         })
-        .where(eq(pipelineJobs.id, pipelineJobId));
-      insertedId = pipelineJobId;
+        .where(eq(normalizedJobs.id, normalizedJobId));
+      insertedId = normalizedJobId;
     } else {
-      // Insert new pipeline job with full analysis
+      // Insert new normalized job with full analysis
       const [inserted] = await db
-        .insert(pipelineJobs)
+        .insert(normalizedJobs)
         .values({
           userId: user.id,
-          title: analysis.jobTitle ?? 'Untitled',
-          company: analysis.company ?? 'Unknown',
+          jobTitle: analysis.jobTitle ?? 'Untitled',
+          employerName: analysis.company ?? 'Unknown',
           location: analysis.location ?? null,
           industry: analysis.industry ?? null,
           sourceUrl: cleanedUrl,
-          canonicalSourceUrl: cleanedUrl,
-          sourceName: cleanedUrl === 'text-input' ? 'Text Input' : 'Manual',
+          canonicalSourceUrl,
+          sourceOrigin: cleanedUrl === 'text-input' ? 'text-input' : 'manual',
           jdText,
           matchScore: analysis.matchScore,
           atsScore: scoreResult.atsScore,
@@ -161,8 +152,10 @@ export const analyzeJob = createServerFn({ method: "POST" })
           personalInterest: analysis.personalInterest,
           careerAnalysis: JSON.stringify(analysis.careerAnalysis),
           insights: analysis.insights ? JSON.stringify(analysis.insights) : null,
-          status: 'Analyzed',
-          firstSeenAt: now,
+          currentStage: 'Analyzed',
+          isFlagged: false,
+          remoteType: 'fully_remote',
+          discoveryTimestamp: now,
           lastSeenAt: now,
           analyzedAt: now,
           createdAt: now,
@@ -171,22 +164,6 @@ export const analyzeJob = createServerFn({ method: "POST" })
         .returning();
       insertedId = inserted.id;
     }
-
-    // Log analysis completion
-    logSearchEvent({
-      userId: user.id,
-      eventType: 'analysis_completed',
-      platform: 'manual',
-      message: `Analysis completed for ${analysis.jobTitle ?? 'Untitled'} at ${analysis.company ?? 'Unknown'} — Match: ${analysis.matchScore}%`,
-      metadata: {
-        pipelineJobId: insertedId,
-        matchScore: analysis.matchScore,
-        pursue: analysis.pursue,
-        jobTitle: analysis.jobTitle,
-        company: analysis.company,
-      },
-      level: 'success',
-    }).catch(() => {});
 
     aggregateAnalytics(env as CloudflareEnv, user.id).catch((e) => console.error("[analyzeJob] aggregateAnalytics error:", e));
 

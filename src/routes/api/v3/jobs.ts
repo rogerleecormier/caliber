@@ -1,8 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { json } from "@tanstack/react-start";
 import { getDbFromContext, schema } from "../../../db/db";
-import { eq, like, or, and, desc, asc, sql } from "drizzle-orm";
+import { isNull, like, or, and, desc, asc, sql } from "drizzle-orm";
 
+// Legacy global ATS catalog browser API. Stubbed against normalizedJobs
+// (userId IS NULL = global catalog rows) pending a follow-on epic rebuild.
 export const Route = createFileRoute("/api/v3/jobs")({
   server: {
     handlers: {
@@ -13,9 +15,6 @@ export const Route = createFileRoute("/api/v3/jobs")({
 
           const url = new URL(request.url);
           const query = url.searchParams.get("search") || undefined;
-          const categoryId = url.searchParams.get("category")
-            ? parseInt(url.searchParams.get("category")!)
-            : undefined;
           const source = url.searchParams.get("source") || undefined;
           const company = url.searchParams.get("company") || undefined;
           const sortBy =
@@ -28,89 +27,64 @@ export const Route = createFileRoute("/api/v3/jobs")({
           const limit = parseInt(url.searchParams.get("limit") || "30");
           const offset = parseInt(url.searchParams.get("offset") || "0");
 
-          // Build WHERE conditions at database level
-          const conditions = [];
+          const conditions = [isNull(schema.normalizedJobs.userId)];
 
-          if (categoryId) {
-            conditions.push(eq(schema.jobs.categoryId, categoryId));
-          }
           if (source) {
-            conditions.push(eq(schema.jobs.sourceName, source));
+            conditions.push(sql`${schema.normalizedJobs.sourceOrigin} = ${source}`);
           }
           if (company) {
-            conditions.push(eq(schema.jobs.company, company));
+            conditions.push(sql`${schema.normalizedJobs.employerName} = ${company}`);
           }
           if (query) {
-            // Simple LIKE search on title and company
             conditions.push(
               or(
-                like(schema.jobs.title, `%${query}%`),
-                like(schema.jobs.company, `%${query}%`)
-              )
+                like(schema.normalizedJobs.jobTitle, `%${query}%`),
+                like(schema.normalizedJobs.employerName, `%${query}%`)
+              )!
             );
           }
 
-          // Determine sort order
           let orderByClause;
           switch (sortBy) {
             case "oldest":
-              orderByClause = asc(schema.jobs.postDate);
+              orderByClause = asc(schema.normalizedJobs.discoveryTimestamp);
               break;
             case "title-asc":
-              orderByClause = asc(schema.jobs.title);
+              orderByClause = asc(schema.normalizedJobs.jobTitle);
               break;
             case "title-desc":
-              orderByClause = desc(schema.jobs.title);
+              orderByClause = desc(schema.normalizedJobs.jobTitle);
               break;
             case "recently-added":
-              orderByClause = desc(schema.jobs.createdAt);
+              orderByClause = desc(schema.normalizedJobs.createdAt);
               break;
             case "newest":
             default:
-              orderByClause = desc(schema.jobs.postDate);
+              orderByClause = desc(schema.normalizedJobs.discoveryTimestamp);
               break;
           }
 
-          // Get total count for pagination
+          const whereClause = and(...conditions);
+
           const countResult = await db
             .select({ count: sql<number>`count(*)` })
-            .from(schema.jobs)
-            .where(conditions.length > 0 ? and(...conditions) : undefined);
-          
+            .from(schema.normalizedJobs)
+            .where(whereClause);
+
           const total = countResult[0]?.count || 0;
 
-          // Fetch jobs with filters applied at database level
           const jobsData = await db
             .select()
-            .from(schema.jobs)
-            .where(conditions.length > 0 ? and(...conditions) : undefined)
+            .from(schema.normalizedJobs)
+            .where(whereClause)
             .orderBy(orderByClause)
             .limit(limit)
             .offset(offset);
 
-          // Fetch all categories for mapping
-          const categoriesData = await db.select().from(schema.categories);
-          const categoriesMap = new Map(categoriesData.map((c) => [c.id, c]));
-
-          // Transform to include category data
-          const jobsWithCategories = jobsData.map((job) => {
-            const category = categoriesMap.get(job.categoryId);
-            const defaultCategory = categoriesData[0] || {
-              id: 0,
-              name: "Unknown",
-              slug: "unknown",
-            };
-
-            return {
-              ...job,
-              category: category || defaultCategory,
-            };
-          });
-
           return json({
             success: true,
             data: {
-              jobs: jobsWithCategories,
+              jobs: jobsData,
               total,
               limit,
               offset,

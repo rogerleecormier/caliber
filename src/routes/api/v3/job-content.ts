@@ -40,13 +40,13 @@ export const Route = createFileRoute('/api/v3/job-content')({
 
           // Query D1 exclusively
           const existingJob = await db.select()
-            .from(schema.jobs)
-            .where(eq(schema.jobs.sourceUrl, sourceUrl))
+            .from(schema.normalizedJobs)
+            .where(eq(schema.normalizedJobs.sourceUrl, sourceUrl))
             .get()
 
           // Return cached full description if available
-          if (existingJob?.fullDescription) {
-            const reprocessed = sanitizeHtml(existingJob.fullDescription)
+          if (existingJob?.description) {
+            const reprocessed = sanitizeHtml(existingJob.description)
             return json({ content: reprocessed, fromCache: true }, {
               headers: {
                 'Cache-Control': 'public, max-age=3600',
