@@ -143,7 +143,6 @@ function JobsPage() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [aggregatedSearchOpen, setAggregatedSearchOpen] = useState(false);
   const [aggregatedResults, setAggregatedResults] = useState<any>(null);
-  const [validAggregatedJobCount, setValidAggregatedJobCount] = useState(0);
   const [savedAggregatedJobIds, setSavedAggregatedJobIds] = useState<Set<string>>(new Set());
   const [searchWarnings, setSearchWarnings] = useState<string[]>([]);
   const [cronNewCount, setCronNewCount] = useState(0);
@@ -285,7 +284,7 @@ function JobsPage() {
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <h3 className="text-lg font-semibold">
-                    {validAggregatedJobCount} of {aggregatedResults.jobs.length} jobs found
+                    {aggregatedResults.jobs.length} jobs found
                   </h3>
                   <Button
                     variant="outline"
@@ -300,7 +299,6 @@ function JobsPage() {
                 </div>
                 <AggregatedJobsResults
                   jobs={aggregatedResults.jobs}
-                  onValidJobCountChange={setValidAggregatedJobCount}
                   onSaveJob={async (job) => {
                     setSavedAggregatedJobIds((prev) =>
                       new Set([...prev, `${job.source}-${job.id}`])

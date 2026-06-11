@@ -111,8 +111,15 @@ export class JobAggregatorService {
       }
     });
 
+    // Filter out incomplete jobs (missing required fields)
+    const complete = jobs.filter(job =>
+      job.title?.trim() &&
+      job.company?.trim() &&
+      job.location?.trim()
+    );
+
     // Deduplicate by job URL
-    const deduped = this.deduplicateJobs(jobs);
+    const deduped = this.deduplicateJobs(complete);
 
     return {
       jobs: deduped,
