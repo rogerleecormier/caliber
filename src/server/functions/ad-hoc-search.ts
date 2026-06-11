@@ -52,6 +52,9 @@ export const executeAdHocSearch = createServerFn({ method: "POST" })
         limit,
         sources: apiSources,
       });
+      console.log(`[executeAdHocSearch] Aggregator returned ${result.jobs.length} jobs (${result.deduped} deduplicated)`, {
+        sources: result.sources,
+      });
       Object.assign(sources, result.sources);
       for (const job of result.jobs) {
         jobs.push({
