@@ -2,7 +2,7 @@
 
 import { createServerFn } from "@tanstack/react-start";
 import { eq } from "drizzle-orm";
-import { getCloudflareEnv } from "@/lib/cloudflare";
+import { getCloudflareEnvAsync } from "@/lib/cloudflare";
 import { getDb } from "@/db/db";
 import { user } from "@/db/schema";
 import { resolveSessionUser } from "@/lib/resolve-user";
@@ -10,7 +10,7 @@ import { resolveSessionUser } from "@/lib/resolve-user";
 export const getShowGlobalJobs = createServerFn({ method: "GET" }).handler(async (_data, ctx) => {
   const sessionUser = await resolveSessionUser((ctx as any)?.request);
   if (!sessionUser) throw new Error("Not authenticated");
-  const env = getCloudflareEnv();
+  const env = await getCloudflareEnvAsync();
   if (!env.DB) return { showGlobalJobs: false };
   const db = getDb(env.DB);
   const [row] = await db
@@ -26,7 +26,7 @@ export const setShowGlobalJobs = createServerFn({ method: "POST" })
   .handler(async ({ data }, ctx) => {
     const sessionUser = await resolveSessionUser((ctx as any)?.request);
     if (!sessionUser) throw new Error("Not authenticated");
-    const env = getCloudflareEnv();
+    const env = await getCloudflareEnvAsync();
     if (!env.DB) throw new Error("Database unavailable");
     const db = getDb(env.DB);
     await db

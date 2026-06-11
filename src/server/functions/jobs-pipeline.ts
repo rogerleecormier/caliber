@@ -10,7 +10,7 @@
 
 import { createServerFn } from "@tanstack/react-start";
 import { resolveSessionUser } from "@/lib/resolve-user";
-import { getCloudflareEnv } from "@/lib/cloudflare";
+import { getCloudflareEnvAsync } from "@/lib/cloudflare";
 import type { PipelineStatus } from "@/lib/pipeline-constants";
 import {
   listNormalizedJobs,
@@ -135,7 +135,7 @@ export const setSearchAgentRunning = createServerFn({ method: "POST" })
   .handler(async ({ data }, ctx) => {
     const user = await resolveSessionUser((ctx as any)?.request);
     if (!user) throw new Error("Not authenticated");
-    const env = getCloudflareEnv();
+    const env = await getCloudflareEnvAsync();
     if (!env.KV) return { success: false };
     const lockKey = `user:${user.id}:agent:${data.id}:running`;
     if (data.isRunning) {

@@ -1,7 +1,7 @@
 'use server';
 import { createServerFn } from "@tanstack/react-start";
 import { eq, and } from "drizzle-orm";
-import { getCloudflareEnv } from "@/lib/cloudflare";
+import { getCloudflareEnvAsync } from "@/lib/cloudflare";
 import { getDb } from "@/db/db";
 import { jobAnalyses } from "@/db/schema";
 import { resolveSessionUser } from "@/lib/resolve-user";
@@ -10,7 +10,7 @@ export const getAnalysis = createServerFn({ method: "GET" })
   .inputValidator((data: { id: number }) => data)
   .handler(async ({ data }, ctx) => {
     try {
-      const env = getCloudflareEnv();
+      const env = await getCloudflareEnvAsync();
       if (!env.DB) throw new Error("Database not available in development mode.");
       const db = getDb(env.DB);
 

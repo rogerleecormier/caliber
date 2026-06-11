@@ -2,7 +2,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { resolveSessionUser } from "@/lib/resolve-user";
 import { eq, and } from "drizzle-orm";
-import { getCloudflareEnv } from "@/lib/cloudflare";
+import { getCloudflareEnvAsync } from "@/lib/cloudflare";
 import { getDb } from "@/db/db";
 import { masterResume, normalizedJobs, generatedDocuments, resumeVectorIndex, resumeSections } from "@/db/schema";
 import {
@@ -29,7 +29,7 @@ export const generateCoverLetter = createServerFn({ method: "POST" })
   .inputValidator((data: { analysisId: number; extraGuidance?: string }) => data)
   .handler(async ({ data }, ctx) => {
     try {
-      const env = getCloudflareEnv();
+      const env = await getCloudflareEnvAsync();
       if (!env.DB || !env.R2 || !env.AI) {
         throw new Error("Database and R2 storage not available in development mode. Deploy to Cloudflare Workers.");
       }

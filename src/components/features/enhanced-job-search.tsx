@@ -5,6 +5,7 @@ import {
   Sheet,
   SheetContent,
   SheetTitle,
+  SheetDescription,
   Tooltip,
   TooltipContent,
   TooltipTrigger,
@@ -210,6 +211,9 @@ export function EnhancedJobSearch({
           <Search className="h-5 w-5" />
           Multi-Source Job Search
         </SheetTitle>
+        <SheetDescription>
+          Search across Adzuna, Jooble, and Remotive simultaneously.
+        </SheetDescription>
 
         <div className="mt-6 space-y-6">
           {/* Search Form */}

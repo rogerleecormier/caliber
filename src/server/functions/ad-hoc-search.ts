@@ -1,6 +1,6 @@
 'use server';
 import { createServerFn } from "@tanstack/react-start";
-import { getCloudflareEnv } from "@/lib/cloudflare";
+import { getCloudflareEnvAsync } from "@/lib/cloudflare";
 import { getDb } from "@/db/db";
 import { JobAggregatorService } from "@/lib/services";
 import { searchAtsJobs } from "@/lib/ats-search";
@@ -33,7 +33,7 @@ export const executeAdHocSearch = createServerFn({ method: "POST" })
     if (!user) throw new Error("Not authenticated");
     if (!data.keywords?.trim()) throw new Error("Keywords are required");
 
-    const env = getCloudflareEnv();
+    const env = await getCloudflareEnvAsync();
     const limit = Math.min(Math.max(data.limit ?? 25, 1), 100);
     const location = data.location?.trim() || "United States";
 

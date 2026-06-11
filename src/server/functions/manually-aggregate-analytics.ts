@@ -1,13 +1,13 @@
 'use server';
 import { createServerFn } from "@tanstack/react-start";
-import { getCloudflareEnv } from "@/lib/cloudflare";
+import { getCloudflareEnvAsync } from "@/lib/cloudflare";
 import type { CloudflareEnv } from "@/lib/cloudflare";
 import { aggregateAnalytics } from "@/server/cron/aggregate-analytics";
 
 export const manuallyAggregateAnalytics = createServerFn({ method: "POST" }).handler(
   async (): Promise<{ success: boolean; message?: string; error?: string }> => {
     try {
-      const env = getCloudflareEnv();
+      const env = await getCloudflareEnvAsync();
       if (!env.DB) return { success: false, error: "Database not available" };
       await aggregateAnalytics(env as CloudflareEnv);
       return { success: true, message: "Analytics aggregated successfully" };

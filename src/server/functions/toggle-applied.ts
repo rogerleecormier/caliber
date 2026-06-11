@@ -2,7 +2,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { resolveSessionUser } from "@/lib/resolve-user";
 import { eq, and } from "drizzle-orm";
-import { getCloudflareEnv } from "@/lib/cloudflare";
+import { getCloudflareEnvAsync } from "@/lib/cloudflare";
 import { getDb } from "@/db/db";
 import { normalizedJobs } from "@/db/schema";
 import { type PipelineStatus, PIPELINE_STATUSES, normalizePipelineStatus } from "@/lib/pipeline-constants";
@@ -12,7 +12,7 @@ export type ApplicationOutcome = PipelineStatus | null;
 export const toggleApplied = createServerFn({ method: "POST" })
   .inputValidator((data: { id: number; applied: boolean }) => data)
   .handler(async ({ data }, ctx) => {
-    const env = getCloudflareEnv();
+    const env = await getCloudflareEnvAsync();
     if (!env.DB) throw new Error("Database not available");
 
     const user = await resolveSessionUser((ctx as any)?.request);
@@ -40,7 +40,7 @@ export const toggleApplied = createServerFn({ method: "POST" })
 export const setApplicationOutcome = createServerFn({ method: "POST" })
   .inputValidator((data: { id: number; status: PipelineStatus | null }) => data)
   .handler(async ({ data }, ctx) => {
-    const env = getCloudflareEnv();
+    const env = await getCloudflareEnvAsync();
     if (!env.DB) throw new Error("Database not available");
 
     const user = await resolveSessionUser((ctx as any)?.request);

@@ -23,7 +23,7 @@ export const analyzeJob = createServerFn({ method: "POST" })
     return data;
   })
   .handler(async ({ data }, ctx) => {
-    const env = getCloudflareEnv();
+    const env = await getCloudflareEnvAsync();
     if (!env.DB) throw new Error("Database not available in development mode. Run with wrangler or deploy to Cloudflare.");
     const db = getDb(env.DB);
 

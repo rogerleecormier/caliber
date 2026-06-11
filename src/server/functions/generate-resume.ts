@@ -2,7 +2,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { resolveSessionUser } from "@/lib/resolve-user";
 import { eq, and } from "drizzle-orm";
-import { getCloudflareEnv } from "@/lib/cloudflare";
+import { getCloudflareEnvAsync } from "@/lib/cloudflare";
 import { getDb } from "@/db/db";
 import { masterResume, normalizedJobs, generatedDocuments, resumeSections } from "@/db/schema";
 import {
@@ -95,7 +95,7 @@ export const generateResume = createServerFn({ method: "POST" })
   .inputValidator((data: { analysisId: number; extraGuidance?: string }) => data)
   .handler(async ({ data }, ctx) => {
     try {
-      const env = getCloudflareEnv();
+      const env = await getCloudflareEnvAsync();
       if (!env.DB || !env.R2 || !env.AI) {
         throw new Error("Database, R2 storage, and AI binding not available. Please deploy to Cloudflare Workers.");
       }

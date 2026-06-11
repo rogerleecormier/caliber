@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { getCloudflareEnv } from "@/lib/cloudflare";
+import { getCloudflareEnvAsync } from "@/lib/cloudflare";
 import { getAuthInstance } from "@/server/auth";
 
 export const Route = createFileRoute("/api/auth/sign-in/email")({
@@ -7,7 +7,7 @@ export const Route = createFileRoute("/api/auth/sign-in/email")({
     handlers: {
       POST: async ({ request }) => {
         try {
-          const env = getCloudflareEnv();
+          const env = await getCloudflareEnvAsync();
           const auth = getAuthInstance(env);
           return await auth.handler(request);
         } catch (error) {

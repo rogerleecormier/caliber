@@ -2,7 +2,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { eq, and } from "drizzle-orm";
 import { resolveSessionUser } from "@/lib/resolve-user";
-import { getCloudflareEnv } from "@/lib/cloudflare";
+import { getCloudflareEnvAsync } from "@/lib/cloudflare";
 import { getDb } from "@/db/db";
 import { masterResume, resumeSections } from "@/db/schema";
 import { callWorkersAI } from "@/lib/ai-gateway";
@@ -71,7 +71,7 @@ export interface ResumeData {
 export const getResume = createServerFn({ method: "GET" }).handler(
   async (_data, ctx): Promise<ResumeData | null> => {
     try {
-      const env = getCloudflareEnv();
+      const env = await getCloudflareEnvAsync();
       if (!env.DB) return null;
       const user = await resolveSessionUser((ctx as any)?.request);
       if (!user) return null;
@@ -107,7 +107,7 @@ export const getResume = createServerFn({ method: "GET" }).handler(
 export const saveResume = createServerFn({ method: "POST" })
   .inputValidator((data: ResumeData) => data)
   .handler(async ({ data }, ctx): Promise<{ success: boolean; updatedAt: string }> => {
-    const env = getCloudflareEnv();
+    const env = await getCloudflareEnvAsync();
     if (!env.DB) throw new Error("Database not available");
 
     const user = await resolveSessionUser((ctx as any)?.request);
@@ -265,7 +265,7 @@ async function writeResumeSections(
   ctx?: any,
 ): Promise<void> {
   try {
-    const env = getCloudflareEnv();
+    const env = await getCloudflareEnvAsync();
     if (!env.DB) return;
     const db = getDb(env.DB);
     const sessionUser = await resolveSessionUser(ctx?.request);
@@ -311,7 +311,7 @@ export const aiParseResume = createServerFn({ method: "POST" })
   .inputValidator((data: { text: string }) => data)
   .handler(async ({ data }, ctx): Promise<Partial<ResumeData>> => {
     const request = (ctx as any)?.request;
-    const env = getCloudflareEnv();
+    const env = await getCloudflareEnvAsync();
 
     // Structured-markdown fast path: if the upload follows the documented
     // markdown schema (# name, ## sections, ### entries, etc.), parse it

@@ -1,7 +1,7 @@
 'use server';
 import { createServerFn } from "@tanstack/react-start";
 import { eq, inArray } from "drizzle-orm";
-import { getCloudflareEnv } from "@/lib/cloudflare";
+import { getCloudflareEnvAsync } from "@/lib/cloudflare";
 import { getDb } from "@/db/db";
 import { resolveSessionUser } from "@/lib/resolve-user";
 import { getAuthInstance } from "@/server/auth";
@@ -24,7 +24,7 @@ async function requireAdmin(ctx?: any) {
 
 export const listUsers = createServerFn({ method: "GET" }).handler(async (_data, ctx) => {
   await requireAdmin(ctx);
-  const env = getCloudflareEnv();
+  const env = await getCloudflareEnvAsync();
   if (!env.DB) return [];
   const db = getDb(env.DB);
   return db.select({ id: userTable.id, email: userTable.email, role: userTable.role, createdAt: userTable.createdAt }).from(userTable);
@@ -34,7 +34,7 @@ export const createUser = createServerFn({ method: "POST" })
   .inputValidator((data: { email: string; password: string; role?: "admin" | "user" }) => data)
   .handler(async ({ data }, ctx) => {
     await requireAdmin(ctx);
-    const env = getCloudflareEnv();
+    const env = await getCloudflareEnvAsync();
     if (!env.DB) throw new Error("Database unavailable");
     const auth = getAuthInstance(env);
 
@@ -57,7 +57,7 @@ export const deleteUser = createServerFn({ method: "POST" })
     const currentUser = await requireAdmin(ctx);
     if (currentUser.id === data.userId) throw new Error("You cannot delete your own admin account");
 
-    const env = getCloudflareEnv();
+    const env = await getCloudflareEnvAsync();
     if (!env.DB) throw new Error("Database unavailable");
     const db = getDb(env.DB);
 

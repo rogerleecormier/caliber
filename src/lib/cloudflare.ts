@@ -22,6 +22,7 @@ export interface CloudflareEnv {
 }
 
 let cachedEnv: Partial<CloudflareEnv> | null = null;
+let proxyPromise: Promise<Partial<CloudflareEnv>> | null = null;
 
 export async function getCloudflareEnvAsync(): Promise<Partial<CloudflareEnv>> {
   if (cachedEnv) return cachedEnv;
@@ -56,7 +57,13 @@ export async function getCloudflareEnvAsync(): Promise<Partial<CloudflareEnv>> {
 }
 
 export function getCloudflareEnv(): Partial<CloudflareEnv> {
-  // For synchronous access, return cfEnv (this is used in context where we can't await)
-  // The async version should be preferred in server functions
-  return cfEnv as unknown as Partial<CloudflareEnv>;
+  // For synchronous access in production/remote, return cfEnv directly
+  const env = cfEnv as unknown as Partial<CloudflareEnv>;
+
+  // In production, cfEnv should have the bindings
+  if (env.DB) return env;
+
+  // In development without bindings, we have a problem - development should use async version
+  // But return what we have to avoid breaking - server functions should use getCloudflareEnvAsync()
+  return env;
 }

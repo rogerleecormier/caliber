@@ -2,7 +2,7 @@
 import { createServerFn } from '@tanstack/react-start'
 import { eq, and } from 'drizzle-orm'
 import { resolveSessionUser } from '@/lib/resolve-user'
-import { getCloudflareEnv } from '@/lib/cloudflare'
+import { getCloudflareEnvAsync } from '@/lib/cloudflare'
 import { getDb } from '@/db/db'
 import { resumeSections } from '@/db/schema'
 import {
@@ -34,7 +34,7 @@ export interface ResumeData {
 export const getResumeSections = createServerFn({ method: 'GET' }).handler(
   async (_data, ctx): Promise<Partial<Record<SectionType, any>>> => {
     try {
-      const env = getCloudflareEnv()
+      const env = await getCloudflareEnvAsync()
       if (!env.DB) return {}
       const user = await resolveSessionUser((ctx as any)?.request)
       if (!user) return {}
@@ -64,7 +64,7 @@ export const upsertResumeSection = createServerFn({ method: 'POST' })
     (data: { sectionType: SectionType; content: any }) => data,
   )
   .handler(async ({ data }, ctx): Promise<{ success: boolean }> => {
-    const env = getCloudflareEnv()
+    const env = await getCloudflareEnvAsync()
     if (!env.DB) throw new Error('Database not available')
 
     const user = await resolveSessionUser((ctx as any)?.request)
@@ -112,7 +112,7 @@ export const upsertResumeSection = createServerFn({ method: 'POST' })
 export const upsertAllResumeSections = createServerFn({ method: 'POST' })
   .inputValidator((data: ResumeData) => data)
   .handler(async ({ data }, ctx): Promise<{ success: boolean }> => {
-    const env = getCloudflareEnv()
+    const env = await getCloudflareEnvAsync()
     if (!env.DB) throw new Error('Database not available')
 
     const user = await resolveSessionUser((ctx as any)?.request)

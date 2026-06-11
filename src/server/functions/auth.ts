@@ -1,6 +1,6 @@
 'use server';
 import { createServerFn } from "@tanstack/react-start";
-import { getCloudflareEnv } from "@/lib/cloudflare";
+import { getCloudflareEnvAsync } from "@/lib/cloudflare";
 import type { SessionUser } from "@/lib/cloudflare";
 import { resolveSessionUser } from "@/lib/resolve-user";
 import { eq, sql } from "drizzle-orm";
@@ -26,7 +26,7 @@ export const getSessionUser = createServerFn({ method: "GET" }).handler(
 export const promoteToAdmin = createServerFn({ method: "POST" })
   .inputValidator((data: { email: string; token: string }) => data)
   .handler(async ({ data }): Promise<{ success: boolean; email: string; role: "admin" }> => {
-    const env = getCloudflareEnv();
+    const env = await getCloudflareEnvAsync();
     const adminToken = env.ADMIN_PROMOTION_TOKEN;
 
     if (!adminToken || data.token !== adminToken) {

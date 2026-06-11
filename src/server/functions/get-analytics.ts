@@ -1,6 +1,6 @@
 'use server';
 import { createServerFn } from "@tanstack/react-start";
-import { getCloudflareEnv } from "@/lib/cloudflare";
+import { getCloudflareEnvAsync } from "@/lib/cloudflare";
 import { getDb } from "@/db/db";
 import { normalizedJobs, generatedDocuments } from "@/db/schema";
 import { eq } from "drizzle-orm";
@@ -148,7 +148,7 @@ export const getAnalytics = createServerFn({ method: "GET" })
   .inputValidator((data: { period?: string }) => data)
   .handler(async ({ data }, ctx): Promise<AnalyticsSummaryData | null> => {
     try {
-      const env = getCloudflareEnv();
+      const env = await getCloudflareEnvAsync();
       if (!env.DB) return EMPTY(data.period ?? "all_time");
 
       const user = await resolveSessionUser((ctx as any)?.request);

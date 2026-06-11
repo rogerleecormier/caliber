@@ -165,7 +165,7 @@ export function JobResultCard({
         />
       ) : null}
       {job.id != null ? (
-        <div className="absolute right-2 top-2 z-10">
+        <div className={`absolute top-2 z-10 ${showSelection ? "right-9" : "right-2"}`}>
           <FlagToggle jobId={job.id} initialFlagged={!!job.isFlagged} />
         </div>
       ) : null}

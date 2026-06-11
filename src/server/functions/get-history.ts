@@ -1,7 +1,7 @@
 'use server';
 import { createServerFn } from "@tanstack/react-start";
 import { desc, eq, and, sql } from "drizzle-orm";
-import { getCloudflareEnv } from "@/lib/cloudflare";
+import { getCloudflareEnvAsync } from "@/lib/cloudflare";
 import type { CloudflareEnv } from "@/lib/cloudflare";
 import { getDb } from "@/db/db";
 import { normalizedJobs, generatedDocuments } from "@/db/schema";
@@ -35,7 +35,7 @@ export const getHistory = createServerFn({ method: "GET" })
   .inputValidator((data: { page?: number; pageSize?: number; query?: string }) => data)
   .handler(async ({ data }, ctx): Promise<{ rows: HistoryRow[]; total: number; totalApplied: number; totalPursued: number; totalDocuments: number; pipelineCounts: HistoryPipelineCounts }> => {
     try {
-      const env = getCloudflareEnv();
+      const env = await getCloudflareEnvAsync();
       if (!env.DB) return { rows: [], total: 0, totalApplied: 0, totalPursued: 0, totalDocuments: 0, pipelineCounts: emptyPipelineCounts };
 
       const user = await resolveSessionUser((ctx as any)?.request);
@@ -170,7 +170,7 @@ export const getHistory = createServerFn({ method: "GET" })
 export const getDocumentDownload = createServerFn({ method: "GET" })
   .inputValidator((data: { r2Key: string }) => data)
   .handler(async ({ data }) => {
-    const env = getCloudflareEnv();
+    const env = await getCloudflareEnvAsync();
     if (!env.R2) throw new Error("R2 storage not available");
 
     const object = await env.R2.get(data.r2Key);
@@ -187,7 +187,7 @@ export const getDocumentDownload = createServerFn({ method: "GET" })
 export const getDocumentsForAnalysis = createServerFn({ method: "GET" })
   .inputValidator((data: { analysisId: number }) => data)
   .handler(async ({ data }, ctx) => {
-    const env = getCloudflareEnv();
+    const env = await getCloudflareEnvAsync();
     if (!env.DB) return { resume: null, coverLetter: null };
 
     const user = await resolveSessionUser((ctx as any)?.request);
@@ -214,7 +214,7 @@ export const getDocumentsForAnalysis = createServerFn({ method: "GET" })
 export const deleteHistoryItem = createServerFn({ method: "POST" })
   .inputValidator((data: { id: number }) => data)
   .handler(async ({ data }, ctx) => {
-    const env = getCloudflareEnv();
+    const env = await getCloudflareEnvAsync();
     if (!env.DB) throw new Error("Database not available");
 
     const user = await resolveSessionUser((ctx as any)?.request);

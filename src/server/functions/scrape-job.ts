@@ -1,6 +1,6 @@
 'use server';
 import { createServerFn } from "@tanstack/react-start";
-import { getCloudflareEnv } from "@/lib/cloudflare";
+import { getCloudflareEnvAsync } from "@/lib/cloudflare";
 import { withRetry } from "@/lib/sync-queue";
 
 function cleanUrl(raw: string): string {
@@ -43,7 +43,7 @@ export async function scrapeJobInternal(url: string) {
   }
 
   try {
-    const env = getCloudflareEnv();
+    const env = await getCloudflareEnvAsync();
     const browserWorker = env.BROWSER;
     const kvNamespace = env.KV;
     if (!browserWorker || !kvNamespace) {

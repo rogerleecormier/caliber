@@ -5,6 +5,7 @@ import {
   Sheet,
   SheetContent,
   SheetTitle,
+  SheetDescription,
 } from "@caliber/ui-kit";
 import { Loader2, Search } from "lucide-react";
 import type { SearchConfigurationRow } from "@/lib/normalized-jobs-persistence";
@@ -256,9 +257,9 @@ export function AgentsSearchDrawer({
               Search Agents
             </SheetTitle>
           </div>
-          <p className="mt-1 text-xs text-slate-500 leading-relaxed">
+          <SheetDescription className="mt-1 text-xs text-slate-500 leading-relaxed">
             Configure target sources and filters. Active agents run automatically on the Caliber cron schedule.
-          </p>
+          </SheetDescription>
         </div>
 
         {/* scrollable body */}

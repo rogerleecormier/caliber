@@ -1,4 +1,4 @@
-import { useMemo, useState, useCallback } from 'react';
+import { useMemo, useState, useCallback, useEffect } from 'react';
 import {
   Button,
   Input,
@@ -29,6 +29,7 @@ export interface AggregatedJobsResultsProps {
   onSaveJob?: (job: AggregatedJobCardJob) => Promise<void>;
   onAnalyzeJob?: (job: AggregatedJobCardJob) => Promise<void>;
   savedJobIds?: Set<string>;
+  onValidJobCountChange?: (count: number) => void;
 }
 
 type SortOption = 'posted-date' | 'salary-high' | 'salary-low' | 'title' | 'company';
@@ -40,6 +41,7 @@ export function AggregatedJobsResults({
   onSaveJob,
   onAnalyzeJob,
   savedJobIds = new Set(),
+  onValidJobCountChange,
 }: AggregatedJobsResultsProps) {
   const [page, setPage] = useState(1);
   const [sortBy, setSortBy] = useState<SortOption>('posted-date');
@@ -117,6 +119,11 @@ export function AggregatedJobsResults({
   }, [sortedJobs, page]);
 
   const totalPages = Math.ceil(sortedJobs.length / PAGE_SIZE);
+
+  // Notify parent of valid job count when it changes
+  useEffect(() => {
+    onValidJobCountChange?.(sortedJobs.length);
+  }, [sortedJobs.length, onValidJobCountChange]);
 
   if (loading) {
     return (
@@ -225,7 +232,7 @@ export function AggregatedJobsResults({
       {totalPages > 1 && (
         <div className="flex justify-center">
           <Pagination
-            currentPage={page}
+            page={page}
             totalPages={totalPages}
             onPageChange={setPage}
           />
