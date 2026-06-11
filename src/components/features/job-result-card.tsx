@@ -1,6 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import type { ChangeEvent } from "react";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import {
   Badge,
   Body,
@@ -17,6 +17,7 @@ import {
 import { getScoreBorderColor } from "@/lib/scoreUtils";
 import { getDocumentDownload } from "@/server/functions/get-history";
 import { FlagToggle } from "@/components/features/flag-toggle";
+import { cleanJobDescription } from "@/lib/html-utils";
 
 export type JobStatus = "Discovered" | "Analyzed" | "Prepped" | "Applied" | "Interviewed" | "Hired" | "Not Hired" | "Archived";
 
@@ -115,6 +116,10 @@ export function JobResultCard({
   const score = getScore(job);
   const hasUrl = !!(job.sourceUrl && job.sourceUrl !== "text-input");
   const [downloadingKey, setDownloadingKey] = useState<string | null>(null);
+  const cleanedSnippet = useMemo(
+    () => (job.snippet ? cleanJobDescription(job.snippet) : ''),
+    [job.snippet]
+  );
 
   const mostRecentDocuments = (() => {
     if (!job.documents || job.documents.length === 0) return [];
@@ -304,9 +309,9 @@ export function JobResultCard({
               {job.salary}
             </Body>
           ) : null}
-          {job.snippet ? (
+          {cleanedSnippet ? (
             <Body size="sm" className="leading-relaxed text-slate-600">
-              {job.snippet}
+              {cleanedSnippet}
             </Body>
           ) : null}
           {mostRecentDocuments.length > 0 && (

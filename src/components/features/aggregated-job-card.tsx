@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import {
   Badge,
   Button,
@@ -17,6 +17,7 @@ import {
   Clock,
   Sparkles,
 } from 'lucide-react';
+import { cleanJobDescription } from '@/lib/html-utils';
 
 export interface AggregatedJobCardJob {
   id: string;
@@ -106,6 +107,11 @@ export function AggregatedJobCard({
       })
     : null;
 
+  const cleanedDescription = useMemo(
+    () => (job.description ? cleanJobDescription(job.description) : ''),
+    [job.description]
+  );
+
   return (
     <PrimaryCard className={`p-4 ${SOURCE_COLORS[job.source]}`}>
       {/* Header */}
@@ -163,10 +169,10 @@ export function AggregatedJobCard({
       </div>
 
       {/* Description Preview */}
-      {job.description && (
+      {cleanedDescription && (
         <div className="mb-3">
           <p className="text-xs text-gray-600 line-clamp-2">
-            {job.description}
+            {cleanedDescription}
           </p>
         </div>
       )}
