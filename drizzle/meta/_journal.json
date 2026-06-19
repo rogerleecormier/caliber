@@ -92,6 +92,13 @@
       "when": 1781000001000,
       "tag": "0029_user_show_global_jobs",
       "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "6",
+      "when": 1781000002000,
+      "tag": "0030_fix_text_input_unique_index",
+      "breakpoints": true
     }
   ]
 }
