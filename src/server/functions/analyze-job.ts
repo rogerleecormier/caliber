@@ -1,7 +1,7 @@
 'use server';
 import { createServerFn } from "@tanstack/react-start";
 import { and, eq } from "drizzle-orm";
-import { getCloudflareEnv, type CloudflareEnv } from "@/lib/cloudflare";
+import { getCloudflareEnvAsync, type CloudflareEnv } from "@/lib/cloudflare";
 import { getDb } from "@/db/db";
 import { masterResume, normalizedJobs } from "@/db/schema";
 import { resolveSessionUser } from "@/lib/resolve-user";
