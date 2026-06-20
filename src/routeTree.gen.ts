@@ -38,6 +38,7 @@ import { Route as ApiDiscoveryRunPhaseRouteImport } from './routes/api/discovery
 import { Route as ApiDiscoveryDeleteBoardRouteImport } from './routes/api/discovery/delete-board'
 import { Route as ApiDiscoveryCronRouteImport } from './routes/api/discovery/cron'
 import { Route as ApiCrawlToggleBoardRouteImport } from './routes/api/crawl/toggle-board'
+import { Route as ApiCrawlStatsRouteImport } from './routes/api/crawl/stats'
 import { Route as ApiCrawlSaveBoardRouteImport } from './routes/api/crawl/save-board'
 import { Route as ApiCrawlCronRouteImport } from './routes/api/crawl/cron'
 import { Route as ApiCrawlAtsRouteImport } from './routes/api/crawl/$ats'
@@ -201,6 +202,11 @@ const ApiCrawlToggleBoardRoute = ApiCrawlToggleBoardRouteImport.update({
   path: '/api/crawl/toggle-board',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiCrawlStatsRoute = ApiCrawlStatsRouteImport.update({
+  id: '/api/crawl/stats',
+  path: '/api/crawl/stats',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiCrawlSaveBoardRoute = ApiCrawlSaveBoardRouteImport.update({
   id: '/api/crawl/save-board',
   path: '/api/crawl/save-board',
@@ -313,6 +319,7 @@ export interface FileRoutesByFullPath {
   '/api/crawl/$ats': typeof ApiCrawlAtsRoute
   '/api/crawl/cron': typeof ApiCrawlCronRoute
   '/api/crawl/save-board': typeof ApiCrawlSaveBoardRoute
+  '/api/crawl/stats': typeof ApiCrawlStatsRoute
   '/api/crawl/toggle-board': typeof ApiCrawlToggleBoardRoute
   '/api/discovery/cron': typeof ApiDiscoveryCronRoute
   '/api/discovery/delete-board': typeof ApiDiscoveryDeleteBoardRoute
@@ -360,6 +367,7 @@ export interface FileRoutesByTo {
   '/api/crawl/$ats': typeof ApiCrawlAtsRoute
   '/api/crawl/cron': typeof ApiCrawlCronRoute
   '/api/crawl/save-board': typeof ApiCrawlSaveBoardRoute
+  '/api/crawl/stats': typeof ApiCrawlStatsRoute
   '/api/crawl/toggle-board': typeof ApiCrawlToggleBoardRoute
   '/api/discovery/cron': typeof ApiDiscoveryCronRoute
   '/api/discovery/delete-board': typeof ApiDiscoveryDeleteBoardRoute
@@ -408,6 +416,7 @@ export interface FileRoutesById {
   '/api/crawl/$ats': typeof ApiCrawlAtsRoute
   '/api/crawl/cron': typeof ApiCrawlCronRoute
   '/api/crawl/save-board': typeof ApiCrawlSaveBoardRoute
+  '/api/crawl/stats': typeof ApiCrawlStatsRoute
   '/api/crawl/toggle-board': typeof ApiCrawlToggleBoardRoute
   '/api/discovery/cron': typeof ApiDiscoveryCronRoute
   '/api/discovery/delete-board': typeof ApiDiscoveryDeleteBoardRoute
@@ -457,6 +466,7 @@ export interface FileRouteTypes {
     | '/api/crawl/$ats'
     | '/api/crawl/cron'
     | '/api/crawl/save-board'
+    | '/api/crawl/stats'
     | '/api/crawl/toggle-board'
     | '/api/discovery/cron'
     | '/api/discovery/delete-board'
@@ -504,6 +514,7 @@ export interface FileRouteTypes {
     | '/api/crawl/$ats'
     | '/api/crawl/cron'
     | '/api/crawl/save-board'
+    | '/api/crawl/stats'
     | '/api/crawl/toggle-board'
     | '/api/discovery/cron'
     | '/api/discovery/delete-board'
@@ -551,6 +562,7 @@ export interface FileRouteTypes {
     | '/api/crawl/$ats'
     | '/api/crawl/cron'
     | '/api/crawl/save-board'
+    | '/api/crawl/stats'
     | '/api/crawl/toggle-board'
     | '/api/discovery/cron'
     | '/api/discovery/delete-board'
@@ -599,6 +611,7 @@ export interface RootRouteChildren {
   ApiCrawlAtsRoute: typeof ApiCrawlAtsRoute
   ApiCrawlCronRoute: typeof ApiCrawlCronRoute
   ApiCrawlSaveBoardRoute: typeof ApiCrawlSaveBoardRoute
+  ApiCrawlStatsRoute: typeof ApiCrawlStatsRoute
   ApiCrawlToggleBoardRoute: typeof ApiCrawlToggleBoardRoute
   ApiDiscoveryCronRoute: typeof ApiDiscoveryCronRoute
   ApiDiscoveryDeleteBoardRoute: typeof ApiDiscoveryDeleteBoardRoute
@@ -821,6 +834,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiCrawlToggleBoardRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/crawl/stats': {
+      id: '/api/crawl/stats'
+      path: '/api/crawl/stats'
+      fullPath: '/api/crawl/stats'
+      preLoaderRoute: typeof ApiCrawlStatsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/crawl/save-board': {
       id: '/api/crawl/save-board'
       path: '/api/crawl/save-board'
@@ -978,6 +998,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiCrawlAtsRoute: ApiCrawlAtsRoute,
   ApiCrawlCronRoute: ApiCrawlCronRoute,
   ApiCrawlSaveBoardRoute: ApiCrawlSaveBoardRoute,
+  ApiCrawlStatsRoute: ApiCrawlStatsRoute,
   ApiCrawlToggleBoardRoute: ApiCrawlToggleBoardRoute,
   ApiDiscoveryCronRoute: ApiDiscoveryCronRoute,
   ApiDiscoveryDeleteBoardRoute: ApiDiscoveryDeleteBoardRoute,

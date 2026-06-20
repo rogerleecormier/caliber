@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { createFileRoute, redirect } from '@tanstack/react-router';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Shield,
   Search,
@@ -134,7 +134,6 @@ function DiscoveryDashboard() {
   const [statusFilter, setStatusFilter] = useState('all');
 
   const [statusMessage, setStatusMessage] = useState<{ text: string; type: 'success' | 'error' | 'info' } | null>(null);
-  const [runningAction, setRunningAction] = useState<string | null>(null);
 
   // useQuery to poll discovery stats and update react-query cache
   const { data } = useQuery({
@@ -155,122 +154,214 @@ function DiscoveryDashboard() {
     setTimeout(() => setStatusMessage(null), 5000);
   };
 
-  // Trigger discovery phase
-  const handleRunPhase = async (phase: string) => {
-    setRunningAction(phase);
-    showStatus(`Running discovery phase: ${phase}...`, 'info');
-    try {
+  // mutations for discovery actions
+  const runPhaseMutation = useMutation({
+    mutationFn: async (phase: string) => {
       const res = await fetch(`/api/discovery/run-phase?phase=${phase}&direct=true`, {
         method: 'POST'
       });
       const data = await res.json() as any;
-      if (data.success) {
-        showStatus(`Phase ${phase} complete! Boards discovered successfully.`, 'success');
-        await queryClient.invalidateQueries({ queryKey: ['discovery-data'] });
-      } else {
-        showStatus(data.error || `Phase ${phase} failed`, 'error');
-      }
-    } catch (e: any) {
-      showStatus(e.message || 'Error triggering discovery phase', 'error');
-    } finally {
-      setRunningAction(null);
+      if (!data.success) throw new Error(data.error || `Phase ${phase} failed`);
+      return data;
+    },
+    onMutate: () => {
+      showStatus('Triggering discovery phase...', 'info');
+    },
+    onSuccess: (_, phase) => {
+      showStatus(`Phase ${phase} complete! Boards discovered successfully.`, 'success');
+    },
+    onError: (err: any) => {
+      showStatus(err.message || 'Error triggering discovery phase', 'error');
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['discovery-data'] });
     }
-  };
+  });
 
-  // Run full daily enqueuer
-  const handleTriggerCron = async () => {
-    setRunningAction('all');
-    showStatus('Triggering daily discovery cron enqueuer...', 'info');
-    try {
+  const triggerCronMutation = useMutation({
+    mutationFn: async () => {
       const res = await fetch('/api/discovery/cron?bypass=true', {
         method: 'POST'
       });
       const data = await res.json() as any;
-      if (data.success) {
-        showStatus('Daily discovery cron triggered successfully! Phases enqueued.', 'success');
-        await queryClient.invalidateQueries({ queryKey: ['discovery-data'] });
-      } else {
-        showStatus(data.error || 'Failed to trigger cron', 'error');
-      }
-    } catch (e: any) {
-      showStatus(e.message || 'Error triggering cron', 'error');
-    } finally {
-      setRunningAction(null);
+      if (!data.success) throw new Error(data.error || 'Failed to trigger cron');
+      return data;
+    },
+    onMutate: () => {
+      showStatus('Triggering daily discovery cron enqueuer...', 'info');
+    },
+    onSuccess: () => {
+      showStatus('Daily discovery cron triggered successfully! Phases enqueued.', 'success');
+    },
+    onError: (err: any) => {
+      showStatus(err.message || 'Error triggering cron', 'error');
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['discovery-data'] });
     }
-  };
+  });
 
-  // Validate individual board token
-  const handleValidateBoard = async (boardId: string) => {
-    setRunningAction(`validate-${boardId}`);
-    try {
+  const validateBoardMutation = useMutation({
+    mutationFn: async (boardId: string) => {
       const res = await fetch('/api/discovery/validate-board', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id: boardId })
       });
       const data = await res.json() as any;
-      if (data.success) {
-        if (data.validated) {
-          showStatus('Board token validated successfully! Active crawl enabled.', 'success');
-        } else {
-          showStatus('Board validation failed. Check endpoint validity.', 'error');
-        }
-        await queryClient.invalidateQueries({ queryKey: ['discovery-data'] });
-      } else {
-        showStatus(data.error || 'Validation request failed', 'error');
-      }
-    } catch (e: any) {
-      showStatus(e.message || 'Error validating board', 'error');
-    } finally {
-      setRunningAction(null);
-    }
-  };
+      if (!data.success) throw new Error(data.error || 'Validation request failed');
+      return data;
+    },
+    onMutate: async (boardId) => {
+      await queryClient.cancelQueries({ queryKey: ['discovery-data'] });
+      const previousData = queryClient.getQueryData<any>(['discovery-data']);
 
-  // Toggle active status
-  const handleToggleActive = async (boardId: string, currentActive: boolean) => {
-    setRunningAction(`toggle-${boardId}`);
-    try {
+      if (previousData) {
+        queryClient.setQueryData(['discovery-data'], {
+          ...previousData,
+          boards: previousData.boards.map((b: any) =>
+            b.id === boardId ? { ...b, validated: true, validation_error_count: 0 } : b
+          )
+        });
+      }
+      return { previousData };
+    },
+    onSuccess: (data) => {
+      if (data.validated) {
+        showStatus('Board token validated successfully! Active crawl enabled.', 'success');
+      } else {
+        showStatus('Board validation failed. Check endpoint validity.', 'error');
+      }
+    },
+    onError: (err: any, _variables, context) => {
+      if (context?.previousData) {
+        queryClient.setQueryData(['discovery-data'], context.previousData);
+      }
+      showStatus(err.message || 'Error validating board', 'error');
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['discovery-data'] });
+    }
+  });
+
+  const toggleActiveMutation = useMutation({
+    mutationFn: async ({ boardId, nextActive }: { boardId: string; nextActive: boolean }) => {
       const res = await fetch('/api/crawl/toggle-board', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: boardId, is_active: !currentActive })
+        body: JSON.stringify({ id: boardId, is_active: nextActive })
       });
       const data = await res.json() as any;
-      if (data.success) {
-        showStatus('Crawler board active status updated.', 'success');
-        await queryClient.invalidateQueries({ queryKey: ['discovery-data'] });
-      } else {
-        showStatus(data.error || 'Failed to toggle board status', 'error');
-      }
-    } catch (e: any) {
-      showStatus(e.message || 'Error toggling board', 'error');
-    } finally {
-      setRunningAction(null);
-    }
-  };
+      if (!data.success) throw new Error(data.error || 'Failed to toggle board status');
+      return data;
+    },
+    onMutate: async ({ boardId, nextActive }) => {
+      await queryClient.cancelQueries({ queryKey: ['discovery-data'] });
+      const previousData = queryClient.getQueryData<any>(['discovery-data']);
 
-  // Delete board from database
-  const handleDeleteBoard = async (boardId: string) => {
-    if (!confirm('Are you sure you want to delete this board from discovery results?')) return;
-    setRunningAction(`delete-${boardId}`);
-    try {
+      if (previousData) {
+        queryClient.setQueryData(['discovery-data'], {
+          ...previousData,
+          boards: previousData.boards.map((b: any) =>
+            b.id === boardId ? { ...b, is_active: nextActive ? 1 : 0 } : b
+          ),
+          stats: {
+            ...previousData.stats,
+            active_boards: Math.max(0, (previousData.stats?.active_boards || 0) + (nextActive ? 1 : -1))
+          }
+        });
+      }
+      return { previousData };
+    },
+    onSuccess: () => {
+      showStatus('Crawler board active status updated.', 'success');
+    },
+    onError: (err: any, _variables, context) => {
+      if (context?.previousData) {
+        queryClient.setQueryData(['discovery-data'], context.previousData);
+      }
+      showStatus(err.message || 'Error updating board status', 'error');
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['discovery-data'] });
+    }
+  });
+
+  const deleteBoardMutation = useMutation({
+    mutationFn: async (boardId: string) => {
       const res = await fetch('/api/discovery/delete-board', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id: boardId })
       });
       const data = await res.json() as any;
-      if (data.success) {
-        showStatus('Board removed from discovery results.', 'success');
-        await queryClient.invalidateQueries({ queryKey: ['discovery-data'] });
-      } else {
-        showStatus(data.error || 'Failed to delete board', 'error');
+      if (!data.success) throw new Error(data.error || 'Failed to delete board');
+      return data;
+    },
+    onMutate: async (boardId) => {
+      await queryClient.cancelQueries({ queryKey: ['discovery-data'] });
+      const previousData = queryClient.getQueryData<any>(['discovery-data']);
+
+      if (previousData) {
+        const deletedBoard = previousData.boards.find((b: any) => b.id === boardId);
+
+        queryClient.setQueryData(['discovery-data'], {
+          ...previousData,
+          boards: previousData.boards.filter((b: any) => b.id !== boardId),
+          stats: {
+            ...previousData.stats,
+            total_boards: Math.max(0, (previousData.stats?.total_boards || 0) - 1),
+            active_boards: deletedBoard?.is_active === 1
+              ? Math.max(0, (previousData.stats?.active_boards || 0) - 1)
+              : (previousData.stats?.active_boards || 0),
+            validated_boards: deletedBoard?.validated === true
+              ? Math.max(0, (previousData.stats?.validated_boards || 0) - 1)
+              : (previousData.stats?.validated_boards || 0)
+          }
+        });
       }
-    } catch (e: any) {
-      showStatus(e.message || 'Error deleting board', 'error');
-    } finally {
-      setRunningAction(null);
+      return { previousData };
+    },
+    onSuccess: () => {
+      showStatus('Board removed from discovery results.', 'success');
+    },
+    onError: (err: any, _variables, context) => {
+      if (context?.previousData) {
+        queryClient.setQueryData(['discovery-data'], context.previousData);
+      }
+      showStatus(err.message || 'Error deleting board', 'error');
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['discovery-data'] });
     }
+  });
+
+  const isAnyMutationPending =
+    runPhaseMutation.isPending ||
+    triggerCronMutation.isPending ||
+    validateBoardMutation.isPending ||
+    toggleActiveMutation.isPending ||
+    deleteBoardMutation.isPending;
+
+  const handleRunPhase = (phase: string) => {
+    runPhaseMutation.mutate(phase);
+  };
+
+  const handleTriggerCron = () => {
+    triggerCronMutation.mutate();
+  };
+
+  const handleValidateBoard = (boardId: string) => {
+    validateBoardMutation.mutate(boardId);
+  };
+
+  const handleToggleActive = (boardId: string, currentActive: boolean) => {
+    toggleActiveMutation.mutate({ boardId, nextActive: !currentActive });
+  };
+
+  const handleDeleteBoard = (boardId: string) => {
+    if (!confirm('Are you sure you want to delete this board from discovery results?')) return;
+    deleteBoardMutation.mutate(boardId);
   };
 
   // Filter boards
@@ -337,10 +428,10 @@ function DiscoveryDashboard() {
             </button>
             <button
               onClick={handleTriggerCron}
-              disabled={runningAction === 'all'}
+              disabled={isAnyMutationPending}
               className="inline-flex items-center gap-2 rounded-lg bg-primary-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-primary-700 disabled:opacity-50 cursor-pointer shadow-sm"
             >
-              <Play className={`h-4 w-4 ${runningAction === 'all' ? 'animate-spin' : ''}`} />
+              <Play className={`h-4 w-4 ${triggerCronMutation.isPending ? 'animate-spin' : ''}`} />
               Run Discovery Cron
             </button>
           </div>
@@ -407,10 +498,10 @@ function DiscoveryDashboard() {
               </div>
               <button
                 onClick={() => handleRunPhase(phase.id)}
-                disabled={runningAction !== null}
+                disabled={isAnyMutationPending}
                 className="mt-4 w-full inline-flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 disabled:opacity-50 rounded-lg transition cursor-pointer"
               >
-                <Play className="w-3.5 h-3.5" />
+                <Play className={`w-3.5 h-3.5 ${runPhaseMutation.isPending && runPhaseMutation.variables === phase.id ? 'animate-spin' : ''}`} />
                 Run Phase
               </button>
             </div>
@@ -519,7 +610,7 @@ function DiscoveryDashboard() {
                       {!board.validated && (
                         <button
                           onClick={() => handleValidateBoard(board.id)}
-                          disabled={runningAction !== null}
+                          disabled={isAnyMutationPending}
                           className="px-2 py-1 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 disabled:opacity-50 rounded-md transition cursor-pointer"
                         >
                           Validate
@@ -528,7 +619,7 @@ function DiscoveryDashboard() {
                       {board.validated ? (
                         <button
                           onClick={() => handleToggleActive(board.id, board.is_active === 1)}
-                          disabled={runningAction !== null}
+                          disabled={isAnyMutationPending}
                           className={`px-2 py-1 text-xs font-semibold rounded-md transition cursor-pointer ${
                             board.is_active === 1
                               ? 'text-red-700 bg-red-50 hover:bg-red-100'
@@ -540,7 +631,7 @@ function DiscoveryDashboard() {
                       ) : null}
                       <button
                         onClick={() => handleDeleteBoard(board.id)}
-                        disabled={runningAction !== null}
+                        disabled={isAnyMutationPending}
                         className="p-1 text-slate-400 hover:text-red-600 transition cursor-pointer"
                       >
                         <Trash2 className="w-4 h-4" />

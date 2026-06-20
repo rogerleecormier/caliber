@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { createFileRoute, redirect } from '@tanstack/react-router';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Briefcase,
   Search,
@@ -14,7 +15,21 @@ import {
 import { PageHero, PageSection } from '@caliber/ui-kit';
 import { getCloudflareEnvAsync } from '@/lib/cloudflare';
 
-// Server loader runs queries directly on D1 in Cloudflare worker
+// Client-side fetcher hitting our API
+async function fetchCrawlerData() {
+  const res = await fetch('/api/crawl/stats');
+  if (!res.ok) throw new Error('Failed to fetch crawler stats');
+  const data = await res.json() as any;
+  if (!data.success) throw new Error(data.error || 'Failed to fetch crawler stats');
+  return {
+    boards: data.boards || [],
+    jobs: data.jobs || [],
+    auditLogs: data.auditLogs || [],
+    stats: data.stats || { canonical_count: 0, source_count: 0, active_boards: 0, errors_24h: 0, llm_calls_24h: 0 }
+  };
+}
+
+// Server loader runs queries directly on D1 for initial load
 export const Route = createFileRoute('/crawler')({
   beforeLoad: ({ context }) => {
     const ctx = context as { user?: { id: string; role: string } | null };
@@ -71,80 +86,153 @@ export const Route = createFileRoute('/crawler')({
 });
 
 function CrawlerDashboard() {
+  const queryClient = useQueryClient();
   const loaderData = Route.useLoaderData() as any;
-  const { boards: initialBoards, jobs: initialJobs, auditLogs: initialLogs, stats } = loaderData;
 
-  const [boards, setBoards] = useState<any[]>(initialBoards);
-  const [jobs, setJobs] = useState<any[]>(initialJobs);
-  const auditLogs = initialLogs;
+  // Local/UI states
+  const [autoRefresh, setAutoRefresh] = useState(true);
   const [activeTab, setActiveTab] = useState<'jobs' | 'boards' | 'logs'>('jobs');
-
-  // Form states
   const [newBoardAts, setNewBoardAts] = useState<'greenhouse' | 'lever' | 'ashby'>('greenhouse');
   const [newBoardToken, setNewBoardToken] = useState('');
   const [newBoardCompany, setNewBoardCompany] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [searchLocation, setSearchLocation] = useState('');
 
-  // UI state
+  // Overriding search results list
+  const [searchedJobs, setSearchedJobs] = useState<any[] | null>(null);
   const [statusMessage, setStatusMessage] = useState<{ text: string; type: 'success' | 'error' | 'info' } | null>(null);
-  const [loading, setLoading] = useState<string | null>(null); // tracks boardId or action name
+  const [loading, setLoading] = useState<string | null>(null); // tracks manual crawl or scheduler run status
+
+  // useQuery with initialData from route loader
+  const { data } = useQuery({
+    queryKey: ['crawler-data'],
+    queryFn: fetchCrawlerData,
+    initialData: loaderData,
+    refetchInterval: autoRefresh ? 10000 : false,
+  });
+
+  const { boards, jobs, auditLogs, stats } = data || {
+    boards: [],
+    jobs: [],
+    auditLogs: [],
+    stats: { canonical_count: 0, source_count: 0, active_boards: 0, errors_24h: 0, llm_calls_24h: 0 }
+  };
 
   const showStatus = (text: string, type: 'success' | 'error' | 'info' = 'info') => {
     setStatusMessage({ text, type });
     setTimeout(() => setStatusMessage(null), 5000);
   };
 
-  // Add new Board
-  const handleAddBoard = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newBoardToken.trim()) return;
-
-    setLoading('add-board');
-    try {
+  // 1. Add Target Board Mutation (with Optimistic Updates)
+  const addBoardMutation = useMutation({
+    mutationFn: async ({ ats, token, companyName }: { ats: string; token: string; companyName: string }) => {
       const res = await fetch('/api/crawl/save-board', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ats: newBoardAts, token: newBoardToken.trim(), companyName: newBoardCompany.trim() })
+        body: JSON.stringify({ ats, token, companyName })
       });
       const data = await res.json() as any;
-      if (data.success) {
-        showStatus(`Board ${newBoardToken} saved successfully!`, 'success');
-        setNewBoardToken('');
-        setNewBoardCompany('');
-        // Reload boards
-        window.location.reload();
-      } else {
-        showStatus(data.error || 'Failed to save board', 'error');
-      }
-    } catch (err: any) {
-      showStatus(err.message || 'Error saving board', 'error');
-    } finally {
-      setLoading(null);
-    }
-  };
+      if (!data.success) throw new Error(data.error || 'Failed to save board');
+      return data;
+    },
+    onMutate: async ({ ats, token, companyName }) => {
+      await queryClient.cancelQueries({ queryKey: ['crawler-data'] });
+      const previousData = queryClient.getQueryData<any>(['crawler-data']);
 
-  // Toggle Board Active
-  const handleToggleBoard = async (boardId: string, currentActive: boolean) => {
-    setLoading(`toggle-${boardId}`);
-    try {
+      if (previousData) {
+        const optimisticBoard = {
+          id: `optimistic-${Date.now()}`,
+          ats,
+          token,
+          company_name: companyName || token.charAt(0).toUpperCase() + token.slice(1),
+          crawl_frequency_tier: 'tier2',
+          is_active: 1,
+          created_at: new Date().toISOString()
+        };
+
+        queryClient.setQueryData(['crawler-data'], {
+          ...previousData,
+          boards: [optimisticBoard, ...previousData.boards]
+        });
+      }
+
+      return { previousData };
+    },
+    onError: (err: any, _variables, context) => {
+      if (context?.previousData) {
+        queryClient.setQueryData(['crawler-data'], context.previousData);
+      }
+      showStatus(err.message || 'Error saving board', 'error');
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['crawler-data'] });
+    },
+    onSuccess: (_, variables) => {
+      showStatus(`Board ${variables.token} saved successfully!`, 'success');
+      setNewBoardToken('');
+      setNewBoardCompany('');
+    }
+  });
+
+  // 2. Toggle Board Active Status Mutation (with Optimistic Updates)
+  const toggleBoardMutation = useMutation({
+    mutationFn: async ({ boardId, nextActive }: { boardId: string; nextActive: boolean }) => {
       const res = await fetch('/api/crawl/toggle-board', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: boardId, is_active: !currentActive })
+        body: JSON.stringify({ id: boardId, is_active: nextActive })
       });
       const data = await res.json() as any;
-      if (data.success) {
-        setBoards(prev => prev.map(b => b.id === boardId ? { ...b, is_active: !currentActive ? 1 : 0 } : b));
-        showStatus('Board status updated!', 'success');
-      } else {
-        showStatus(data.error || 'Failed to toggle board', 'error');
+      if (!data.success) throw new Error(data.error || 'Failed to toggle board');
+      return data;
+    },
+    onMutate: async ({ boardId, nextActive }) => {
+      await queryClient.cancelQueries({ queryKey: ['crawler-data'] });
+      const previousData = queryClient.getQueryData<any>(['crawler-data']);
+
+      if (previousData) {
+        queryClient.setQueryData(['crawler-data'], {
+          ...previousData,
+          boards: previousData.boards.map((b: any) =>
+            b.id === boardId ? { ...b, is_active: nextActive ? 1 : 0 } : b
+          ),
+          stats: {
+            ...previousData.stats,
+            active_boards: previousData.stats.active_boards + (nextActive ? 1 : -1)
+          }
+        });
       }
-    } catch (err: any) {
+
+      return { previousData };
+    },
+    onError: (err: any, _variables, context) => {
+      if (context?.previousData) {
+        queryClient.setQueryData(['crawler-data'], context.previousData);
+      }
       showStatus(err.message || 'Error updating board status', 'error');
-    } finally {
-      setLoading(null);
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['crawler-data'] });
+    },
+    onSuccess: () => {
+      showStatus('Board status updated!', 'success');
     }
+  });
+
+  // Add new Board Trigger
+  const handleAddBoard = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newBoardToken.trim()) return;
+    addBoardMutation.mutate({
+      ats: newBoardAts,
+      token: newBoardToken.trim(),
+      companyName: newBoardCompany.trim()
+    });
+  };
+
+  // Toggle Board Active Trigger
+  const handleToggleBoard = async (boardId: string, currentActive: boolean) => {
+    toggleBoardMutation.mutate({ boardId, nextActive: !currentActive });
   };
 
   // Run Crawl manually for a Board
@@ -156,7 +244,7 @@ function CrawlerDashboard() {
       const data = await res.json() as any;
       if (data.success) {
         showStatus(`Crawl complete! Found ${data.count} jobs.`, 'success');
-        setTimeout(() => window.location.reload(), 1500);
+        queryClient.invalidateQueries({ queryKey: ['crawler-data'] });
       } else {
         showStatus(data.error || 'Crawl failed', 'error');
       }
@@ -176,7 +264,7 @@ function CrawlerDashboard() {
       const data = await res.json() as any;
       if (data.success) {
         showStatus(`Cron execution successfully triggered: ${data.message}`, 'success');
-        setTimeout(() => window.location.reload(), 1500);
+        queryClient.invalidateQueries({ queryKey: ['crawler-data'] });
       } else {
         showStatus(data.error || 'Cron trigger failed', 'error');
       }
@@ -190,6 +278,10 @@ function CrawlerDashboard() {
   // Search Jobs
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!searchQuery.trim() && !searchLocation.trim()) {
+      setSearchedJobs(null); // Reset search to default live jobs list
+      return;
+    }
     setLoading('search');
     try {
       const url = new URL('/api/jobs/crawler-search', window.location.origin);
@@ -199,7 +291,7 @@ function CrawlerDashboard() {
       const res = await fetch(url.toString());
       const data = await res.json() as any;
       if (data.success) {
-        setJobs(data.jobs);
+        setSearchedJobs(data.jobs);
         showStatus(`Found ${data.jobs.length} jobs matching criteria.`, 'success');
       } else {
         showStatus(data.error || 'Search failed', 'error');
@@ -211,6 +303,8 @@ function CrawlerDashboard() {
     }
   };
 
+  const jobsToDisplay = searchedJobs !== null ? searchedJobs : jobs;
+
   return (
     <div className="spx-page space-y-8">
       <PageHero
@@ -220,12 +314,32 @@ function CrawlerDashboard() {
         description="API-first crawler aggregator for Greenhouse, Lever, and Ashby boards with cosine & LLM deduplication."
         actions={
           <div className="flex items-center gap-2">
+            <label className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white/70 px-3 py-2 text-sm font-medium text-slate-700 cursor-pointer shadow-sm">
+              <input
+                type="checkbox"
+                checked={autoRefresh}
+                onChange={(e) => setAutoRefresh(e.target.checked)}
+                className="rounded text-primary-600 focus:ring-primary-500"
+              />
+              Auto-refresh
+            </label>
+            <button
+              onClick={async () => {
+                showStatus('Refreshing crawler data...', 'info');
+                await queryClient.invalidateQueries({ queryKey: ['crawler-data'] });
+                showStatus('Crawler data refreshed!', 'success');
+              }}
+              className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white/70 px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 cursor-pointer shadow-sm"
+            >
+              <RefreshCw className="h-4 w-4" />
+              Refresh
+            </button>
             <button
               onClick={handleTriggerCron}
               disabled={loading !== null}
-              className="inline-flex items-center gap-2 rounded-lg bg-primary-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-primary-700 disabled:opacity-50 cursor-pointer shadow-sm animate-none"
+              className="inline-flex items-center gap-2 rounded-lg bg-primary-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-primary-700 disabled:opacity-50 cursor-pointer shadow-sm"
             >
-              <RefreshCw className={`h-4 w-4 ${loading === 'cron' ? 'animate-spin' : ''}`} />
+              <Play className={`h-4 w-4 ${loading === 'cron' ? 'animate-spin' : ''}`} />
               Run Scheduler Cron
             </button>
           </div>
@@ -322,12 +436,12 @@ function CrawlerDashboard() {
 
               {/* Jobs list */}
               <div className="space-y-4">
-                {jobs.length === 0 ? (
+                {jobsToDisplay.length === 0 ? (
                   <div className="text-center py-12 border border-dashed border-slate-200 rounded-2xl text-slate-400 text-sm">
                     No canonical jobs found matching search criteria.
                   </div>
                 ) : (
-                  jobs.map((job: any) => (
+                  jobsToDisplay.map((job: any) => (
                     <div key={job.id} className="bg-white/60 border border-slate-200 rounded-2xl p-5 hover:border-slate-300 transition shadow-sm space-y-4">
                       <div className="flex justify-between items-start gap-4">
                         <div>
@@ -418,7 +532,7 @@ function CrawlerDashboard() {
                             <td className="px-5 py-3 text-center">
                               <button
                                 onClick={() => handleToggleBoard(board.id, board.is_active === 1)}
-                                disabled={loading === `toggle-${board.id}`}
+                                disabled={toggleBoardMutation.isPending}
                                 className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase border cursor-pointer ${
                                   board.is_active === 1
                                     ? 'bg-green-50 border-green-200 text-green-700'
@@ -568,10 +682,10 @@ function CrawlerDashboard() {
 
               <button
                 type="submit"
-                disabled={loading === 'add-board'}
+                disabled={addBoardMutation.isPending}
                 className="w-full bg-primary-600 hover:bg-primary-700 transition py-2 text-xs font-bold text-white rounded-xl shadow-sm disabled:opacity-50 cursor-pointer mt-2"
               >
-                {loading === 'add-board' ? 'Saving...' : 'Add Board'}
+                {addBoardMutation.isPending ? 'Saving...' : 'Add Board'}
               </button>
             </form>
           </div>
