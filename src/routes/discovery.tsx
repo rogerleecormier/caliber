@@ -12,27 +12,9 @@ import {
   HelpCircle
 } from 'lucide-react';
 import { PageHero, PageSection } from '@caliber/ui-kit';
-import { getCloudflareEnvAsync } from '@/lib/cloudflare';
+import { getDiscoveryStats } from '@/server/functions/discovery';
 
-async function fetchDiscoveryData() {
-  const res = await fetch('/api/discovery/stats');
-  if (!res.ok) throw new Error('Failed to fetch discovery stats');
-  const data = await res.json() as any;
-  if (!data.success) throw new Error(data.error || 'Failed to fetch discovery stats');
-  return {
-    stats: {
-      total_boards: data.total_boards,
-      validated_boards: data.validated_boards,
-      active_boards: data.active_boards,
-      discovered_last_week: data.discovered_last_week,
-      by_phase: data.by_phase,
-      false_positive_rate: data.false_positive_rate
-    },
-    boards: data.boards || [],
-    logs: data.recent_audit || []
-  };
-}
-
+// Server loader runs queries directly on D1 via server function
 export const Route = createFileRoute('/discovery')({
   beforeLoad: ({ context }) => {
     const ctx = context as { user?: { id: string; role: string } | null };
@@ -40,86 +22,7 @@ export const Route = createFileRoute('/discovery')({
     if (ctx.user.role !== "admin") throw redirect({ to: "/" });
   },
   loader: async () => {
-    try {
-      const env = await getCloudflareEnvAsync();
-      const db = env.DB;
-      if (!db) {
-        return {
-          stats: { total_boards: 0, validated_boards: 0, active_boards: 0, discovered_last_week: 0, by_phase: [], false_positive_rate: 0 },
-          boards: [],
-          logs: []
-        };
-      }
-
-      // 1. Fetch total boards, validated, active, discovered last week
-      const overallStats = await db.prepare(`
-        SELECT
-          COUNT(id) as total_boards,
-          SUM(CASE WHEN validated = 1 THEN 1 ELSE 0 END) as validated_boards,
-          SUM(CASE WHEN is_active = 1 THEN 1 ELSE 0 END) as active_boards,
-          SUM(CASE WHEN datetime(discovered_at) > datetime('now', '-7 days') THEN 1 ELSE 0 END) as discovered_last_week
-        FROM boards
-      `).first<any>();
-
-      // 2. Group by discovery phase
-      const phaseStats = await db.prepare(`
-        SELECT
-          COALESCE(discovery_phase, 'manual') as phase,
-          COUNT(id) as count,
-          ROUND(AVG(discovery_confidence), 2) as avg_confidence
-        FROM boards
-        GROUP BY discovery_phase
-      `).all<any>();
-
-      // 3. False positive rate in past week
-      const failureStats = await db.prepare(`
-        SELECT
-          SUM(CASE WHEN validation_error_count > 0 THEN 1 ELSE 0 END) as validation_failures,
-          COUNT(id) as total_count
-        FROM boards
-        WHERE datetime(discovered_at) > datetime('now', '-7 days')
-      `).first<any>();
-
-      const totalCount = failureStats?.total_count ?? 1;
-      const validationFailures = failureStats?.validation_failures ?? 0;
-      const falsePositiveRate = totalCount > 0 ? (validationFailures / totalCount) : 0;
-
-      // 4. Fetch discovered boards
-      const { results: boards } = await db.prepare(`
-        SELECT * FROM boards 
-        WHERE last_discovered_at IS NOT NULL OR discovery_phase IS NOT NULL OR validated = 1
-        ORDER BY last_discovered_at DESC, discovered_at DESC 
-        LIMIT 100
-      `).all<any>();
-
-      // 5. Fetch audit logs (both discovery and validation failure events)
-      const { results: logs } = await db.prepare(`
-        SELECT * FROM audit_log 
-        WHERE event_type IN ('board_discovered', 'board_validation_failed') 
-        ORDER BY created_at DESC 
-        LIMIT 30
-      `).all<any>();
-
-      return {
-        stats: {
-          total_boards: overallStats?.total_boards ?? 0,
-          validated_boards: overallStats?.validated_boards ?? 0,
-          active_boards: overallStats?.active_boards ?? 0,
-          discovered_last_week: overallStats?.discovered_last_week ?? 0,
-          by_phase: phaseStats.results ?? [],
-          false_positive_rate: Number(falsePositiveRate.toFixed(4))
-        },
-        boards: boards || [],
-        logs: logs || []
-      };
-    } catch (e) {
-      console.error('[discovery-loader] Error loading discovery data:', e);
-      return {
-        stats: { total_boards: 0, validated_boards: 0, active_boards: 0, discovered_last_week: 0, by_phase: [], false_positive_rate: 0 },
-        boards: [],
-        logs: []
-      };
-    }
+    return getDiscoveryStats();
   },
   component: DiscoveryDashboard
 });
@@ -138,7 +41,7 @@ function DiscoveryDashboard() {
   // useQuery to poll discovery stats and update react-query cache
   const { data } = useQuery({
     queryKey: ['discovery-data'],
-    queryFn: fetchDiscoveryData,
+    queryFn: () => getDiscoveryStats(),
     initialData: loaderData,
     refetchInterval: autoRefresh ? 10000 : false,
   });
