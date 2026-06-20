@@ -232,7 +232,7 @@ export const getRecommendedJobs = createServerFn({ method: "GET" })
       .from(canonicalJobs)
       .where(and(...whereConditions))
       .orderBy(canonicalJobs.lastSeenAt)
-      .limit(20);
+      .limit(6);
 
     const resultJobs: any[] = [];
     const now = new Date().toISOString();

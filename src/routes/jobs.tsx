@@ -330,76 +330,44 @@ function JobsPage() {
 
         {/* All Jobs Tab */}
         {activeTab === "all-jobs" && (
-          <div className="space-y-10">
-            <div className="space-y-6">
-              <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-4">
-                <h3 className="font-semibold text-indigo-900 mb-1">Recommended for You</h3>
-                <p className="text-sm text-indigo-800">
-                  These are top matches based on semantic similarity to your resume, salary requirements, location, and remote preferences.
-                </p>
-              </div>
-
-              {loaderData.recommendedJobs && loaderData.recommendedJobs.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {loaderData.recommendedJobs.map((job: any) => (
-                    <JobResultCard
-                      key={job.id}
-                      job={job}
-                      isFavorited={job.isFavorited}
-                      onToggleFavorite={async () => {
-                        try {
-                          const newFav = !job.isFavorited;
-                          await togglePipelineJobFavorite({ data: { id: job.id, isFavorited: newFav } });
-                          // Refresh the loader data to show the updated favorite status
-                          navigate({ search: (prev) => prev });
-                        } catch (err) {
-                          alert(err instanceof Error ? err.message : "Failed to toggle favorite");
-                        }
-                      }}
-                      onAnalyzeClick={() => openAnalysisModal(job)}
-                      isAnalyzed={job.status === "Analyzed" || !!job.analyzedAt}
-                    />
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-12">
-                  <Sparkles className="h-12 w-12 text-slate-300 mx-auto mb-4" />
-                  <p className="text-slate-600">
-                    No recommended jobs found. Make sure you have uploaded your resume and configured search preferences in your Profile.
-                  </p>
-                </div>
-              )}
+          <div className="space-y-6">
+            <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-4">
+              <h3 className="font-semibold text-indigo-900 mb-1">Recommended for You</h3>
+              <p className="text-sm text-indigo-800">
+                These are top matches based on semantic similarity to your resume, salary requirements, location, and remote preferences.
+              </p>
             </div>
 
-            <hr className="border-slate-200" />
-
-            <JobsListContentWrapper
-              jobHistoryPromise={jobHistory}
-              hasResume={hasResume}
-              fullName={fullName}
-              savedSearches={loaderSavedSearches}
-              cronStartHour={cronStartHour}
-              cronFrequency={cronFrequency}
-              canViewAllUsers={loaderData.canViewAllUsers}
-              cronNewCount={cronNewCount}
-              setCronNewCount={setCronNewCount}
-              analysisModalOpen={analysisModalOpen}
-              setAnalysisModalOpen={setAnalysisModalOpen}
-              selectedJobForAnalysis={selectedJobForAnalysis}
-              setSelectedJobForAnalysis={setSelectedJobForAnalysis}
-              storedAnalysis={storedAnalysis}
-              setStoredAnalysis={setStoredAnalysis}
-              searchWarnings={searchWarnings}
-              setSearchWarnings={setSearchWarnings}
-              drawerOpen={drawerOpen}
-              setDrawerOpen={setDrawerOpen}
-              aggregatedSearchOpen={aggregatedSearchOpen}
-              setAggregatedSearchOpen={setAggregatedSearchOpen}
-              aggregatedResults={aggregatedResults}
-              setAggregatedResults={setAggregatedResults}
-              savedAggregatedJobIds={savedAggregatedJobIds}
-              setSavedAggregatedJobIds={setSavedAggregatedJobIds}
-            />
+            {loaderData.recommendedJobs && loaderData.recommendedJobs.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {loaderData.recommendedJobs.map((job: any) => (
+                  <JobResultCard
+                    key={job.id}
+                    job={job}
+                    isFavorited={job.isFavorited}
+                    onToggleFavorite={async () => {
+                      try {
+                        const newFav = !job.isFavorited;
+                        await togglePipelineJobFavorite({ data: { id: job.id, isFavorited: newFav } });
+                        // Refresh the loader data to show the updated favorite status
+                        navigate({ search: (prev) => prev });
+                      } catch (err) {
+                        alert(err instanceof Error ? err.message : "Failed to toggle favorite");
+                      }
+                    }}
+                    onAnalyzeClick={() => openAnalysisModal(job)}
+                    isAnalyzed={job.status === "Analyzed" || !!job.analyzedAt}
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-12">
+                <Sparkles className="h-12 w-12 text-slate-300 mx-auto mb-4" />
+                <p className="text-slate-600">
+                  No recommended jobs found. Make sure you have uploaded your resume and configured search preferences in your Profile.
+                </p>
+              </div>
+            )}
           </div>
         )}
 
