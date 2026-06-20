@@ -3,7 +3,7 @@ import { CompanySource } from './types';
 export async function fetchFortuneList(): Promise<CompanySource[]> {
   try {
     const response = await fetch(
-      'https://raw.githubusercontent.com/datasets/s-and-p-500-companies/master/data/companies.csv'
+      'https://raw.githubusercontent.com/datasets/s-and-p-500-companies/main/data/constituents.csv'
     );
     if (!response.ok) return [];
     
@@ -12,8 +12,7 @@ export async function fetchFortuneList(): Promise<CompanySource[]> {
     const companies: CompanySource[] = [];
 
     for (const line of lines.slice(1)) {
-      const parts = line.split(',');
-      const symbol = parts[0];
+      const parts = line.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/);
       const name = parts[1];
       const hq = parts[4];
       if (name) {
@@ -41,7 +40,7 @@ export async function fetchYCBatch(batchYear: string = 'S23'): Promise<CompanySo
   try {
     // Attempt to pull from public YC JSON index on GitHub
     const response = await fetch(
-      `https://raw.githubusercontent.com/ycombinator/yc-companies/main/companies.json`
+      'https://yc-oss.github.io/api/companies/all.json'
     ).catch(() => null);
 
     if (!response || !response.ok) {
@@ -73,11 +72,21 @@ export async function fetchYCBatch(batchYear: string = 'S23'): Promise<CompanySo
 
     return data
       .filter(company => !batchYear || company.batch?.includes(batchYear))
-      .map(company => ({
-        name: company.name,
-        domain: company.website ? new URL(company.website).hostname : undefined,
-        source: 'yc' as const,
-      }));
+      .map(company => {
+        let domain: string | undefined;
+        if (company.website) {
+          try {
+            domain = new URL(company.website).hostname.replace(/^www\./, '');
+          } catch {
+            domain = company.website.replace(/^(https?:\/\/)?(www\.)?/, '').split('/')[0];
+          }
+        }
+        return {
+          name: company.name,
+          domain,
+          source: 'yc' as const,
+        };
+      });
   } catch (e) {
     console.error('Failed to fetch YC batch:', e);
     return [];
