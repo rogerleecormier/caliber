@@ -119,7 +119,7 @@ export const Route = createFileRoute("/jobs")({
         data: {
           ...deps,
           pageSize: PAGE_SIZE,
-          excludeDiscovered: deps.analyzedOnly,
+          excludeFavorited: deps.analyzedOnly,
           isFavorited: deps.view === "my-jobs" ? true : undefined,
         },
       }),
@@ -772,7 +772,7 @@ function JobsListContentWrapper({
         ...prev,
         status: prev.status === status ? "" : status,
         page: 1,
-        analyzedOnly: status === "Discovered" ? false : prev.analyzedOnly,
+        analyzedOnly: status === "Favorited" ? false : prev.analyzedOnly,
       }),
     });
   }
@@ -1042,7 +1042,7 @@ function JobsListContentWrapper({
                     search: (prev) => ({
                       ...prev,
                       analyzedOnly: !analyzedOnly,
-                      status: !analyzedOnly && prev.status === "Discovered" ? "" : prev.status,
+                      status: !analyzedOnly && prev.status === "Favorited" ? "" : prev.status,
                       page: 1,
                     }),
                   })

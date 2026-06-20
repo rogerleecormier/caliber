@@ -312,7 +312,7 @@ export async function upsertNormalizedJobs(jobs: NormalizedJobInput[]): Promise<
     const values: NewNormalizedJob = {
       ...job,
       canonicalSourceUrl,
-      currentStage: job.currentStage ?? 'Discovered',
+      currentStage: job.currentStage ?? 'Favorited',
       isFlagged: job.isFlagged ?? false,
       isUnicorn: job.isUnicorn ?? 0,
       remoteType: job.remoteType ?? 'fully_remote',
@@ -376,7 +376,7 @@ export async function listNormalizedJobs(args: {
   green?: boolean;
   sortBy?: string;
   status?: string;
-  excludeDiscovered?: boolean;
+  excludeFavorited?: boolean;
   isFavorited?: boolean;
 }) {
   const env = getCloudflareEnv();
@@ -415,7 +415,7 @@ export async function listNormalizedJobs(args: {
         )
       : undefined,
     args.green ? gte(normalizedJobs.masterScore, 80) : undefined,
-    args.excludeDiscovered ? sql`${normalizedJobs.currentStage} != 'Discovered'` : undefined,
+    args.excludeFavorited ? sql`${normalizedJobs.currentStage} != 'Favorited'` : undefined,
     args.isFavorited !== undefined ? eq(normalizedJobs.isFavorited, args.isFavorited) : undefined,
   );
   const whereClause = args.status
@@ -797,7 +797,7 @@ export async function setSearchConfigurationActive(id: number, userId: string, i
 
 /**
  * Unified pruning rule: delete unflagged rows older than 30 days. Global
- * (userId IS NULL) Discovered-stage rows additionally use the shorter
+ * (userId IS NULL) Favorited-stage rows additionally use the shorter
  * `linkedinRetentionDays` setting as a faster secondary pass to control
  * ATS-catalog churn.
  */
@@ -824,7 +824,7 @@ export async function pruneNormalizedJobs(): Promise<number> {
       .where(
         and(
           sql`${normalizedJobs.userId} IS NULL`,
-          eq(normalizedJobs.currentStage, 'Discovered'),
+          eq(normalizedJobs.currentStage, 'Favorited'),
           eq(normalizedJobs.isFlagged, false),
           lte(normalizedJobs.lastSeenAt, globalCutoff),
         ),

@@ -42,7 +42,7 @@ export const getPipelineJobHistory = createServerFn({ method: "GET" })
       green?: boolean;
       sortBy?: string;
       status?: string;
-      excludeDiscovered?: boolean;
+      excludeFavorited?: boolean;
       includeGlobal?: boolean;
       isFavorited?: boolean;
     }) => data,
@@ -61,7 +61,7 @@ export const getPipelineJobHistory = createServerFn({ method: "GET" })
       green: data.green,
       sortBy: data.sortBy,
       status: data.status,
-      excludeDiscovered: data.excludeDiscovered,
+      excludeFavorited: data.excludeFavorited,
       isFavorited: data.isFavorited,
     });
   });
@@ -330,7 +330,7 @@ export const getRecommendedJobs = createServerFn({ method: "GET" })
               : null,
             workplaceType: job.remote ? 'remote' : 'on-site',
             remoteType: job.remote ? 'fully_remote' : 'unspecified',
-            currentStage: 'Discovered',
+            currentStage: 'Favorited',
             isFlagged: false,
             isUnicorn: scores.isUnicorn ? 1 : 0,
             unicornReason: scores.unicornReason,

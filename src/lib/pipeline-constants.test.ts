@@ -13,8 +13,8 @@ describe("Pipeline Constants", () => {
       expect(PIPELINE_STATUSES.length).toBeGreaterThan(0);
     });
 
-    it("should include Discovered status", () => {
-      expect(PIPELINE_STATUSES).toContain("Discovered");
+    it("should include Favorited status", () => {
+      expect(PIPELINE_STATUSES).toContain("Favorited");
     });
 
     it("should include Analyzed status", () => {
@@ -50,8 +50,8 @@ describe("Pipeline Constants", () => {
   });
 
   describe("Pipeline Status Transitions", () => {
-    it("should support transitioning from Discovered to Analyzed", () => {
-      expect(PIPELINE_STATUSES).toContain("Discovered");
+    it("should support transitioning from Favorited to Analyzed", () => {
+      expect(PIPELINE_STATUSES).toContain("Favorited");
       expect(PIPELINE_STATUSES).toContain("Analyzed");
     });
 

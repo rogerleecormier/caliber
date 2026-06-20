@@ -232,7 +232,7 @@ export async function runAgentPoller(env: CloudflareEnv): Promise<void> {
             postDateText: job.postDateText || null,
             workplaceType: job.workplaceType || null,
             remoteType: job.workplaceType === 'remote' ? 'fully_remote' : 'unspecified',
-            currentStage: 'Discovered',
+            currentStage: 'Favorited',
             isFlagged: false,
             isUnicorn: scores.isUnicorn ? 1 : 0,
             unicornReason: scores.unicornReason,

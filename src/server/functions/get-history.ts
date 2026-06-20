@@ -47,10 +47,10 @@ export const getHistory = createServerFn({ method: "GET" })
       const offset = (page - 1) * pageSize;
       const query = data.query?.trim().toLowerCase() ?? "";
 
-      // Only show analyzed+ jobs in history (not Discovered)
+      // Only show analyzed+ jobs in history (not Favorited)
       const baseConditions = [
         eq(normalizedJobs.userId, user.id),
-        sql`${normalizedJobs.currentStage} != 'Discovered'`,
+        sql`${normalizedJobs.currentStage} != 'Favorited'`,
       ];
 
       if (query) {
@@ -104,7 +104,7 @@ export const getHistory = createServerFn({ method: "GET" })
         .from(normalizedJobs)
         .where(and(
           eq(normalizedJobs.userId, user.id),
-          sql`${normalizedJobs.currentStage} != 'Discovered'`,
+          sql`${normalizedJobs.currentStage} != 'Favorited'`,
         ))
         .groupBy(normalizedJobs.currentStage);
 

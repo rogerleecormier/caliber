@@ -384,8 +384,8 @@ export const normalizedJobs = sqliteTable('normalized_jobs', {
 
   // ── Pipeline tracker ──
   currentStage: text('current_stage', {
-    enum: ['Discovered', 'Analyzed', 'Prepped', 'Applied', 'Interviewed', 'Hired', 'Not Hired', 'Archived'],
-  }).notNull().default('Discovered'),
+    enum: ['Favorited', 'Analyzed', 'Prepped', 'Applied', 'Interviewed', 'Hired', 'Not Hired', 'Archived'],
+  }).notNull().default('Favorited'),
   finalResolution: text('final_resolution', {
     enum: ['Hired', 'Not Hired', 'Withdrawn'],
   }),

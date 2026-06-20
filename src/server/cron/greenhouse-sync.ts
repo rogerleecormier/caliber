@@ -157,7 +157,7 @@ async function syncGreenhouseOrgJobs(
           postDateText,
           remoteType: 'fully_remote',
           categoryId,
-          currentStage: 'Discovered',
+          currentStage: 'Favorited',
           isFlagged: false,
           isUnicorn: 0,
           discoveryTimestamp: now,
