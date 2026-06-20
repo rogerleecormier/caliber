@@ -355,7 +355,7 @@ function CrawlerDashboard() {
                   : 'border-transparent text-slate-500 hover:text-slate-800'
               }`}
             >
-              {tab === 'logs' ? 'Audit Log' : tab === 'docs' ? 'Docs' : tab}
+              {tab === 'jobs' ? 'Jobs' : tab === 'boards' ? 'Boards' : tab === 'logs' ? 'Audit Log' : 'Docs'}
             </button>
           ))}
         </div>
