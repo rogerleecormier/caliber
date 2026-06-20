@@ -9,7 +9,7 @@ export async function embedJob(env: Env, job: NormalizedJob): Promise<number[]> 
   // Compose text representation for the embedding
   const text = `${job.titleDisplay} | ${job.companyDisplay} | ${job.locationDisplay || 'Remote'} | ${(job.descriptionPlain || '').substring(0, 500)}`;
   
-  const response = await env.AI.run('@cf/baai/bge-base-en-v1.5', {
+  const response = await env.AI.run('@cf/baai/bge-small-en-v1.5', {
     text: [text]
   });
 

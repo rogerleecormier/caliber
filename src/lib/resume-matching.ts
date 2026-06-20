@@ -1,7 +1,7 @@
 import type { CloudflareEnv } from './cloudflare'
 import type { ResumeEmbedding } from './resume-embedding'
 
-const EMBEDDING_MODEL = '@cf/baai/bge-large-en-v1.5'
+const EMBEDDING_MODEL = '@cf/baai/bge-small-en-v1.5'
 const SIMILARITY_THRESHOLD = 0.3 // Minimum cosine similarity to include chunk
 const MAX_CONTEXT_CHUNKS = 5 // Top N chunks for ground truth
 const DIVERSITY_THRESHOLD = 0.7 // Min similarity between selected chunks to avoid redundancy
@@ -81,7 +81,7 @@ export async function matchJobDescriptionToResume(
     }
   }
 
-  const jobEmbedding = await (env.AI.run('@cf/baai/bge-large-en-v1.5', {
+  const jobEmbedding = await (env.AI.run(EMBEDDING_MODEL, {
     text: jobDescription,
   }) as Promise<{ data: number[] }>).then((r) => r.data)
 

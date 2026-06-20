@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { createFileRoute } from '@tanstack/react-router';
+import { createFileRoute, redirect } from '@tanstack/react-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Shield,
@@ -34,6 +34,11 @@ async function fetchDiscoveryData() {
 }
 
 export const Route = createFileRoute('/discovery')({
+  beforeLoad: ({ context }) => {
+    const ctx = context as { user?: { id: string; role: string } | null };
+    if (!ctx.user) throw redirect({ to: "/login" });
+    if (ctx.user.role !== "admin") throw redirect({ to: "/" });
+  },
   loader: async () => {
     try {
       const env = await getCloudflareEnvAsync();

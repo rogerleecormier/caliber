@@ -19,7 +19,7 @@ import { Route as LinkedinJobsRouteImport } from './routes/linkedin-jobs'
 import { Route as JobsRouteImport } from './routes/jobs'
 import { Route as DiscoveryRouteImport } from './routes/discovery'
 import { Route as DashboardRouteImport } from './routes/dashboard'
-import { Route as CrawlerDashboardRouteImport } from './routes/crawler-dashboard'
+import { Route as CrawlerRouteImport } from './routes/crawler'
 import { Route as AdminSetupRouteImport } from './routes/admin-setup'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
@@ -105,9 +105,9 @@ const DashboardRoute = DashboardRouteImport.update({
   path: '/dashboard',
   getParentRoute: () => rootRouteImport,
 } as any)
-const CrawlerDashboardRoute = CrawlerDashboardRouteImport.update({
-  id: '/crawler-dashboard',
-  path: '/crawler-dashboard',
+const CrawlerRoute = CrawlerRouteImport.update({
+  id: '/crawler',
+  path: '/crawler',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminSetupRoute = AdminSetupRouteImport.update({
@@ -287,7 +287,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
   '/admin-setup': typeof AdminSetupRoute
-  '/crawler-dashboard': typeof CrawlerDashboardRoute
+  '/crawler': typeof CrawlerRoute
   '/dashboard': typeof DashboardRoute
   '/discovery': typeof DiscoveryRoute
   '/jobs': typeof JobsRoute
@@ -334,7 +334,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
   '/admin-setup': typeof AdminSetupRoute
-  '/crawler-dashboard': typeof CrawlerDashboardRoute
+  '/crawler': typeof CrawlerRoute
   '/dashboard': typeof DashboardRoute
   '/discovery': typeof DiscoveryRoute
   '/jobs': typeof JobsRoute
@@ -382,7 +382,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
   '/admin-setup': typeof AdminSetupRoute
-  '/crawler-dashboard': typeof CrawlerDashboardRoute
+  '/crawler': typeof CrawlerRoute
   '/dashboard': typeof DashboardRoute
   '/discovery': typeof DiscoveryRoute
   '/jobs': typeof JobsRoute
@@ -431,7 +431,7 @@ export interface FileRouteTypes {
     | '/'
     | '/admin'
     | '/admin-setup'
-    | '/crawler-dashboard'
+    | '/crawler'
     | '/dashboard'
     | '/discovery'
     | '/jobs'
@@ -478,7 +478,7 @@ export interface FileRouteTypes {
     | '/'
     | '/admin'
     | '/admin-setup'
-    | '/crawler-dashboard'
+    | '/crawler'
     | '/dashboard'
     | '/discovery'
     | '/jobs'
@@ -525,7 +525,7 @@ export interface FileRouteTypes {
     | '/'
     | '/admin'
     | '/admin-setup'
-    | '/crawler-dashboard'
+    | '/crawler'
     | '/dashboard'
     | '/discovery'
     | '/jobs'
@@ -573,7 +573,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AdminRoute: typeof AdminRoute
   AdminSetupRoute: typeof AdminSetupRoute
-  CrawlerDashboardRoute: typeof CrawlerDashboardRoute
+  CrawlerRoute: typeof CrawlerRoute
   DashboardRoute: typeof DashboardRoute
   DiscoveryRoute: typeof DiscoveryRoute
   JobsRoute: typeof JobsRoute
@@ -688,11 +688,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/crawler-dashboard': {
-      id: '/crawler-dashboard'
-      path: '/crawler-dashboard'
-      fullPath: '/crawler-dashboard'
-      preLoaderRoute: typeof CrawlerDashboardRouteImport
+    '/crawler': {
+      id: '/crawler'
+      path: '/crawler'
+      fullPath: '/crawler'
+      preLoaderRoute: typeof CrawlerRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin-setup': {
@@ -952,7 +952,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRoute: AdminRoute,
   AdminSetupRoute: AdminSetupRoute,
-  CrawlerDashboardRoute: CrawlerDashboardRoute,
+  CrawlerRoute: CrawlerRoute,
   DashboardRoute: DashboardRoute,
   DiscoveryRoute: DiscoveryRoute,
   JobsRoute: JobsRoute,

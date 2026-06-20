@@ -6,7 +6,7 @@ import { eq, and } from 'drizzle-orm'
 import { getDb } from '@/db/db'
 import { resumeVectorIndex, resumeSections } from '@/db/schema'
 
-const EMBEDDING_MODEL = '@cf/baai/bge-large-en-v1.5'
+const EMBEDDING_MODEL = '@cf/baai/bge-small-en-v1.5'
 
 export interface ResumeEmbedding {
   vectorId: string
