@@ -14,7 +14,7 @@ import { getCloudflareEnvAsync } from "@/lib/cloudflare";
 import type { PipelineStatus } from "@/lib/pipeline-constants";
 import { getDb } from "@/db/db";
 import { user as userTable, canonicalJobs, masterResume, normalizedJobs, jobSources } from "@/db/schema";
-import { eq, and, inArray, or, gte, isNull, like } from "drizzle-orm";
+import { eq, and, inArray, or, gte, isNull } from "drizzle-orm";
 import { scoreJobAgainstProfile } from "@/lib/ai/job-score";
 import { canonicalizeJobUrl } from "@/lib/normalized-jobs-persistence";
 import {
@@ -47,7 +47,7 @@ export const getPipelineJobHistory = createServerFn({ method: "GET" })
       isFavorited?: boolean;
     }) => data,
   )
-  .handler(async ({ data }, ctx) => {
+  .handler(async (ctx: any) => { const { data } = ctx;
     const user = await resolveSessionUser((ctx as any)?.request);
     if (!user) throw new Error("Not authenticated");
     const includeGlobal = data.includeGlobal ?? (await getShowGlobalJobsForUser(user.id));
@@ -70,7 +70,7 @@ export const getPipelineJobHistory = createServerFn({ method: "GET" })
 
 export const setPipelineJobStatus = createServerFn({ method: "POST" })
   .inputValidator((data: { id: number; status: PipelineStatus }) => data)
-  .handler(async ({ data }, ctx) => {
+  .handler(async (ctx: any) => { const { data } = ctx;
     const user = await resolveSessionUser((ctx as any)?.request);
     if (!user) throw new Error("Not authenticated");
     return setNormalizedJobStage({ user, id: data.id, currentStage: data.status });
@@ -78,7 +78,7 @@ export const setPipelineJobStatus = createServerFn({ method: "POST" })
 
 export const setPipelineJobFlag = createServerFn({ method: "POST" })
   .inputValidator((data: { id: number; isFlagged: boolean }) => data)
-  .handler(async ({ data }, ctx) => {
+  .handler(async (ctx: any) => { const { data } = ctx;
     const user = await resolveSessionUser((ctx as any)?.request);
     if (!user) throw new Error("Not authenticated");
     return setNormalizedJobFlag({ user, id: data.id, isFlagged: data.isFlagged });
@@ -86,7 +86,7 @@ export const setPipelineJobFlag = createServerFn({ method: "POST" })
 
 export const archivePipelineJobs = createServerFn({ method: "POST" })
   .inputValidator((data: { ids: number[] }) => data)
-  .handler(async ({ data }, ctx) => {
+  .handler(async (ctx: any) => { const { data } = ctx;
     const user = await resolveSessionUser((ctx as any)?.request);
     if (!user) throw new Error("Not authenticated");
     return bulkUpdateNormalizedJobStage({ user, ids: data.ids, currentStage: "Archived" });
@@ -94,7 +94,7 @@ export const archivePipelineJobs = createServerFn({ method: "POST" })
 
 export const deletePipelineJobs = createServerFn({ method: "POST" })
   .inputValidator((data: { ids: number[] }) => data)
-  .handler(async ({ data }, ctx) => {
+  .handler(async (ctx: any) => { const { data } = ctx;
     const user = await resolveSessionUser((ctx as any)?.request);
     if (!user) throw new Error("Not authenticated");
     return bulkDeleteNormalizedJobs({ user, ids: data.ids });
@@ -102,13 +102,13 @@ export const deletePipelineJobs = createServerFn({ method: "POST" })
 
 // ─── Saved Searches (Agents) ─────────────────────────────────────────────────
 
-export const getSavedPipelineSearches = createServerFn({ method: "GET" }).handler(async (_data, ctx) => {
+export const getSavedPipelineSearches = createServerFn({ method: "GET" }).handler(async (ctx: any) => {
   const user = await resolveSessionUser((ctx as any)?.request);
   if (!user) throw new Error("Not authenticated");
   return listSearchConfigurations(user.id);
 });
 
-export const getPipelineCronInfo = createServerFn({ method: "GET" }).handler(async (_data, ctx) => {
+export const getPipelineCronInfo = createServerFn({ method: "GET" }).handler(async (ctx: any) => {
   const user = await resolveSessionUser((ctx as any)?.request);
   if (!user) throw new Error("Not authenticated");
   const settings = await getAgentSettings();
@@ -121,7 +121,7 @@ export const getPipelineCronInfo = createServerFn({ method: "GET" }).handler(asy
 
 export const removeSearchAgent = createServerFn({ method: "POST" })
   .inputValidator((data: { id: number }) => data)
-  .handler(async ({ data }, ctx) => {
+  .handler(async (ctx: any) => { const { data } = ctx;
     const user = await resolveSessionUser((ctx as any)?.request);
     if (!user) throw new Error("Not authenticated");
     await deleteSearchConfiguration(data.id, user.id);
@@ -130,7 +130,7 @@ export const removeSearchAgent = createServerFn({ method: "POST" })
 
 export const toggleSearchAgentCron = createServerFn({ method: "POST" })
   .inputValidator((data: { id: number; isActive: boolean }) => data)
-  .handler(async ({ data }, ctx) => {
+  .handler(async (ctx: any) => { const { data } = ctx;
     const user = await resolveSessionUser((ctx as any)?.request);
     if (!user) throw new Error("Not authenticated");
     await setSearchConfigurationActive(data.id, user.id, data.isActive);
@@ -139,7 +139,7 @@ export const toggleSearchAgentCron = createServerFn({ method: "POST" })
 
 export const setSearchAgentRunning = createServerFn({ method: "POST" })
   .inputValidator((data: { id: number; isRunning: boolean }) => data)
-  .handler(async ({ data }, ctx) => {
+  .handler(async (ctx: any) => { const { data } = ctx;
     const user = await resolveSessionUser((ctx as any)?.request);
     if (!user) throw new Error("Not authenticated");
     const env = await getCloudflareEnvAsync();
@@ -154,7 +154,7 @@ export const setSearchAgentRunning = createServerFn({ method: "POST" })
   });
 
 export const getRecommendedJobs = createServerFn({ method: "GET" })
-  .handler(async (_data, ctx) => {
+  .handler(async (ctx: any) => {
     const sessionUser = await resolveSessionUser((ctx as any)?.request);
     if (!sessionUser) throw new Error("Not authenticated");
     const env = await getCloudflareEnvAsync();
@@ -183,7 +183,7 @@ export const getRecommendedJobs = createServerFn({ method: "GET" })
       try {
         const response = await env.AI.run('@cf/baai/bge-small-en-v1.5', {
           text: [resumeText.substring(0, 1000)]
-        });
+        }) as any;
         const vector = response?.data?.[0];
         if (vector) {
           const results = await env.VECTORIZE.query(vector, {
@@ -280,9 +280,9 @@ export const getRecommendedJobs = createServerFn({ method: "GET" })
           ...existing,
           id: existing.id,
           canonicalJobId: job.id,
-          title: job.jobTitle,
-          company: job.employerName,
-          location: job.location,
+          title: existing.jobTitle,
+          company: existing.employerName,
+          location: existing.location,
         };
       } else {
         // Run lightweight scoring
@@ -367,7 +367,7 @@ export const getRecommendedJobs = createServerFn({ method: "GET" })
 
 export const togglePipelineJobFavorite = createServerFn({ method: "POST" })
   .inputValidator((data: { id: number; isFavorited: boolean }) => data)
-  .handler(async ({ data }, ctx) => {
+  .handler(async (ctx: any) => { const { data } = ctx;
     const user = await resolveSessionUser((ctx as any)?.request);
     if (!user) throw new Error("Not authenticated");
     const env = await getCloudflareEnvAsync();
@@ -375,7 +375,7 @@ export const togglePipelineJobFavorite = createServerFn({ method: "POST" })
     const db = getDb(env.DB);
     await db
       .update(normalizedJobs)
-      .set({ isFavorited: data.isFavorited ? 1 : 0 })
+      .set({ isFavorited: data.isFavorited })
       .where(and(eq(normalizedJobs.id, data.id), eq(normalizedJobs.userId, user.id)));
     return { success: true, id: data.id, isFavorited: data.isFavorited };
   });

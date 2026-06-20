@@ -22,7 +22,7 @@ export const analyzeJob = createServerFn({ method: "POST" })
     if (data.jdText && data.jdText.trim().length < 50) throw new Error("Job description text is too short");
     return data;
   })
-  .handler(async ({ data }, ctx) => {
+  .handler(async (ctx: any) => { const { data } = ctx;
     const env = await getCloudflareEnvAsync();
     if (!env.DB) throw new Error("Database not available in development mode. Run with wrangler or deploy to Cloudflare.");
     const db = getDb(env.DB);

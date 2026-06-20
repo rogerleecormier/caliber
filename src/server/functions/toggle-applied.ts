@@ -11,7 +11,7 @@ export type ApplicationOutcome = PipelineStatus | null;
 
 export const toggleApplied = createServerFn({ method: "POST" })
   .inputValidator((data: { id: number; applied: boolean }) => data)
-  .handler(async ({ data }, ctx) => {
+  .handler(async (ctx: any) => { const { data } = ctx;
     const env = await getCloudflareEnvAsync();
     if (!env.DB) throw new Error("Database not available");
 
@@ -39,7 +39,7 @@ export const toggleApplied = createServerFn({ method: "POST" })
 
 export const setApplicationOutcome = createServerFn({ method: "POST" })
   .inputValidator((data: { id: number; status: PipelineStatus | null }) => data)
-  .handler(async ({ data }, ctx) => {
+  .handler(async (ctx: any) => { const { data } = ctx;
     const env = await getCloudflareEnvAsync();
     if (!env.DB) throw new Error("Database not available");
 

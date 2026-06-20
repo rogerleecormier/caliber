@@ -36,6 +36,9 @@ import {
 export type { PipelineStatus, PipelineCounts, PipelineStatusKey };
 
 export type NormalizedJobRow = NormalizedJob & {
+  title: string;
+  company: string;
+  firstSeenAt?: string | null;
   ownerEmail?: string | null;
   documents?: Array<{ id: number; docType: string; r2Key: string; fileName: string }>;
   status?: PipelineStatus;
@@ -45,7 +48,7 @@ export type SearchConfigurationRow = {
   id: number;
   userId: string;
   name: string;
-  criteria: Record<string, unknown>;
+  criteria: any;
   isActive: boolean;
   runIntervalHours: number;
   sources: string[];

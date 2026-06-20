@@ -13,14 +13,14 @@ async function requireAdmin(ctx?: any) {
   return user;
 }
 
-export const getAgentAdminSettings = createServerFn({ method: "GET" }).handler(async (_data, ctx) => {
+export const getAgentAdminSettings = createServerFn({ method: "GET" }).handler(async (ctx: any) => {
   await requireAdmin(ctx);
   return getAgentSettings();
 });
 
 export const updateAgentAdminSettings = createServerFn({ method: "POST" })
   .inputValidator((data: Partial<AgentAppSettings>) => data)
-  .handler(async ({ data }, ctx) => {
+  .handler(async (ctx: any) => { const { data } = ctx;
     await requireAdmin(ctx);
     return saveAgentSettings(data);
   });

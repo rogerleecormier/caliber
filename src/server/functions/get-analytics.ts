@@ -146,7 +146,7 @@ const EMPTY = (period: string): AnalyticsSummaryData => ({
 
 export const getAnalytics = createServerFn({ method: "GET" })
   .inputValidator((data: { period?: string }) => data)
-  .handler(async ({ data }, ctx): Promise<AnalyticsSummaryData | null> => {
+  .handler(async (ctx: any): Promise<AnalyticsSummaryData | null> => { const { data } = ctx;
     try {
       const env = await getCloudflareEnvAsync();
       if (!env.DB) return EMPTY(data.period ?? "all_time");

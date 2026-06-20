@@ -32,7 +32,7 @@ export interface ResumeData {
 }
 
 export const getResumeSections = createServerFn({ method: 'GET' }).handler(
-  async (_data, ctx): Promise<Partial<Record<SectionType, any>>> => {
+  async (ctx: any): Promise<Partial<Record<SectionType, any>>> => {
     try {
       const env = await getCloudflareEnvAsync()
       if (!env.DB) return {}
@@ -63,7 +63,7 @@ export const upsertResumeSection = createServerFn({ method: 'POST' })
   .inputValidator(
     (data: { sectionType: SectionType; content: any }) => data,
   )
-  .handler(async ({ data }, ctx): Promise<{ success: boolean }> => {
+  .handler(async (ctx: any): Promise<{ success: boolean }> => { const { data } = ctx;
     const env = await getCloudflareEnvAsync()
     if (!env.DB) throw new Error('Database not available')
 
@@ -111,7 +111,7 @@ export const upsertResumeSection = createServerFn({ method: 'POST' })
 
 export const upsertAllResumeSections = createServerFn({ method: 'POST' })
   .inputValidator((data: ResumeData) => data)
-  .handler(async ({ data }, ctx): Promise<{ success: boolean }> => {
+  .handler(async (ctx: any): Promise<{ success: boolean }> => { const { data } = ctx;
     const env = await getCloudflareEnvAsync()
     if (!env.DB) throw new Error('Database not available')
 

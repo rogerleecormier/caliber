@@ -94,7 +94,7 @@ async function tailorSection(
 
 export const generateResume = createServerFn({ method: "POST" })
   .inputValidator((data: { analysisId: number; extraGuidance?: string }) => data)
-  .handler(async ({ data }, ctx) => {
+  .handler(async (ctx: any) => { const { data } = ctx;
     try {
       const env = await getCloudflareEnvAsync();
       if (!env.DB || !env.R2 || !env.AI) {

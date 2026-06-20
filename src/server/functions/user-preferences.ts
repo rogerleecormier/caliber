@@ -7,7 +7,7 @@ import { getDb } from "@/db/db";
 import { user } from "@/db/schema";
 import { resolveSessionUser } from "@/lib/resolve-user";
 
-export const getShowGlobalJobs = createServerFn({ method: "GET" }).handler(async (_data, ctx) => {
+export const getShowGlobalJobs = createServerFn({ method: "GET" }).handler(async (ctx: any) => {
   const sessionUser = await resolveSessionUser((ctx as any)?.request);
   if (!sessionUser) throw new Error("Not authenticated");
   const env = await getCloudflareEnvAsync();
@@ -23,7 +23,7 @@ export const getShowGlobalJobs = createServerFn({ method: "GET" }).handler(async
 
 export const setShowGlobalJobs = createServerFn({ method: "POST" })
   .inputValidator((data: { showGlobalJobs: boolean }) => data)
-  .handler(async ({ data }, ctx) => {
+  .handler(async (ctx: any) => { const { data } = ctx;
     const sessionUser = await resolveSessionUser((ctx as any)?.request);
     if (!sessionUser) throw new Error("Not authenticated");
     const env = await getCloudflareEnvAsync();
@@ -36,7 +36,7 @@ export const setShowGlobalJobs = createServerFn({ method: "POST" })
     return { showGlobalJobs: data.showGlobalJobs };
   });
 
-export const getUserPreferences = createServerFn({ method: "GET" }).handler(async (_data, ctx) => {
+export const getUserPreferences = createServerFn({ method: "GET" }).handler(async (ctx: any) => {
   const sessionUser = await resolveSessionUser((ctx as any)?.request);
   if (!sessionUser) throw new Error("Not authenticated");
   const env = await getCloudflareEnvAsync();
@@ -90,7 +90,7 @@ export const setUserPreferences = createServerFn({ method: "POST" })
     preferredRemote?: string | null;
     preferredKeywords?: string[] | null;
   }) => data)
-  .handler(async ({ data }, ctx) => {
+  .handler(async (ctx: any) => { const { data } = ctx;
     const sessionUser = await resolveSessionUser((ctx as any)?.request);
     if (!sessionUser) throw new Error("Not authenticated");
     const env = await getCloudflareEnvAsync();

@@ -23,6 +23,7 @@ export interface CloudflareEnv {
   JOOBLE_API_KEY?: string;
   SERP_API_KEY?: string;
   THEIRSTACK_API_KEY?: string;
+  VECTORIZE?: VectorizeIndex;
 }
 
 let cfEnv: any = {};

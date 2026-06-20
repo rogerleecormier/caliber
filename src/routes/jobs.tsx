@@ -542,14 +542,14 @@ function JobsListContentWrapper({
   savedAggregatedJobIds: Set<string>;
   setSavedAggregatedJobIds: (ids: Set<string> | ((prev: Set<string>) => Set<string>)) => void;
 }): React.ReactElement {
-  const { page, query, remote, sortBy, status: activeStatus, analyzedOnly, analyze, url: searchUrl } = Route.useSearch();
+  const { page, query, remote, sortBy, status: activeStatus, analyzedOnly, analyze, url: searchUrl, view } = Route.useSearch();
   const navigate = Route.useNavigate();
 
   const rows = jobHistoryPromise.rows;
   const total = jobHistoryPromise.total;
   const statusCounts = jobHistoryPromise.statusCounts;
 
-  const searchParams = { page, query, remote, sortBy, status: activeStatus, analyzedOnly };
+  const searchParams = { page, query, remote, sortBy, status: activeStatus, analyzedOnly, view };
   const jobsQuery = useJobsQuery({ searchParams });
 
   const [inputValue, setInputValue] = useState(query);

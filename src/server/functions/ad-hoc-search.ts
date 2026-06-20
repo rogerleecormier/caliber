@@ -28,7 +28,7 @@ export interface AdHocSearchResult {
 
 export const executeAdHocSearch = createServerFn({ method: "POST" })
   .inputValidator((data: AdHocSearchParams) => data)
-  .handler(async ({ data }, ctx): Promise<AdHocSearchResult> => {
+  .handler(async (ctx: any): Promise<AdHocSearchResult> => { const { data } = ctx;
     const user = await resolveSessionUser((ctx as any)?.request);
     if (!user) throw new Error("Not authenticated");
     if (!data.keywords?.trim()) throw new Error("Keywords are required");
@@ -106,7 +106,7 @@ export const saveSearchAsAgent = createServerFn({ method: "POST" })
     runIntervalHours?: number;
     isActive?: boolean;
   }) => data)
-  .handler(async ({ data }, ctx) => {
+  .handler(async (ctx: any) => { const { data } = ctx;
     const user = await resolveSessionUser((ctx as any)?.request);
     if (!user) throw new Error("Not authenticated");
     if (!data.name.trim()) throw new Error("Agent name is required");

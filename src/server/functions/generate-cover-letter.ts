@@ -27,7 +27,7 @@ const COVER_LETTER_MIN_SECTION_TOKENS = 2_500;
 
 export const generateCoverLetter = createServerFn({ method: "POST" })
   .inputValidator((data: { analysisId: number; extraGuidance?: string }) => data)
-  .handler(async ({ data }, ctx) => {
+  .handler(async (ctx: any) => { const { data } = ctx;
     try {
       const env = await getCloudflareEnvAsync();
       if (!env.DB || !env.R2 || !env.AI) {

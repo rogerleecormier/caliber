@@ -8,7 +8,7 @@ import { getDb } from "@/db/db";
 import { user } from "@/db/schema";
 
 export const getSessionUser = createServerFn({ method: "GET" }).handler(
-  async (_data, ctx): Promise<SessionUser | null> => {
+  async (ctx: any): Promise<SessionUser | null> => {
     try {
       const request = (ctx as any)?.request;
       return await resolveSessionUser(request);

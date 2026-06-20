@@ -8,7 +8,7 @@ import { resolveSessionUser } from "@/lib/resolve-user";
 
 export const getAnalysis = createServerFn({ method: "GET" })
   .inputValidator((data: { id: number }) => data)
-  .handler(async ({ data }, ctx) => {
+  .handler(async (ctx: any) => { const { data } = ctx;
     try {
       const env = await getCloudflareEnvAsync();
       if (!env.DB) throw new Error("Database not available in development mode.");

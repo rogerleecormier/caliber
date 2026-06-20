@@ -33,7 +33,7 @@ const emptyPipelineCounts: HistoryPipelineCounts = { ...EMPTY_PIPELINE_COUNTS };
 
 export const getHistory = createServerFn({ method: "GET" })
   .inputValidator((data: { page?: number; pageSize?: number; query?: string }) => data)
-  .handler(async ({ data }, ctx): Promise<{ rows: HistoryRow[]; total: number; totalApplied: number; totalPursued: number; totalDocuments: number; pipelineCounts: HistoryPipelineCounts }> => {
+  .handler(async (ctx: any): Promise<{ rows: HistoryRow[]; total: number; totalApplied: number; totalPursued: number; totalDocuments: number; pipelineCounts: HistoryPipelineCounts }> => { const { data } = ctx;
     try {
       const env = await getCloudflareEnvAsync();
       if (!env.DB) return { rows: [], total: 0, totalApplied: 0, totalPursued: 0, totalDocuments: 0, pipelineCounts: emptyPipelineCounts };
@@ -186,7 +186,7 @@ export const getDocumentDownload = createServerFn({ method: "GET" })
 
 export const getDocumentsForAnalysis = createServerFn({ method: "GET" })
   .inputValidator((data: { analysisId: number }) => data)
-  .handler(async ({ data }, ctx) => {
+  .handler(async (ctx: any) => { const { data } = ctx;
     const env = await getCloudflareEnvAsync();
     if (!env.DB) return { resume: null, coverLetter: null };
 
@@ -213,7 +213,7 @@ export const getDocumentsForAnalysis = createServerFn({ method: "GET" })
 
 export const deleteHistoryItem = createServerFn({ method: "POST" })
   .inputValidator((data: { id: number }) => data)
-  .handler(async ({ data }, ctx) => {
+  .handler(async (ctx: any) => { const { data } = ctx;
     const env = await getCloudflareEnvAsync();
     if (!env.DB) throw new Error("Database not available");
 
