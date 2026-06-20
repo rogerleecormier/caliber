@@ -397,6 +397,16 @@ export function AppHeader({
       tone: "primary",
       appScope: "jobs",
     },
+    {
+      type: "link",
+      key: "discovery",
+      label: "Board Discovery",
+      href: `${appOrigin}/discovery`,
+      path: "/discovery",
+      icon: Shield,
+      tone: "primary",
+      appScope: "jobs",
+    },
     ...(resolvedUser?.role === "admin"
       ? ([
           { type: "separator", key: "user-separator-admin" },

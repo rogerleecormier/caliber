@@ -106,6 +106,13 @@
       "when": 1781925161342,
       "tag": "0031_cloudy_tyger_tiger",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "6",
+      "when": 1781926830776,
+      "tag": "0032_low_jackpot",
+      "breakpoints": true
     }
   ]
 }

@@ -485,9 +485,16 @@ export const boards = sqliteTable('boards', {
   crawlErrorLastAt: text('crawl_error_last_at'),
   discoveredAt: text('discovered_at').notNull(),
   createdAt: text('created_at').notNull(),
+  lastDiscoveredAt: text('last_discovered_at'),
+  discoveryPhase: text('discovery_phase'),
+  discoveryConfidence: real('discovery_confidence'),
+  validated: integer('validated', { mode: 'boolean' }).default(false),
+  validationErrorCount: integer('validation_error_count').default(0),
 }, (table) => ({
   uniqueAtsToken: uniqueIndex('unique_ats_token').on(table.ats, table.token),
   idxBoardsActive: index('idx_boards_active').on(table.isActive, table.crawlFrequencyTier),
+  idxBoardsValidated: index('idx_boards_validated').on(table.validated, table.isActive),
+  idxBoardsConfidence: index('idx_boards_confidence').on(table.discoveryConfidence),
 }))
 
 export const auditLog = sqliteTable('audit_log', {

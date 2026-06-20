@@ -1,8 +1,8 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "eaeb040c-9c10-4b29-a008-8a67f67705ce",
-  "prevId": "aaf824ed-319a-4040-b799-31892fcbf525",
+  "id": "460fbb21-485c-49b8-9438-d2ae8ff5c1e6",
+  "prevId": "eaeb040c-9c10-4b29-a008-8a67f67705ce",
   "tables": {
     "account": {
       "name": "account",
@@ -472,6 +472,43 @@
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false
+        },
+        "last_discovered_at": {
+          "name": "last_discovered_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "discovery_phase": {
+          "name": "discovery_phase",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "discovery_confidence": {
+          "name": "discovery_confidence",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "validated": {
+          "name": "validated",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "default": false
+        },
+        "validation_error_count": {
+          "name": "validation_error_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "default": 0
         }
       },
       "indexes": {
@@ -488,6 +525,21 @@
           "columns": [
             "is_active",
             "crawl_frequency_tier"
+          ],
+          "isUnique": false
+        },
+        "idx_boards_validated": {
+          "name": "idx_boards_validated",
+          "columns": [
+            "validated",
+            "is_active"
+          ],
+          "isUnique": false
+        },
+        "idx_boards_confidence": {
+          "name": "idx_boards_confidence",
+          "columns": [
+            "discovery_confidence"
           ],
           "isUnique": false
         }

@@ -98,6 +98,17 @@ max_batch_size = 100
 max_batch_timeout = 30
 max_retries = 3
 
+# Discovery Queue — buffer for discovery phases
+[[queues.producers]]
+binding = "DISCOVERY_QUEUE"
+queue = "discovery-queue"
+
+[[queues.consumers]]
+queue = "discovery-queue"
+max_batch_size = 5
+max_batch_timeout = 10
+max_retries = 3
+
 # Rate Limiter Durable Object
 [[durable_objects.bindings]]
 name = "RATE_LIMITER"

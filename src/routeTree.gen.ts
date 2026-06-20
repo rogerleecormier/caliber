@@ -17,6 +17,7 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as LinkedinSearchRouteImport } from './routes/linkedin-search'
 import { Route as LinkedinJobsRouteImport } from './routes/linkedin-jobs'
 import { Route as JobsRouteImport } from './routes/jobs'
+import { Route as DiscoveryRouteImport } from './routes/discovery'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as CrawlerDashboardRouteImport } from './routes/crawler-dashboard'
 import { Route as AdminSetupRouteImport } from './routes/admin-setup'
@@ -31,6 +32,11 @@ import { Route as ApiV3JobContentRouteImport } from './routes/api/v3/job-content
 import { Route as ApiV3CategoriesRouteImport } from './routes/api/v3/categories'
 import { Route as ApiJobsSearchRouteImport } from './routes/api/jobs/search'
 import { Route as ApiJobsCrawlerSearchRouteImport } from './routes/api/jobs/crawler-search'
+import { Route as ApiDiscoveryValidateBoardRouteImport } from './routes/api/discovery/validate-board'
+import { Route as ApiDiscoveryStatsRouteImport } from './routes/api/discovery/stats'
+import { Route as ApiDiscoveryRunPhaseRouteImport } from './routes/api/discovery/run-phase'
+import { Route as ApiDiscoveryDeleteBoardRouteImport } from './routes/api/discovery/delete-board'
+import { Route as ApiDiscoveryCronRouteImport } from './routes/api/discovery/cron'
 import { Route as ApiCrawlToggleBoardRouteImport } from './routes/api/crawl/toggle-board'
 import { Route as ApiCrawlSaveBoardRouteImport } from './routes/api/crawl/save-board'
 import { Route as ApiCrawlCronRouteImport } from './routes/api/crawl/cron'
@@ -87,6 +93,11 @@ const LinkedinJobsRoute = LinkedinJobsRouteImport.update({
 const JobsRoute = JobsRouteImport.update({
   id: '/jobs',
   path: '/jobs',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DiscoveryRoute = DiscoveryRouteImport.update({
+  id: '/discovery',
+  path: '/discovery',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DashboardRoute = DashboardRouteImport.update({
@@ -157,6 +168,32 @@ const ApiJobsSearchRoute = ApiJobsSearchRouteImport.update({
 const ApiJobsCrawlerSearchRoute = ApiJobsCrawlerSearchRouteImport.update({
   id: '/api/jobs/crawler-search',
   path: '/api/jobs/crawler-search',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiDiscoveryValidateBoardRoute =
+  ApiDiscoveryValidateBoardRouteImport.update({
+    id: '/api/discovery/validate-board',
+    path: '/api/discovery/validate-board',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiDiscoveryStatsRoute = ApiDiscoveryStatsRouteImport.update({
+  id: '/api/discovery/stats',
+  path: '/api/discovery/stats',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiDiscoveryRunPhaseRoute = ApiDiscoveryRunPhaseRouteImport.update({
+  id: '/api/discovery/run-phase',
+  path: '/api/discovery/run-phase',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiDiscoveryDeleteBoardRoute = ApiDiscoveryDeleteBoardRouteImport.update({
+  id: '/api/discovery/delete-board',
+  path: '/api/discovery/delete-board',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiDiscoveryCronRoute = ApiDiscoveryCronRouteImport.update({
+  id: '/api/discovery/cron',
+  path: '/api/discovery/cron',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiCrawlToggleBoardRoute = ApiCrawlToggleBoardRouteImport.update({
@@ -252,6 +289,7 @@ export interface FileRoutesByFullPath {
   '/admin-setup': typeof AdminSetupRoute
   '/crawler-dashboard': typeof CrawlerDashboardRoute
   '/dashboard': typeof DashboardRoute
+  '/discovery': typeof DiscoveryRoute
   '/jobs': typeof JobsRoute
   '/linkedin-jobs': typeof LinkedinJobsRoute
   '/linkedin-search': typeof LinkedinSearchRoute
@@ -276,6 +314,11 @@ export interface FileRoutesByFullPath {
   '/api/crawl/cron': typeof ApiCrawlCronRoute
   '/api/crawl/save-board': typeof ApiCrawlSaveBoardRoute
   '/api/crawl/toggle-board': typeof ApiCrawlToggleBoardRoute
+  '/api/discovery/cron': typeof ApiDiscoveryCronRoute
+  '/api/discovery/delete-board': typeof ApiDiscoveryDeleteBoardRoute
+  '/api/discovery/run-phase': typeof ApiDiscoveryRunPhaseRoute
+  '/api/discovery/stats': typeof ApiDiscoveryStatsRoute
+  '/api/discovery/validate-board': typeof ApiDiscoveryValidateBoardRoute
   '/api/jobs/crawler-search': typeof ApiJobsCrawlerSearchRoute
   '/api/jobs/search': typeof ApiJobsSearchRoute
   '/api/v3/categories': typeof ApiV3CategoriesRoute
@@ -293,6 +336,7 @@ export interface FileRoutesByTo {
   '/admin-setup': typeof AdminSetupRoute
   '/crawler-dashboard': typeof CrawlerDashboardRoute
   '/dashboard': typeof DashboardRoute
+  '/discovery': typeof DiscoveryRoute
   '/jobs': typeof JobsRoute
   '/linkedin-jobs': typeof LinkedinJobsRoute
   '/linkedin-search': typeof LinkedinSearchRoute
@@ -317,6 +361,11 @@ export interface FileRoutesByTo {
   '/api/crawl/cron': typeof ApiCrawlCronRoute
   '/api/crawl/save-board': typeof ApiCrawlSaveBoardRoute
   '/api/crawl/toggle-board': typeof ApiCrawlToggleBoardRoute
+  '/api/discovery/cron': typeof ApiDiscoveryCronRoute
+  '/api/discovery/delete-board': typeof ApiDiscoveryDeleteBoardRoute
+  '/api/discovery/run-phase': typeof ApiDiscoveryRunPhaseRoute
+  '/api/discovery/stats': typeof ApiDiscoveryStatsRoute
+  '/api/discovery/validate-board': typeof ApiDiscoveryValidateBoardRoute
   '/api/jobs/crawler-search': typeof ApiJobsCrawlerSearchRoute
   '/api/jobs/search': typeof ApiJobsSearchRoute
   '/api/v3/categories': typeof ApiV3CategoriesRoute
@@ -335,6 +384,7 @@ export interface FileRoutesById {
   '/admin-setup': typeof AdminSetupRoute
   '/crawler-dashboard': typeof CrawlerDashboardRoute
   '/dashboard': typeof DashboardRoute
+  '/discovery': typeof DiscoveryRoute
   '/jobs': typeof JobsRoute
   '/linkedin-jobs': typeof LinkedinJobsRoute
   '/linkedin-search': typeof LinkedinSearchRoute
@@ -359,6 +409,11 @@ export interface FileRoutesById {
   '/api/crawl/cron': typeof ApiCrawlCronRoute
   '/api/crawl/save-board': typeof ApiCrawlSaveBoardRoute
   '/api/crawl/toggle-board': typeof ApiCrawlToggleBoardRoute
+  '/api/discovery/cron': typeof ApiDiscoveryCronRoute
+  '/api/discovery/delete-board': typeof ApiDiscoveryDeleteBoardRoute
+  '/api/discovery/run-phase': typeof ApiDiscoveryRunPhaseRoute
+  '/api/discovery/stats': typeof ApiDiscoveryStatsRoute
+  '/api/discovery/validate-board': typeof ApiDiscoveryValidateBoardRoute
   '/api/jobs/crawler-search': typeof ApiJobsCrawlerSearchRoute
   '/api/jobs/search': typeof ApiJobsSearchRoute
   '/api/v3/categories': typeof ApiV3CategoriesRoute
@@ -378,6 +433,7 @@ export interface FileRouteTypes {
     | '/admin-setup'
     | '/crawler-dashboard'
     | '/dashboard'
+    | '/discovery'
     | '/jobs'
     | '/linkedin-jobs'
     | '/linkedin-search'
@@ -402,6 +458,11 @@ export interface FileRouteTypes {
     | '/api/crawl/cron'
     | '/api/crawl/save-board'
     | '/api/crawl/toggle-board'
+    | '/api/discovery/cron'
+    | '/api/discovery/delete-board'
+    | '/api/discovery/run-phase'
+    | '/api/discovery/stats'
+    | '/api/discovery/validate-board'
     | '/api/jobs/crawler-search'
     | '/api/jobs/search'
     | '/api/v3/categories'
@@ -419,6 +480,7 @@ export interface FileRouteTypes {
     | '/admin-setup'
     | '/crawler-dashboard'
     | '/dashboard'
+    | '/discovery'
     | '/jobs'
     | '/linkedin-jobs'
     | '/linkedin-search'
@@ -443,6 +505,11 @@ export interface FileRouteTypes {
     | '/api/crawl/cron'
     | '/api/crawl/save-board'
     | '/api/crawl/toggle-board'
+    | '/api/discovery/cron'
+    | '/api/discovery/delete-board'
+    | '/api/discovery/run-phase'
+    | '/api/discovery/stats'
+    | '/api/discovery/validate-board'
     | '/api/jobs/crawler-search'
     | '/api/jobs/search'
     | '/api/v3/categories'
@@ -460,6 +527,7 @@ export interface FileRouteTypes {
     | '/admin-setup'
     | '/crawler-dashboard'
     | '/dashboard'
+    | '/discovery'
     | '/jobs'
     | '/linkedin-jobs'
     | '/linkedin-search'
@@ -484,6 +552,11 @@ export interface FileRouteTypes {
     | '/api/crawl/cron'
     | '/api/crawl/save-board'
     | '/api/crawl/toggle-board'
+    | '/api/discovery/cron'
+    | '/api/discovery/delete-board'
+    | '/api/discovery/run-phase'
+    | '/api/discovery/stats'
+    | '/api/discovery/validate-board'
     | '/api/jobs/crawler-search'
     | '/api/jobs/search'
     | '/api/v3/categories'
@@ -502,6 +575,7 @@ export interface RootRouteChildren {
   AdminSetupRoute: typeof AdminSetupRoute
   CrawlerDashboardRoute: typeof CrawlerDashboardRoute
   DashboardRoute: typeof DashboardRoute
+  DiscoveryRoute: typeof DiscoveryRoute
   JobsRoute: typeof JobsRoute
   LinkedinJobsRoute: typeof LinkedinJobsRoute
   LinkedinSearchRoute: typeof LinkedinSearchRoute
@@ -526,6 +600,11 @@ export interface RootRouteChildren {
   ApiCrawlCronRoute: typeof ApiCrawlCronRoute
   ApiCrawlSaveBoardRoute: typeof ApiCrawlSaveBoardRoute
   ApiCrawlToggleBoardRoute: typeof ApiCrawlToggleBoardRoute
+  ApiDiscoveryCronRoute: typeof ApiDiscoveryCronRoute
+  ApiDiscoveryDeleteBoardRoute: typeof ApiDiscoveryDeleteBoardRoute
+  ApiDiscoveryRunPhaseRoute: typeof ApiDiscoveryRunPhaseRoute
+  ApiDiscoveryStatsRoute: typeof ApiDiscoveryStatsRoute
+  ApiDiscoveryValidateBoardRoute: typeof ApiDiscoveryValidateBoardRoute
   ApiJobsCrawlerSearchRoute: typeof ApiJobsCrawlerSearchRoute
   ApiJobsSearchRoute: typeof ApiJobsSearchRoute
   ApiV3CategoriesRoute: typeof ApiV3CategoriesRoute
@@ -593,6 +672,13 @@ declare module '@tanstack/react-router' {
       path: '/jobs'
       fullPath: '/jobs'
       preLoaderRoute: typeof JobsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/discovery': {
+      id: '/discovery'
+      path: '/discovery'
+      fullPath: '/discovery'
+      preLoaderRoute: typeof DiscoveryRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/dashboard': {
@@ -691,6 +777,41 @@ declare module '@tanstack/react-router' {
       path: '/api/jobs/crawler-search'
       fullPath: '/api/jobs/crawler-search'
       preLoaderRoute: typeof ApiJobsCrawlerSearchRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/discovery/validate-board': {
+      id: '/api/discovery/validate-board'
+      path: '/api/discovery/validate-board'
+      fullPath: '/api/discovery/validate-board'
+      preLoaderRoute: typeof ApiDiscoveryValidateBoardRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/discovery/stats': {
+      id: '/api/discovery/stats'
+      path: '/api/discovery/stats'
+      fullPath: '/api/discovery/stats'
+      preLoaderRoute: typeof ApiDiscoveryStatsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/discovery/run-phase': {
+      id: '/api/discovery/run-phase'
+      path: '/api/discovery/run-phase'
+      fullPath: '/api/discovery/run-phase'
+      preLoaderRoute: typeof ApiDiscoveryRunPhaseRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/discovery/delete-board': {
+      id: '/api/discovery/delete-board'
+      path: '/api/discovery/delete-board'
+      fullPath: '/api/discovery/delete-board'
+      preLoaderRoute: typeof ApiDiscoveryDeleteBoardRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/discovery/cron': {
+      id: '/api/discovery/cron'
+      path: '/api/discovery/cron'
+      fullPath: '/api/discovery/cron'
+      preLoaderRoute: typeof ApiDiscoveryCronRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/crawl/toggle-board': {
@@ -833,6 +954,7 @@ const rootRouteChildren: RootRouteChildren = {
   AdminSetupRoute: AdminSetupRoute,
   CrawlerDashboardRoute: CrawlerDashboardRoute,
   DashboardRoute: DashboardRoute,
+  DiscoveryRoute: DiscoveryRoute,
   JobsRoute: JobsRoute,
   LinkedinJobsRoute: LinkedinJobsRoute,
   LinkedinSearchRoute: LinkedinSearchRoute,
@@ -857,6 +979,11 @@ const rootRouteChildren: RootRouteChildren = {
   ApiCrawlCronRoute: ApiCrawlCronRoute,
   ApiCrawlSaveBoardRoute: ApiCrawlSaveBoardRoute,
   ApiCrawlToggleBoardRoute: ApiCrawlToggleBoardRoute,
+  ApiDiscoveryCronRoute: ApiDiscoveryCronRoute,
+  ApiDiscoveryDeleteBoardRoute: ApiDiscoveryDeleteBoardRoute,
+  ApiDiscoveryRunPhaseRoute: ApiDiscoveryRunPhaseRoute,
+  ApiDiscoveryStatsRoute: ApiDiscoveryStatsRoute,
+  ApiDiscoveryValidateBoardRoute: ApiDiscoveryValidateBoardRoute,
   ApiJobsCrawlerSearchRoute: ApiJobsCrawlerSearchRoute,
   ApiJobsSearchRoute: ApiJobsSearchRoute,
   ApiV3CategoriesRoute: ApiV3CategoriesRoute,

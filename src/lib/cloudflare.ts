@@ -15,12 +15,15 @@ export interface CloudflareEnv {
   BROWSER: Fetcher;
   JOB_INGESTION_QUEUE?: Queue<JobIngestionMessage>;
   CRAWL_JOBS_QUEUE?: Queue<any>;
+  DISCOVERY_QUEUE?: Queue<any>;
   RATE_LIMITER?: DurableObjectNamespace;
   ADMIN_PROMOTION_TOKEN?: string;
   BETTER_AUTH_SECRET?: string;
   BETTER_AUTH_URL?: string;
   ADZUNA_API_KEY?: string;
   JOOBLE_API_KEY?: string;
+  SERP_API_KEY?: string;
+  THEIRSTACK_API_KEY?: string;
 }
 
 let cachedEnv: Partial<CloudflareEnv> | null = null;

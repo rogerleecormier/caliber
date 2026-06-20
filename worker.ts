@@ -28,12 +28,29 @@ export default {
     await runAgentPoller(env)
     await runGreenhouseSyncCron(db)
     try {
-      await runBoardCrawlerCron(env)
+      await runBoardCrawlerCron(env as any)
     } catch (e) {
       console.error('Failed to run board crawler cron:', e)
     }
     if (new Date().getUTCHours() % 6 === 0) {
       await aggregateAnalytics(env)
+    }
+    if (new Date().getUTCHours() === 0 && (env as any).DISCOVERY_QUEUE) {
+      try {
+        const discoveryPhases = [
+          { phase: 'company_lists', priority: 1 },
+          { phase: 'llm_inference', priority: 2 },
+          { phase: 'aggregators', priority: 3 },
+          { phase: 'search_engine', priority: 4 },
+          { phase: 'job_feeds', priority: 5 }
+        ];
+        for (const item of discoveryPhases) {
+          await (env as any).DISCOVERY_QUEUE.send({ phase: item.phase, priority: item.priority });
+        }
+        console.log('[scheduled-cron] Successfully enqueued discovery phases');
+      } catch (e) {
+        console.error('[scheduled-cron] Failed to enqueue discovery phases:', e);
+      }
     }
   },
 
@@ -46,9 +63,16 @@ export default {
     
     // Route to appropriate consumer based on queue name or message type
     if (batch.messages.length > 0) {
-      if ((batch as any).queue === 'crawl-jobs') {
+      const queueName = (batch as any).queue;
+      if (queueName === 'crawl-jobs') {
         const { processCrawlJobsQueue } = await import('./src/server/rate-limit/queue-handler')
-        await processCrawlJobsQueue(batch, env)
+        await processCrawlJobsQueue(batch as any, env)
+        return
+      }
+      
+      if (queueName === 'discovery-queue') {
+        const { processDiscoveryQueue } = await import('./src/server/discovery/consumer')
+        await processDiscoveryQueue(batch, env)
         return
       }
       
@@ -58,7 +82,7 @@ export default {
         // Scrape request queue
         await processScrapeRequestBatch(
           db,
-          env.JOB_INGESTION_QUEUE,
+          env.JOB_INGESTION_QUEUE as any,
           batch as MessageBatch<ScrapeRequestQueueMessage>
         )
       } else {
