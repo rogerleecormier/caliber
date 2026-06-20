@@ -72,6 +72,8 @@ interface JobResultCardProps {
   statusPending?: boolean;
   isAnalyzed?: boolean;
   onAnalyzeClick?: () => void;
+  isFavorited?: boolean;
+  onToggleFavorite?: () => void | Promise<void>;
 }
 
 function getScore(job: JobResultCardJob) {
@@ -114,6 +116,8 @@ export function JobResultCard({
   statusPending = false,
   isAnalyzed = false,
   onAnalyzeClick,
+  isFavorited = false,
+  onToggleFavorite,
 }: JobResultCardProps) {
   const score = getScore(job);
   const hasUrl = !!(job.sourceUrl && job.sourceUrl !== "text-input");
@@ -353,6 +357,20 @@ export function JobResultCard({
         <div className="flex flex-col gap-3 border-t border-slate-100 pt-3">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex w-full flex-wrap items-center gap-1.5 sm:w-auto">
+              {onToggleFavorite && (
+                <button
+                  type="button"
+                  onClick={onToggleFavorite}
+                  className={`inline-flex h-8 items-center gap-1 whitespace-nowrap rounded-lg border px-2.5 text-xs font-semibold transition ${
+                    isFavorited
+                      ? "border-amber-300 bg-amber-50 text-amber-700 hover:bg-amber-100"
+                      : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                  }`}
+                >
+                  <span className="mr-1">{isFavorited ? "★" : "☆"}</span>
+                  {isFavorited ? "Favorited" : "Favorite"}
+                </button>
+              )}
               {isAnalyzed ? (
                 <button
                   type="button"

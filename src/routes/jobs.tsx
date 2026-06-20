@@ -40,6 +40,8 @@ import {
   getPipelineJobHistory,
   getSavedPipelineSearches,
   setPipelineJobStatus,
+  getRecommendedJobs,
+  togglePipelineJobFavorite,
 } from "@/server/functions/jobs-pipeline";
 import {
   PIPELINE_STATUSES,
@@ -60,6 +62,7 @@ type JobSearchInput = {
   analyzedOnly?: boolean | string;
   analyze?: boolean | string;
   url?: string;
+  view?: 'my-jobs' | 'all-jobs' | 'quick-search';
 };
 
 export type JobSearchParams = {
@@ -71,6 +74,7 @@ export type JobSearchParams = {
   analyzedOnly: boolean;
   analyze?: boolean;
   url?: string;
+  view: 'my-jobs' | 'all-jobs' | 'quick-search';
 };
 
 type HubJob = Awaited<ReturnType<typeof getPipelineJobHistory>>["rows"][number] & {
@@ -97,6 +101,9 @@ export const Route = createFileRoute("/jobs")({
     analyzedOnly: search.analyzedOnly === true || search.analyzedOnly === "true",
     analyze: search.analyze === true || search.analyze === "true" ? true : undefined,
     url: typeof search.url === "string" && search.url.trim() !== "" ? search.url.trim() : undefined,
+    view: (['my-jobs', 'all-jobs', 'quick-search'].includes(search.view as string)
+      ? search.view
+      : "my-jobs") as any,
   }),
   loaderDeps: ({ search }: { search: JobSearchParams }) => search,
   beforeLoad: ({ context }) => {
@@ -104,7 +111,7 @@ export const Route = createFileRoute("/jobs")({
     if (!ctx.user) requireLoginRedirect();
   },
   loader: async ({ deps }: { deps: JobSearchParams }) => {
-    const [resume, savedSearches, cronInfo, jobHistory] = await Promise.all([
+    const [resume, savedSearches, cronInfo, jobHistory, recommendedRes] = await Promise.all([
       getResume(),
       getSavedPipelineSearches(),
       getPipelineCronInfo(),
@@ -113,8 +120,10 @@ export const Route = createFileRoute("/jobs")({
           ...deps,
           pageSize: PAGE_SIZE,
           excludeDiscovered: deps.analyzedOnly,
+          isFavorited: deps.view === "my-jobs" ? true : undefined,
         },
       }),
+      deps.view === "all-jobs" ? getRecommendedJobs() : Promise.resolve({ jobs: [] }),
     ]);
 
     return {
@@ -124,6 +133,7 @@ export const Route = createFileRoute("/jobs")({
       cronStartHour: cronInfo.cronStartHour,
       cronFrequency: cronInfo.cronFrequency,
       jobHistory,
+      recommendedJobs: recommendedRes.jobs,
     };
   },
   component: JobsPage,
@@ -134,12 +144,16 @@ export const Route = createFileRoute("/jobs")({
 type ViewMode = "cards" | "table";
 
 function JobsPage() {
-  const { page, query, remote, sortBy, status: activeStatus, analyzedOnly, analyze, url: searchUrl } = Route.useSearch();
+  const { page, query, remote, sortBy, status: activeStatus, analyzedOnly, analyze, url: searchUrl, view } = Route.useSearch();
   const loaderData = Route.useLoaderData() as any;
   const { hasResume, fullName, savedSearches: loaderSavedSearches, cronStartHour, cronFrequency, jobHistory } = loaderData;
   const navigate = Route.useNavigate();
 
-  const [activeTab, setActiveTab] = useState("pipeline");
+  const activeTab = view;
+  const setActiveTab = (newTab: 'my-jobs' | 'all-jobs' | 'quick-search') => {
+    navigate({ search: (prev) => ({ ...prev, view: newTab, page: 1 }) });
+  };
+
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [aggregatedSearchOpen, setAggregatedSearchOpen] = useState(false);
   const [aggregatedResults, setAggregatedResults] = useState<any>(null);
@@ -149,6 +163,39 @@ function JobsPage() {
   const [analysisModalOpen, setAnalysisModalOpen] = useState(false);
   const [selectedJobForAnalysis, setSelectedJobForAnalysis] = useState<HubJob | null>(null);
   const [storedAnalysis, setStoredAnalysis] = useState<any>(null);
+
+  function openAnalysisModal(job: any) {
+    setSelectedJobForAnalysis(job);
+    setStoredAnalysis(null);
+
+    if (job.analyzedAt || job.currentStage === "Analyzed") {
+      const analysis = {
+        id: job.id,
+        jobTitle: job.title || job.jobTitle,
+        company: job.company || job.employerName,
+        industry: job.industry ?? undefined,
+        location: job.location ?? undefined,
+        matchScore: job.matchScore ?? 0,
+        pursueJustification: job.pursueJustification ?? "No justification provided",
+        gapAnalysis: job.gapAnalysis ? (typeof job.gapAnalysis === "string" ? JSON.parse(job.gapAnalysis) : job.gapAnalysis) : [],
+        recommendations: job.recommendations ? (typeof job.recommendations === "string" ? JSON.parse(job.recommendations) : job.recommendations) : [],
+        keywords: job.keywords ? (typeof job.keywords === "string" ? JSON.parse(job.keywords) : job.keywords) : [],
+        pursue: job.pursue === 1,
+        strategyNote: job.strategyNote ?? "",
+        personalInterest: job.personalInterest ?? "",
+        careerAnalysis: job.careerAnalysis ? (typeof job.careerAnalysis === "string" ? JSON.parse(job.careerAnalysis) : job.careerAnalysis) : null,
+        insights: job.insights ? (typeof job.insights === "string" ? JSON.parse(job.insights) : job.insights) : null,
+        applied: false,
+        appliedAt: null,
+        jobUrl: job.sourceUrl,
+        jdText: job.jdText,
+        createdAt: job.analyzedAt ?? job.createdAt,
+      };
+      setStoredAnalysis(analysis);
+    }
+
+    setAnalysisModalOpen(true);
+  }
 
   return (
     <div className="spx-page spx-stack">
@@ -211,20 +258,31 @@ function JobsPage() {
       <div className="px-4 md:px-6">
         <div className="flex gap-2 border-b mb-6">
           <button
-            onClick={() => setActiveTab("pipeline")}
+            onClick={() => setActiveTab("my-jobs")}
             className={`flex items-center gap-2 px-4 py-3 font-medium text-sm border-b-2 transition ${
-              activeTab === "pipeline"
+              activeTab === "my-jobs"
                 ? "border-blue-600 text-blue-600"
                 : "border-transparent text-gray-600 hover:text-gray-900"
             }`}
           >
             <BookMarked className="h-4 w-4" />
-            Pipeline
+            My Jobs
             {cronNewCount > 0 && (
               <span className="ml-2 rounded-full bg-green-500 text-white text-xs font-bold px-2 py-0.5">
                 +{cronNewCount}
               </span>
             )}
+          </button>
+          <button
+            onClick={() => setActiveTab("all-jobs")}
+            className={`flex items-center gap-2 px-4 py-3 font-medium text-sm border-b-2 transition ${
+              activeTab === "all-jobs"
+                ? "border-blue-600 text-blue-600"
+                : "border-transparent text-gray-600 hover:text-gray-900"
+            }`}
+          >
+            <Sparkles className="h-4 w-4" />
+            All Jobs
           </button>
           <button
             onClick={() => setActiveTab("quick-search")}
@@ -234,13 +292,13 @@ function JobsPage() {
                 : "border-transparent text-gray-600 hover:text-gray-900"
             }`}
           >
-            <Sparkles className="h-4 w-4" />
+            <Search className="h-4 w-4" />
             Quick Search
           </button>
         </div>
 
-        {/* Pipeline Tab */}
-        {activeTab === "pipeline" && (
+        {/* My Jobs Tab */}
+        {activeTab === "my-jobs" && (
           <JobsListContentWrapper
             jobHistoryPromise={jobHistory}
             hasResume={hasResume}
@@ -268,6 +326,49 @@ function JobsPage() {
             savedAggregatedJobIds={savedAggregatedJobIds}
             setSavedAggregatedJobIds={setSavedAggregatedJobIds}
           />
+        )}
+
+        {/* All Jobs Tab */}
+        {activeTab === "all-jobs" && (
+          <div className="space-y-6">
+            <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-4">
+              <h3 className="font-semibold text-indigo-900 mb-1">Recommended for You</h3>
+              <p className="text-sm text-indigo-800">
+                These are top matches based on semantic similarity to your resume, salary requirements, location, and remote preferences.
+              </p>
+            </div>
+
+            {loaderData.recommendedJobs && loaderData.recommendedJobs.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {loaderData.recommendedJobs.map((job: any) => (
+                  <JobResultCard
+                    key={job.id}
+                    job={job}
+                    isFavorited={job.isFavorited}
+                    onToggleFavorite={async () => {
+                      try {
+                        const newFav = !job.isFavorited;
+                        await togglePipelineJobFavorite({ data: { id: job.id, isFavorited: newFav } });
+                        // Refresh the loader data to show the updated favorite status
+                        navigate({ search: (prev) => prev });
+                      } catch (err) {
+                        alert(err instanceof Error ? err.message : "Failed to toggle favorite");
+                      }
+                    }}
+                    onAnalyzeClick={() => openAnalysisModal(job)}
+                    isAnalyzed={job.status === "Analyzed" || !!job.analyzedAt}
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-12">
+                <Sparkles className="h-12 w-12 text-slate-300 mx-auto mb-4" />
+                <p className="text-slate-600">
+                  No recommended jobs found. Make sure you have uploaded your resume and configured search preferences in your Profile.
+                </p>
+              </div>
+            )}
+          </div>
         )}
 
         {/* Quick Search Tab */}

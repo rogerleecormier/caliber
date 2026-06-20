@@ -1,10 +1,10 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useState } from "react";
 import { getResume } from "@/server/functions/manage-resume";
-import { getShowGlobalJobs, setShowGlobalJobs } from "@/server/functions/user-preferences";
-import { FileUser } from "lucide-react";
+import { getUserPreferences, setUserPreferences } from "@/server/functions/user-preferences";
+import { FileUser, Sparkles, Check, Loader2 } from "lucide-react";
 import { ResumeManagerV2 } from "@/components/features/resume-manager-v2";
-import { PageHero, PageSection } from "@caliber/ui-kit";
+import { PageHero, PageSection, Button, Input } from "@caliber/ui-kit";
 
 export const Route = createFileRoute("/profile")({
   beforeLoad: ({ context }) => {
@@ -12,7 +12,7 @@ export const Route = createFileRoute("/profile")({
     if (!ctx.user) throw redirect({ to: "/login" });
   },
   loader: async () => {
-    const [resume, preferences] = await Promise.all([getResume(), getShowGlobalJobs()]);
+    const [resume, preferences] = await Promise.all([getResume(), getUserPreferences()]);
     return { resume, preferences };
   },
   component: ProfilePage,
@@ -21,16 +21,41 @@ export const Route = createFileRoute("/profile")({
 
 function ProfilePage() {
   const { resume, preferences } = Route.useLoaderData();
-  const [showGlobalJobs, setShowGlobalJobsState] = useState(preferences.showGlobalJobs);
+  
+  const [showGlobalJobs, setShowGlobalJobs] = useState(preferences.showGlobalJobs);
+  const [preferredSalaryMin, setPreferredSalaryMin] = useState<string>(preferences.preferredSalaryMin?.toString() ?? "");
+  const [preferredSalaryMax, setPreferredSalaryMax] = useState<string>(preferences.preferredSalaryMax?.toString() ?? "");
+  const [preferredLocation, setPreferredLocation] = useState<string>(preferences.preferredLocation ?? "");
+  const [preferredRemote, setPreferredRemote] = useState<string>(preferences.preferredRemote ?? "any");
+  const [preferredKeywords, setPreferredKeywords] = useState<string>(preferences.preferredKeywords.join(", "));
+  
   const [saving, setSaving] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState(false);
 
-  async function handleToggle(checked: boolean) {
-    setShowGlobalJobsState(checked);
+  async function handleSave(e: React.FormEvent) {
+    e.preventDefault();
     setSaving(true);
+    setSaveSuccess(false);
     try {
-      await setShowGlobalJobs({ data: { showGlobalJobs: checked } });
-    } catch {
-      setShowGlobalJobsState(!checked);
+      const keywordsArray = preferredKeywords
+        .split(",")
+        .map((k) => k.trim())
+        .filter(Boolean);
+
+      await setUserPreferences({
+        data: {
+          showGlobalJobs,
+          preferredSalaryMin: preferredSalaryMin ? Number(preferredSalaryMin) : null,
+          preferredSalaryMax: preferredSalaryMax ? Number(preferredSalaryMax) : null,
+          preferredLocation: preferredLocation.trim() || null,
+          preferredRemote: preferredRemote,
+          preferredKeywords: keywordsArray,
+        },
+      });
+      setSaveSuccess(true);
+      setTimeout(() => setSaveSuccess(false), 3000);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Failed to save preferences.");
     } finally {
       setSaving(false);
     }
@@ -44,29 +69,129 @@ function ProfilePage() {
         title="My Profile"
         description="Upload or refine your master resume. Caliber uses this profile across analyses, resume generation, and cover letter generation."
       />
+      
       <PageSection
         title="Master Resume"
         description="Keep one high-quality source resume here so analysis and document generation stay grounded in the same profile."
       >
         <ResumeManagerV2 initial={resume} />
       </PageSection>
+
       <PageSection
         title="Job Search Preferences"
-        description="Control which jobs appear in your pipeline."
+        description="Set your preference constraints. These guide automated search agents and candidate recommendations."
       >
-        <label className="flex items-center gap-3 rounded-lg border border-input bg-background px-4 py-3 text-sm shadow-sm cursor-pointer hover:bg-muted/30">
-          <input
-            type="checkbox"
-            checked={showGlobalJobs}
-            disabled={saving}
-            onChange={(e) => handleToggle(e.target.checked)}
-            className="h-4 w-4 rounded"
-          />
-          <div>
-            <p className="font-medium">Show jobs from all user searches</p>
-            <p className="text-xs text-muted-foreground">When enabled, your pipeline also includes global catalog jobs discovered by other users' search agents.</p>
+        <form onSubmit={handleSave} className="space-y-6 bg-white/70 backdrop-blur-md rounded-2xl border border-slate-100 p-6 shadow-sm">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1.5">
+                Preferred Location
+              </label>
+              <Input
+                type="text"
+                placeholder="e.g. San Francisco, CA or Remote"
+                value={preferredLocation}
+                onChange={(e) => setPreferredLocation(e.target.value)}
+                className="w-full"
+              />
+            </div>
+            
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1.5">
+                Remote Preference
+              </label>
+              <select
+                value={preferredRemote}
+                onChange={(e) => setPreferredRemote(e.target.value)}
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <option value="any">No Preference (Any)</option>
+                <option value="remote">Remote Only</option>
+                <option value="hybrid">Hybrid</option>
+                <option value="on-site">On-Site Only</option>
+              </select>
+            </div>
           </div>
-        </label>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1.5">
+                Min Preferred Salary (Annual USD)
+              </label>
+              <Input
+                type="number"
+                placeholder="e.g. 100000"
+                value={preferredSalaryMin}
+                onChange={(e) => setPreferredSalaryMin(e.target.value)}
+                className="w-full"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1.5">
+                Max Preferred Salary (Annual USD)
+              </label>
+              <Input
+                type="number"
+                placeholder="e.g. 180000"
+                value={preferredSalaryMax}
+                onChange={(e) => setPreferredSalaryMax(e.target.value)}
+                className="w-full"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1.5">
+              Keywords (Comma separated)
+            </label>
+            <Input
+              type="text"
+              placeholder="e.g. React, TypeScript, GraphQL, Engineer"
+              value={preferredKeywords}
+              onChange={(e) => setPreferredKeywords(e.target.value)}
+              className="w-full"
+            />
+          </div>
+
+          <div className="pt-2">
+            <label className="flex items-center gap-3 rounded-lg border border-slate-100 bg-slate-50/50 px-4 py-3 text-sm cursor-pointer hover:bg-slate-50">
+              <input
+                type="checkbox"
+                checked={showGlobalJobs}
+                disabled={saving}
+                onChange={(e) => setShowGlobalJobs(e.target.checked)}
+                className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+              />
+              <div>
+                <p className="font-medium text-slate-800">Show jobs from all user searches</p>
+                <p className="text-xs text-slate-500">When enabled, your pipeline also includes global catalog jobs discovered by other users' search agents.</p>
+              </div>
+            </label>
+          </div>
+
+          <div className="flex items-center justify-end gap-3 pt-2">
+            {saveSuccess && (
+              <span className="flex items-center gap-1.5 text-sm font-semibold text-emerald-600 animate-fade-in">
+                <Check className="h-4 w-4" /> Preferences saved!
+              </span>
+            )}
+            <Button
+              type="submit"
+              disabled={saving}
+              className="bg-indigo-600 text-white hover:bg-indigo-700 font-semibold px-6 min-w-[120px]"
+            >
+              {saving ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  Saving...
+                </>
+              ) : (
+                "Save Preferences"
+              )}
+            </Button>
+          </div>
+        </form>
       </PageSection>
     </div>
   );

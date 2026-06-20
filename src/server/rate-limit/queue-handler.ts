@@ -1,12 +1,13 @@
 import { fetchGreenhouseJobs } from '../ats/parsers/greenhouse';
 import { fetchLeverJobs } from '../ats/parsers/lever';
 import { fetchAshbyJobs } from '../ats/parsers/ashby';
+import { fetchWorkableJobs } from '../ats/parsers/workable';
 import { insertCanonicalJob, linkJobSource, logAudit } from '../db/queries';
 import { normalizeJob } from '@/lib/normalization';
 import { dedupPipeline } from '../dedup/deterministic';
 
 export interface CrawlMessage {
-  ats: 'greenhouse' | 'lever' | 'ashby';
+  ats: 'greenhouse' | 'lever' | 'ashby' | 'workable';
   token: string;
   boardId: string;
   companyName?: string;
@@ -36,6 +37,7 @@ export async function processCrawlJobsQueue(
       let domain = 'api.greenhouse.io';
       if (ats === 'lever') domain = 'api.lever.co';
       if (ats === 'ashby') domain = 'api.ashbyhq.com';
+      if (ats === 'workable') domain = 'apply.workable.com';
 
       const doId = env.RATE_LIMITER.idFromName(domain);
       const doStub = env.RATE_LIMITER.get(doId);
@@ -70,6 +72,8 @@ export async function processCrawlJobsQueue(
         rawJobs = await fetchLeverJobs(token, companyName);
       } else if (ats === 'ashby') {
         rawJobs = await fetchAshbyJobs(token, companyName);
+      } else if (ats === 'workable') {
+        rawJobs = await fetchWorkableJobs(token, companyName);
       }
 
       console.log(`[queue-handler] Fetched ${rawJobs.length} jobs for ${ats}/${token}`);

@@ -35,7 +35,7 @@ export default {
     if (new Date().getUTCHours() % 6 === 0) {
       await aggregateAnalytics(env)
     }
-    if (new Date().getUTCHours() === 0 && (env as any).DISCOVERY_QUEUE) {
+    if (new Date().getUTCHours() % 12 === 0 && (env as any).DISCOVERY_QUEUE) {
       try {
         const discoveryPhases = [
           { phase: 'company_lists', priority: 1 },

@@ -1,5 +1,5 @@
 import { getDb, schema } from '@/db/db';
-import { and, inArray, isNull, like } from 'drizzle-orm';
+import { and, inArray, isNull, like, eq } from 'drizzle-orm';
 import type { LinkedInScrapedJob, LinkedInSearchParams } from '@/lib/linkedin-search';
 
 // State code to full name dictionary for US locations
@@ -124,6 +124,7 @@ export async function searchAtsJobs(
   if (sources.includes('greenhouse')) activeAtsSources.push('greenhouse');
   if (sources.includes('lever')) activeAtsSources.push('lever');
   if (sources.includes('workable')) activeAtsSources.push('workable');
+  if (sources.includes('ashby')) activeAtsSources.push('ashby');
 
   if (activeAtsSources.length === 0 || !criteria.keywords) {
     return [];
@@ -131,13 +132,29 @@ export async function searchAtsJobs(
 
   // Fetch initial base set matching target platforms and title keyword (global ATS catalog)
   const matchedAtsJobs = await db
-    .select()
-    .from(schema.normalizedJobs)
+    .select({
+      id: schema.canonicalJobs.id,
+      jobTitle: schema.canonicalJobs.titleDisplay,
+      employerName: schema.canonicalJobs.companyDisplay,
+      location: schema.canonicalJobs.locationDisplay,
+      remote: schema.canonicalJobs.remote,
+      description: schema.canonicalJobs.descriptionPlain,
+      descriptionPruned: schema.canonicalJobs.descriptionPlain,
+      compensationMin: schema.canonicalJobs.compensationMin,
+      compensationMax: schema.canonicalJobs.compensationMax,
+      compensationCurrency: schema.canonicalJobs.compensationCurrency,
+      createdAt: schema.canonicalJobs.createdAt,
+      sourceOrigin: schema.jobSources.ats,
+      sourceUrl: schema.jobSources.sourceUrl,
+      postDateText: schema.canonicalJobs.firstSeenAt,
+    })
+    .from(schema.canonicalJobs)
+    .innerJoin(schema.jobSources, eq(schema.canonicalJobs.id, schema.jobSources.canonicalId))
     .where(
       and(
-        isNull(schema.normalizedJobs.userId),
-        inArray(schema.normalizedJobs.sourceOrigin, activeAtsSources),
-        like(schema.normalizedJobs.jobTitle, `%${criteria.keywords}%`)
+        eq(schema.canonicalJobs.isListed, true),
+        inArray(schema.jobSources.ats, activeAtsSources),
+        like(schema.canonicalJobs.titleNorm, `%${criteria.keywords.toLowerCase()}%`)
       )
     );
 
@@ -163,12 +180,11 @@ export async function searchAtsJobs(
 
     // 3. Salary floor filter (keeps jobs without salary, discards jobs explicitly below floor)
     if (criteria.salaryMin != null) {
-      const { min, max } = parseSalaryMinMax(job.salary);
-      if (min !== null || max !== null) {
-        if (max !== null && max < criteria.salaryMin) {
+      if (job.compensationMin !== null || job.compensationMax !== null) {
+        if (job.compensationMax !== null && job.compensationMax < criteria.salaryMin) {
           return false;
         }
-        if (max === null && min !== null && min < criteria.salaryMin) {
+        if (job.compensationMax === null && job.compensationMin !== null && job.compensationMin < criteria.salaryMin) {
           return false;
         }
       }
@@ -193,8 +209,12 @@ export async function searchAtsJobs(
       }
     }
 
+    const salaryStr = job.compensationMin || job.compensationMax
+      ? [job.compensationMin, job.compensationMax].filter(v => v != null).map(v => `$${v.toLocaleString()}`).join(' - ')
+      : null;
+
     return {
-      id: `ats-${job.id}`,
+      id: job.id, // return the canonical job ID
       title: job.jobTitle,
       company: job.employerName || 'Unknown',
       location: jobLocation,
@@ -204,7 +224,7 @@ export async function searchAtsJobs(
       firstSeenAt: job.createdAt || null,
       createdAt: job.createdAt || null,
       workplaceType: workplace,
-      salary: job.salary || null,
+      salary: salaryStr,
       snippet: job.description ? job.description.substring(0, 300) : null,
       description: job.description || null,
     };

@@ -58,10 +58,10 @@ custom_domain = true
 binding = "AI"
 remote = true
 
-# Hourly scheduler. App settings decide whether LinkedIn saved searches run hourly,
+# Scheduled run every 30 minutes. App settings decide whether LinkedIn saved searches run hourly,
 # every 6 hours, or daily, and analytics remains throttled inside the worker.
 [triggers]
-crons = ["0 * * * *"]
+crons = ["0,30 * * * *"]
 
 # Job Ingestion Queue — buffers scraped jobs to avoid D1 write lock contention
 [[queues.producers]]

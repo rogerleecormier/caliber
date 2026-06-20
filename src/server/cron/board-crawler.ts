@@ -24,8 +24,8 @@ export async function runBoardCrawlerCron(
   
   // Read active boards
   const { results: boards } = await env.DB.prepare(
-    'SELECT id, ats, token, company_name, crawl_frequency_tier FROM boards WHERE is_active = 1'
-  ).all<{ id: string; ats: string; token: string; company_name: string | null; crawl_frequency_tier: string }>();
+    'SELECT id, ats, token, company_name, crawl_frequency_tier, last_crawled_at FROM boards WHERE is_active = 1'
+  ).all<{ id: string; ats: string; token: string; company_name: string | null; crawl_frequency_tier: string; last_crawled_at: string | null }>();
 
   if (!boards || boards.length === 0) {
     console.log('[board-crawler-cron] No active boards found in the database');
@@ -38,20 +38,18 @@ export async function runBoardCrawlerCron(
     let shouldCrawl = forceAll;
 
     if (!shouldCrawl) {
+      const lastCrawled = board.last_crawled_at ? new Date(board.last_crawled_at).getTime() : 0;
+      const ageMs = Date.now() - lastCrawled;
       const tier = board.crawl_frequency_tier;
+
+      let intervalMs = 6 * 60 * 60 * 1000; // Default tier2 (6 hours)
       if (tier === 'tier1') {
-        // Hourly
-        shouldCrawl = true;
-      } else if (tier === 'tier2') {
-        // Every 6 hours
-        shouldCrawl = utcHour % 6 === 0;
+        intervalMs = 60 * 60 * 1000; // 1 hour
       } else if (tier === 'tier3') {
-        // Every 24 hours (once a day at UTC 00:00)
-        shouldCrawl = utcHour === 0;
-      } else {
-        // Default to tier2
-        shouldCrawl = utcHour % 6 === 0;
+        intervalMs = 24 * 60 * 60 * 1000; // 24 hours
       }
+
+      shouldCrawl = ageMs >= intervalMs;
     }
 
     if (shouldCrawl) {

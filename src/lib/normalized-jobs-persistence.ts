@@ -374,6 +374,7 @@ export async function listNormalizedJobs(args: {
   sortBy?: string;
   status?: string;
   excludeDiscovered?: boolean;
+  isFavorited?: boolean;
 }) {
   const env = getCloudflareEnv();
   if (!env.DB) {
@@ -412,6 +413,7 @@ export async function listNormalizedJobs(args: {
       : undefined,
     args.green ? gte(normalizedJobs.masterScore, 80) : undefined,
     args.excludeDiscovered ? sql`${normalizedJobs.currentStage} != 'Discovered'` : undefined,
+    args.isFavorited !== undefined ? eq(normalizedJobs.isFavorited, args.isFavorited) : undefined,
   );
   const whereClause = args.status
     ? and(baseWhereClause, eq(normalizedJobs.currentStage, args.status as PipelineStatus))
@@ -487,6 +489,8 @@ export async function listNormalizedJobs(args: {
       firstSeenAt: normalizedJobs.discoveryTimestamp,
       lastSeenAt: normalizedJobs.lastSeenAt,
       analyzedAt: normalizedJobs.analyzedAt,
+      isFavorited: normalizedJobs.isFavorited,
+      canonicalJobId: normalizedJobs.canonicalJobId,
       createdAt: normalizedJobs.createdAt,
       updatedAt: normalizedJobs.updatedAt,
       ownerEmail: sql<string | null>`${sql.raw(canViewAllUsers ? '(select email from user where user.id = normalized_jobs.user_id)' : 'null')}`.as('ownerEmail'),

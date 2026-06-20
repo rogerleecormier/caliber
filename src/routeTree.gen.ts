@@ -24,6 +24,7 @@ import { Route as AdminSetupRouteImport } from './routes/admin-setup'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ApiTestRouteImport } from './routes/api/test'
+import { Route as ApiSavedJobsRouteImport } from './routes/api/saved-jobs'
 import { Route as ApiMetricsRouteImport } from './routes/api/metrics'
 import { Route as ApiV3StatsRouteImport } from './routes/api/v3/stats'
 import { Route as ApiV3LogsRouteImport } from './routes/api/v3/logs'
@@ -129,6 +130,11 @@ const IndexRoute = IndexRouteImport.update({
 const ApiTestRoute = ApiTestRouteImport.update({
   id: '/api/test',
   path: '/api/test',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiSavedJobsRoute = ApiSavedJobsRouteImport.update({
+  id: '/api/saved-jobs',
+  path: '/api/saved-jobs',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiMetricsRoute = ApiMetricsRouteImport.update({
@@ -305,6 +311,7 @@ export interface FileRoutesByFullPath {
   '/signup': typeof SignupRoute
   '/sync': typeof SyncRoute
   '/api/metrics': typeof ApiMetricsRoute
+  '/api/saved-jobs': typeof ApiSavedJobsRoute
   '/api/test': typeof ApiTestRoute
   '/api/admin/cleanup-non-us-jobs': typeof ApiAdminCleanupNonUsJobsRoute
   '/api/ai/generate-resume': typeof ApiAiGenerateResumeRoute
@@ -353,6 +360,7 @@ export interface FileRoutesByTo {
   '/signup': typeof SignupRoute
   '/sync': typeof SyncRoute
   '/api/metrics': typeof ApiMetricsRoute
+  '/api/saved-jobs': typeof ApiSavedJobsRoute
   '/api/test': typeof ApiTestRoute
   '/api/admin/cleanup-non-us-jobs': typeof ApiAdminCleanupNonUsJobsRoute
   '/api/ai/generate-resume': typeof ApiAiGenerateResumeRoute
@@ -402,6 +410,7 @@ export interface FileRoutesById {
   '/signup': typeof SignupRoute
   '/sync': typeof SyncRoute
   '/api/metrics': typeof ApiMetricsRoute
+  '/api/saved-jobs': typeof ApiSavedJobsRoute
   '/api/test': typeof ApiTestRoute
   '/api/admin/cleanup-non-us-jobs': typeof ApiAdminCleanupNonUsJobsRoute
   '/api/ai/generate-resume': typeof ApiAiGenerateResumeRoute
@@ -452,6 +461,7 @@ export interface FileRouteTypes {
     | '/signup'
     | '/sync'
     | '/api/metrics'
+    | '/api/saved-jobs'
     | '/api/test'
     | '/api/admin/cleanup-non-us-jobs'
     | '/api/ai/generate-resume'
@@ -500,6 +510,7 @@ export interface FileRouteTypes {
     | '/signup'
     | '/sync'
     | '/api/metrics'
+    | '/api/saved-jobs'
     | '/api/test'
     | '/api/admin/cleanup-non-us-jobs'
     | '/api/ai/generate-resume'
@@ -548,6 +559,7 @@ export interface FileRouteTypes {
     | '/signup'
     | '/sync'
     | '/api/metrics'
+    | '/api/saved-jobs'
     | '/api/test'
     | '/api/admin/cleanup-non-us-jobs'
     | '/api/ai/generate-resume'
@@ -597,6 +609,7 @@ export interface RootRouteChildren {
   SignupRoute: typeof SignupRoute
   SyncRoute: typeof SyncRoute
   ApiMetricsRoute: typeof ApiMetricsRoute
+  ApiSavedJobsRoute: typeof ApiSavedJobsRoute
   ApiTestRoute: typeof ApiTestRoute
   ApiAdminCleanupNonUsJobsRoute: typeof ApiAdminCleanupNonUsJobsRoute
   ApiAiGenerateResumeRoute: typeof ApiAiGenerateResumeRoute
@@ -734,6 +747,13 @@ declare module '@tanstack/react-router' {
       path: '/api/test'
       fullPath: '/api/test'
       preLoaderRoute: typeof ApiTestRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/saved-jobs': {
+      id: '/api/saved-jobs'
+      path: '/api/saved-jobs'
+      fullPath: '/api/saved-jobs'
+      preLoaderRoute: typeof ApiSavedJobsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/metrics': {
@@ -984,6 +1004,7 @@ const rootRouteChildren: RootRouteChildren = {
   SignupRoute: SignupRoute,
   SyncRoute: SyncRoute,
   ApiMetricsRoute: ApiMetricsRoute,
+  ApiSavedJobsRoute: ApiSavedJobsRoute,
   ApiTestRoute: ApiTestRoute,
   ApiAdminCleanupNonUsJobsRoute: ApiAdminCleanupNonUsJobsRoute,
   ApiAiGenerateResumeRoute: ApiAiGenerateResumeRoute,

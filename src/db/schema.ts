@@ -129,6 +129,11 @@ export const user = sqliteTable('user', {
   banReason: text('ban_reason'),
   banExpires: integer('ban_expires', { mode: 'timestamp' }),
   showGlobalJobs: integer('show_global_jobs', { mode: 'boolean' }).notNull().default(false),
+  preferredSalaryMin: integer('preferred_salary_min'),
+  preferredSalaryMax: integer('preferred_salary_max'),
+  preferredLocation: text('preferred_location'),
+  preferredRemote: text('preferred_remote'),
+  preferredKeywords: text('preferred_keywords'),
 })
 
 export const session = sqliteTable('session', {
@@ -327,6 +332,8 @@ export const normalizedJobs = sqliteTable('normalized_jobs', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   userId: text('user_id').references(() => user.id),
   savedSearchId: integer('saved_search_id').references(() => searchConfigurations.id),
+  canonicalJobId: text('canonical_job_id').references(() => canonicalJobs.id, { onDelete: 'set null' }),
+  isFavorited: integer('is_favorited', { mode: 'boolean' }).notNull().default(false),
 
   // ── Identity / normalization ──
   sourceOrigin: text('source_origin').notNull(), // 'greenhouse' | 'lever' | 'workable' | 'adzuna' | 'jooble' | 'remotive'

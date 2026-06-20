@@ -12,7 +12,8 @@ const createMockKV = (): KVNamespace => {
     get: async (key: string, options?: any) => {
       const value = storage.get(key);
       if (!value) return null;
-      return options?.type === 'json' ? JSON.parse(value) : value;
+      const isJson = options === 'json' || options?.type === 'json';
+      return isJson ? JSON.parse(value) : value;
     },
     put: async (key: string, value: string | ReadableStream | ArrayBuffer) => {
       if (typeof value === 'string') {
@@ -280,7 +281,7 @@ describe('JobAggregatorService', () => {
       });
 
       expect(fetchCount).toBe(1); // No additional API call
-      expect(result1.jobs).toEqual(result2.jobs);
+      expect(JSON.parse(JSON.stringify(result1.jobs))).toEqual(JSON.parse(JSON.stringify(result2.jobs)));
     });
   });
 
