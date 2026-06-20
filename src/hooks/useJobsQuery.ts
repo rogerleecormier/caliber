@@ -16,6 +16,7 @@ export const jobsQueryKeys = {
         sortBy: params.sortBy,
         status: params.status,
         analyzedOnly: params.analyzedOnly,
+        view: params.view,
       },
     ] as const,
 };
@@ -37,6 +38,7 @@ export function useJobsQuery({ searchParams }: UseJobsQueryOptions) {
           ...searchParams,
           pageSize: PAGE_SIZE,
           excludeDiscovered: searchParams.analyzedOnly,
+          isFavorited: searchParams.view === "my-jobs" ? true : undefined,
         },
       });
       return result;
