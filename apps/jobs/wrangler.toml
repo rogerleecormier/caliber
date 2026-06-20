@@ -52,6 +52,13 @@ custom_domain = true
 binding = "AI"
 remote = true
 
+# Vectorize index for semantic job/profile matching (768-dim, cosine).
+# Create before deploying:
+#   wrangler vectorize create spearyx-jobs-index --dimensions=768 --metric=cosine
+[[vectorize]]
+binding = "VECTORIZE"
+index_name = "spearyx-jobs-index"
+
 # Hourly scheduler. App settings decide whether LinkedIn saved searches run hourly,
 # every 6 hours, or daily, and analytics remains throttled inside the worker.
 [triggers]

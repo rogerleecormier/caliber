@@ -8,9 +8,10 @@
 
 import type { DrizzleD1Database } from '../db/db'
 import * as schema from '../db/schema'
-import { sql, eq, inArray } from 'drizzle-orm'
+import { sql, eq } from 'drizzle-orm'
 import { determineCategoryId } from './job-sources'
 import { decodeHtmlEntities } from './html-utils'
+import { upsertCanonicalJob } from './canonical-jobs'
 
 // Import company lists
 import greenhouseCompanies from './job-sources/greenhouse-companies.json'
@@ -374,12 +375,6 @@ export async function syncAtsCompany(
 
           if (!sourceUrl) continue
 
-          // Check if exists
-          const existing = await db.select()
-            .from(schema.jobs)
-            .where(eq(schema.jobs.sourceUrl, sourceUrl))
-            .limit(1)
-
           let title: string
           let description: string
 
@@ -413,31 +408,19 @@ export async function syncAtsCompany(
 
           const categoryId = determineCategoryId(title, description, [])
 
-          if (existing.length > 0) {
-            await db.update(schema.jobs).set({
-              title,
-              company,
-              descriptionRaw: description,
-              isCleansed: 0,
-              updatedAt: new Date(),
-              postDate: postDate || existing[0].postDate,  // Keep existing if no new date
-              categoryId
-            }).where(eq(schema.jobs.id, existing[0].id))
-            jobsUpdated++
-          } else {
-            await db.insert(schema.jobs).values({
-              title,
-              company,
-              descriptionRaw: description,
-              isCleansed: 0,
-              sourceUrl,
-              sourceName: source === 'greenhouse' ? 'Greenhouse' : source === 'lever' ? 'Lever' : 'Workable',
-              postDate: postDate || new Date(),  // Use current date as fallback
-              categoryId,
-              remoteType: 'fully_remote'
-            })
-            jobsAdded++
-          }
+          // Cross-source dedup: one canonical job, source recorded in job_sources.
+          const { created } = await upsertCanonicalJob(db, {
+            title,
+            company,
+            description,
+            sourceUrl,
+            sourceName: source === 'greenhouse' ? 'Greenhouse' : source === 'lever' ? 'Lever' : 'Workable',
+            categoryId,
+            postDate,
+            remoteType: 'fully_remote',
+          })
+          if (created) jobsAdded++
+          else jobsUpdated++
         }
 
         log('success', `${company}: ${jobsAdded} added, ${jobsUpdated} updated`)
@@ -767,12 +750,14 @@ export async function syncAggregator(
         let description: string = ''
         let postDate: Date | null = null
         let salary: string | null = null
+        let location: string | null = null
 
         if (source === 'remoteok') {
           sourceUrl = `https://remoteok.com/l/${job.id}`
           title = job.position
           company = job.company
           description = job.description || ''
+          location = job.location || null
           if (job.date) {
             const d = new Date(job.date)
             if (!isNaN(d.getTime())) postDate = d
@@ -782,6 +767,9 @@ export async function syncAggregator(
           title = job.title
           company = job.companyName
           description = job.description || ''
+          location = Array.isArray(job.locationRestrictions)
+            ? job.locationRestrictions.join(', ')
+            : (job.locationRestrictions || null)
           if (job.pubDate) {
             const d = new Date(job.pubDate * 1000)
             if (!isNaN(d.getTime())) postDate = d
@@ -795,6 +783,7 @@ export async function syncAggregator(
           title = decodeHtmlEntities(job.jobTitle || '')
           company = decodeHtmlEntities(job.companyName || '')
           description = job.jobDescription || job.jobExcerpt || ''
+          location = job.jobGeo ? decodeHtmlEntities(job.jobGeo) : null
           if (job.pubDate) {
             const d = new Date(job.pubDate)
             if (!isNaN(d.getTime())) postDate = d
@@ -811,73 +800,38 @@ export async function syncAggregator(
         return {
           title,
           company,
-          descriptionRaw: description,
-          isCleansed: 0,
+          description,
           sourceUrl,
           sourceName,
           payRange: salary,
-          postDate: postDate || new Date(),
+          location,
+          postDate,
           categoryId,
           remoteType: 'fully_remote',
-          updatedAt: new Date() // For updates
         }
       }).filter(Boolean) as any[]
 
       if (jobsWithMetadata.length > 0) {
-        // 2. Check existing jobs in one query
-        const sourceUrls = jobsWithMetadata.map(j => j.sourceUrl)
-        const existingJobs = await db.select({
-          sourceUrl: schema.jobs.sourceUrl
-        })
-          .from(schema.jobs)
-          .where(inArray(schema.jobs.sourceUrl, sourceUrls))
-
-        const existingUrls = new Set(existingJobs.map(j => j.sourceUrl))
-
-        // Calculate stats
-        jobsAdded = jobsWithMetadata.filter(j => !existingUrls.has(j.sourceUrl)).length
-        jobsUpdated = jobsWithMetadata.filter(j => existingUrls.has(j.sourceUrl)).length
-
-        // 3. Perform batch upsert using D1's native batching
-        try {
-          // Drizzle's multi-row insert().values([...]) has issues with auto-increment IDs in D1
-          // We use db.batch() with individual upserts instead, which is more reliable for D1
-          const batchOps = jobsWithMetadata.map(job =>
-            db.insert(schema.jobs).values(job).onConflictDoUpdate({
-              target: schema.jobs.sourceUrl,
-              set: {
-                title: job.title,
-                company: job.company,
-                descriptionRaw: job.descriptionRaw,
-                updatedAt: new Date(),
-                categoryId: job.categoryId,
-                payRange: job.payRange
-              }
+        // Cross-source dedup: each job routed through upsertCanonicalJob so re-posts from
+        // any source attach to one canonical job (job_sources) instead of duplicating.
+        for (const job of jobsWithMetadata) {
+          try {
+            const { created } = await upsertCanonicalJob(db, {
+              title: job.title,
+              company: job.company,
+              description: job.description,
+              sourceUrl: job.sourceUrl,
+              sourceName: job.sourceName,
+              categoryId: job.categoryId,
+              postDate: job.postDate,
+              payRange: job.payRange,
+              location: job.location,
+              remoteType: job.remoteType,
             })
-          )
-
-          if (batchOps.length > 0) {
-            await db.batch(batchOps as any)
-          }
-        } catch (batchError: any) {
-          log('warning', `D1 batch failed: ${batchError.message.substring(0, 50)}... falling back to sequential`)
-          // Fallback to individual sequential processing if batch fails
-          for (const job of jobsWithMetadata) {
-            try {
-              await db.insert(schema.jobs).values(job).onConflictDoUpdate({
-                target: schema.jobs.sourceUrl,
-                set: {
-                  title: job.title,
-                  company: job.company,
-                  descriptionRaw: job.descriptionRaw,
-                  updatedAt: new Date(),
-                  categoryId: job.categoryId,
-                  payRange: job.payRange
-                }
-              })
-            } catch (e: any) {
-              log('error', `Individual insert failed for ${job.title}: ${e.message}`)
-            }
+            if (created) jobsAdded++
+            else jobsUpdated++
+          } catch (e: any) {
+            log('error', `Upsert failed for ${job.title}: ${e.message}`)
           }
         }
       }

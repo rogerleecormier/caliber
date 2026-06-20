@@ -8,6 +8,7 @@ import {
   Globe,
   FileText,
   TrendingUp,
+  Star,
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import type { JobWithCategory } from "../lib/search-utils";
@@ -23,6 +24,8 @@ interface JobCardProps {
   job: JobWithCategory;
   score?: JobScoreResult;
   onCompanyClick?: (company: string) => void;
+  favorited?: boolean;
+  onToggleFavorite?: (jobId: number, next: boolean) => void;
 }
 
 function getTruncatedDescription(html: string | null, maxLength = 160): string {
@@ -57,7 +60,7 @@ function ScoreBadge({ score }: { score: JobScoreResult }) {
   );
 }
 
-export default function JobCard({ job, score, onCompanyClick }: JobCardProps) {
+export default function JobCard({ job, score, onCompanyClick, favorited, onToggleFavorite }: JobCardProps) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isResumeModalOpen, setIsResumeModalOpen] = useState(false);
   const [isAnalysisModalOpen, setIsAnalysisModalOpen] = useState(false);
@@ -108,7 +111,23 @@ export default function JobCard({ job, score, onCompanyClick }: JobCardProps) {
                 {job.sourceName}
               </span>
             </div>
-            {score && <ScoreBadge score={score} />}
+            <div className="flex items-center gap-1.5 flex-shrink-0">
+              {score && <ScoreBadge score={score} />}
+              {onToggleFavorite && (
+                <button
+                  onClick={(e: React.MouseEvent) => { e.stopPropagation(); onToggleFavorite(job.id, !favorited); }}
+                  title={favorited ? "Remove from My Jobs" : "Save to My Jobs"}
+                  aria-pressed={favorited}
+                  className="inline-flex items-center justify-center w-7 h-7 rounded-full transition-colors"
+                  style={{
+                    background: favorited ? "rgba(245,158,11,0.12)" : "rgba(248,250,252,0.9)",
+                    border: `1px solid ${favorited ? "rgba(245,158,11,0.4)" : "rgba(226,232,240,0.8)"}`,
+                  }}
+                >
+                  <Star size={14} className={favorited ? "text-amber-500 fill-amber-400" : "text-slate-400"} />
+                </button>
+              )}
+            </div>
           </div>
 
           {/* Title */}

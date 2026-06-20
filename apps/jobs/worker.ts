@@ -2,7 +2,8 @@
 // Wraps TanStack Start's fetch handler and adds the cron scheduled handler.
 
 import { aggregateAnalytics } from './src/server/cron/aggregate-analytics'
-import { runLinkedinSearchMaintenance } from './src/server/cron/linkedin-searches'
+import { runSearchAgentMaintenance } from './src/server/cron/search-agents'
+import { backfillJobEmbeddings } from './src/server/cron/embed-jobs'
 import type { CloudflareEnv } from './src/lib/cloudflare'
 
 export default {
@@ -16,7 +17,9 @@ export default {
   },
 
   async scheduled(_event: ScheduledEvent, env: CloudflareEnv, _ctx: ExecutionContext) {
-    await runLinkedinSearchMaintenance(env)
+    // Keep the canonical index fresh, then run user search agents against it.
+    await backfillJobEmbeddings(env)
+    await runSearchAgentMaintenance(env)
     if (new Date().getUTCHours() % 6 === 0) {
       await aggregateAnalytics(env)
     }

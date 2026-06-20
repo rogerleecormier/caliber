@@ -4,7 +4,9 @@ compatibility_date = "2025-11-30"
 compatibility_flags = ["nodejs_compat"]
 
 [triggers]
-crons = ["0,6,12,18,24,30,36,42,48,54 * * * *"]  # Every 6 min at :00
+# Every 3 min (was 6). Discovery only probes a few candidate companies per run with
+# inter-request sleeps, so this stays well within ATS fair-use while doubling throughput.
+crons = ["*/3 * * * *"]
 
 [[d1_databases]]
 binding = "DB"

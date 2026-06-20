@@ -36,3 +36,7 @@ export const DEFAULT_MODEL = AI_MODELS.LLAMA_3_3_70B;
 
 // Faster MoE model for batch scoring (3.3B active params, native function calling)
 export const SCORING_MODEL = AI_MODELS.QWEN3_30B_A3B;
+
+// Text embedding model for semantic job/profile matching (768-dim, cosine).
+export const EMBEDDING_MODEL = '@cf/baai/bge-base-en-v1.5';
+export const EMBEDDING_DIMENSIONS = 768;

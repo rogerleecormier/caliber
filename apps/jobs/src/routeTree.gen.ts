@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as SyncRouteImport } from './routes/sync'
+import { Route as SearchAgentsRouteImport } from './routes/search-agents'
 import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as LinkedinSearchRouteImport } from './routes/linkedin-search'
@@ -24,6 +25,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AnalyzeIndexRouteImport } from './routes/analyze.index'
 import { Route as AnalyzeIdRouteImport } from './routes/analyze.$id'
 import { Route as ApiV3StatsRouteImport } from './routes/api/v3/stats'
+import { Route as ApiV3MyJobsRouteImport } from './routes/api/v3/my-jobs'
 import { Route as ApiV3LogsRouteImport } from './routes/api/v3/logs'
 import { Route as ApiV3JobsRouteImport } from './routes/api/v3/jobs'
 import { Route as ApiV3JobContentRouteImport } from './routes/api/v3/job-content'
@@ -38,11 +40,17 @@ import { Route as ApiAiRecommendRouteImport } from './routes/api/ai/recommend'
 import { Route as ApiAiMatchRouteImport } from './routes/api/ai/match'
 import { Route as ApiAiInsightsRouteImport } from './routes/api/ai/insights'
 import { Route as ApiAiGenerateResumeRouteImport } from './routes/api/ai/generate-resume'
+import { Route as ApiV3JobsRecommendedRouteImport } from './routes/api/v3/jobs/recommended'
 import { Route as ApiV3JobsPruneRouteImport } from './routes/api/v3/jobs/prune'
 
 const SyncRoute = SyncRouteImport.update({
   id: '/sync',
   path: '/sync',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SearchAgentsRoute = SearchAgentsRouteImport.update({
+  id: '/search-agents',
+  path: '/search-agents',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ProfileRoute = ProfileRouteImport.update({
@@ -115,6 +123,11 @@ const ApiV3StatsRoute = ApiV3StatsRouteImport.update({
   path: '/api/v3/stats',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiV3MyJobsRoute = ApiV3MyJobsRouteImport.update({
+  id: '/api/v3/my-jobs',
+  path: '/api/v3/my-jobs',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiV3LogsRoute = ApiV3LogsRouteImport.update({
   id: '/api/v3/logs',
   path: '/api/v3/logs',
@@ -185,6 +198,11 @@ const ApiAiGenerateResumeRoute = ApiAiGenerateResumeRouteImport.update({
   path: '/api/ai/generate-resume',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiV3JobsRecommendedRoute = ApiV3JobsRecommendedRouteImport.update({
+  id: '/recommended',
+  path: '/recommended',
+  getParentRoute: () => ApiV3JobsRoute,
+} as any)
 const ApiV3JobsPruneRoute = ApiV3JobsPruneRouteImport.update({
   id: '/prune',
   path: '/prune',
@@ -203,6 +221,7 @@ export interface FileRoutesByFullPath {
   '/linkedin-search': typeof LinkedinSearchRoute
   '/login': typeof LoginRoute
   '/profile': typeof ProfileRoute
+  '/search-agents': typeof SearchAgentsRoute
   '/sync': typeof SyncRoute
   '/analyze/$id': typeof AnalyzeIdRoute
   '/analyze/': typeof AnalyzeIndexRoute
@@ -220,8 +239,10 @@ export interface FileRoutesByFullPath {
   '/api/v3/job-content': typeof ApiV3JobContentRoute
   '/api/v3/jobs': typeof ApiV3JobsRouteWithChildren
   '/api/v3/logs': typeof ApiV3LogsRoute
+  '/api/v3/my-jobs': typeof ApiV3MyJobsRoute
   '/api/v3/stats': typeof ApiV3StatsRoute
   '/api/v3/jobs/prune': typeof ApiV3JobsPruneRoute
+  '/api/v3/jobs/recommended': typeof ApiV3JobsRecommendedRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -234,6 +255,7 @@ export interface FileRoutesByTo {
   '/linkedin-search': typeof LinkedinSearchRoute
   '/login': typeof LoginRoute
   '/profile': typeof ProfileRoute
+  '/search-agents': typeof SearchAgentsRoute
   '/sync': typeof SyncRoute
   '/analyze/$id': typeof AnalyzeIdRoute
   '/analyze': typeof AnalyzeIndexRoute
@@ -251,8 +273,10 @@ export interface FileRoutesByTo {
   '/api/v3/job-content': typeof ApiV3JobContentRoute
   '/api/v3/jobs': typeof ApiV3JobsRouteWithChildren
   '/api/v3/logs': typeof ApiV3LogsRoute
+  '/api/v3/my-jobs': typeof ApiV3MyJobsRoute
   '/api/v3/stats': typeof ApiV3StatsRoute
   '/api/v3/jobs/prune': typeof ApiV3JobsPruneRoute
+  '/api/v3/jobs/recommended': typeof ApiV3JobsRecommendedRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -267,6 +291,7 @@ export interface FileRoutesById {
   '/linkedin-search': typeof LinkedinSearchRoute
   '/login': typeof LoginRoute
   '/profile': typeof ProfileRoute
+  '/search-agents': typeof SearchAgentsRoute
   '/sync': typeof SyncRoute
   '/analyze/$id': typeof AnalyzeIdRoute
   '/analyze/': typeof AnalyzeIndexRoute
@@ -284,8 +309,10 @@ export interface FileRoutesById {
   '/api/v3/job-content': typeof ApiV3JobContentRoute
   '/api/v3/jobs': typeof ApiV3JobsRouteWithChildren
   '/api/v3/logs': typeof ApiV3LogsRoute
+  '/api/v3/my-jobs': typeof ApiV3MyJobsRoute
   '/api/v3/stats': typeof ApiV3StatsRoute
   '/api/v3/jobs/prune': typeof ApiV3JobsPruneRoute
+  '/api/v3/jobs/recommended': typeof ApiV3JobsRecommendedRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -301,6 +328,7 @@ export interface FileRouteTypes {
     | '/linkedin-search'
     | '/login'
     | '/profile'
+    | '/search-agents'
     | '/sync'
     | '/analyze/$id'
     | '/analyze/'
@@ -318,8 +346,10 @@ export interface FileRouteTypes {
     | '/api/v3/job-content'
     | '/api/v3/jobs'
     | '/api/v3/logs'
+    | '/api/v3/my-jobs'
     | '/api/v3/stats'
     | '/api/v3/jobs/prune'
+    | '/api/v3/jobs/recommended'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -332,6 +362,7 @@ export interface FileRouteTypes {
     | '/linkedin-search'
     | '/login'
     | '/profile'
+    | '/search-agents'
     | '/sync'
     | '/analyze/$id'
     | '/analyze'
@@ -349,8 +380,10 @@ export interface FileRouteTypes {
     | '/api/v3/job-content'
     | '/api/v3/jobs'
     | '/api/v3/logs'
+    | '/api/v3/my-jobs'
     | '/api/v3/stats'
     | '/api/v3/jobs/prune'
+    | '/api/v3/jobs/recommended'
   id:
     | '__root__'
     | '/'
@@ -364,6 +397,7 @@ export interface FileRouteTypes {
     | '/linkedin-search'
     | '/login'
     | '/profile'
+    | '/search-agents'
     | '/sync'
     | '/analyze/$id'
     | '/analyze/'
@@ -381,8 +415,10 @@ export interface FileRouteTypes {
     | '/api/v3/job-content'
     | '/api/v3/jobs'
     | '/api/v3/logs'
+    | '/api/v3/my-jobs'
     | '/api/v3/stats'
     | '/api/v3/jobs/prune'
+    | '/api/v3/jobs/recommended'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -397,6 +433,7 @@ export interface RootRouteChildren {
   LinkedinSearchRoute: typeof LinkedinSearchRoute
   LoginRoute: typeof LoginRoute
   ProfileRoute: typeof ProfileRoute
+  SearchAgentsRoute: typeof SearchAgentsRoute
   SyncRoute: typeof SyncRoute
   ApiAiGenerateResumeRoute: typeof ApiAiGenerateResumeRoute
   ApiAiInsightsRoute: typeof ApiAiInsightsRoute
@@ -412,6 +449,7 @@ export interface RootRouteChildren {
   ApiV3JobContentRoute: typeof ApiV3JobContentRoute
   ApiV3JobsRoute: typeof ApiV3JobsRouteWithChildren
   ApiV3LogsRoute: typeof ApiV3LogsRoute
+  ApiV3MyJobsRoute: typeof ApiV3MyJobsRoute
   ApiV3StatsRoute: typeof ApiV3StatsRoute
 }
 
@@ -422,6 +460,13 @@ declare module '@tanstack/react-router' {
       path: '/sync'
       fullPath: '/sync'
       preLoaderRoute: typeof SyncRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/search-agents': {
+      id: '/search-agents'
+      path: '/search-agents'
+      fullPath: '/search-agents'
+      preLoaderRoute: typeof SearchAgentsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/profile': {
@@ -522,6 +567,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiV3StatsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/v3/my-jobs': {
+      id: '/api/v3/my-jobs'
+      path: '/api/v3/my-jobs'
+      fullPath: '/api/v3/my-jobs'
+      preLoaderRoute: typeof ApiV3MyJobsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/v3/logs': {
       id: '/api/v3/logs'
       path: '/api/v3/logs'
@@ -620,6 +672,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiAiGenerateResumeRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/v3/jobs/recommended': {
+      id: '/api/v3/jobs/recommended'
+      path: '/recommended'
+      fullPath: '/api/v3/jobs/recommended'
+      preLoaderRoute: typeof ApiV3JobsRecommendedRouteImport
+      parentRoute: typeof ApiV3JobsRoute
+    }
     '/api/v3/jobs/prune': {
       id: '/api/v3/jobs/prune'
       path: '/prune'
@@ -645,10 +704,12 @@ const AnalyzeRouteWithChildren =
 
 interface ApiV3JobsRouteChildren {
   ApiV3JobsPruneRoute: typeof ApiV3JobsPruneRoute
+  ApiV3JobsRecommendedRoute: typeof ApiV3JobsRecommendedRoute
 }
 
 const ApiV3JobsRouteChildren: ApiV3JobsRouteChildren = {
   ApiV3JobsPruneRoute: ApiV3JobsPruneRoute,
+  ApiV3JobsRecommendedRoute: ApiV3JobsRecommendedRoute,
 }
 
 const ApiV3JobsRouteWithChildren = ApiV3JobsRoute._addFileChildren(
@@ -667,6 +728,7 @@ const rootRouteChildren: RootRouteChildren = {
   LinkedinSearchRoute: LinkedinSearchRoute,
   LoginRoute: LoginRoute,
   ProfileRoute: ProfileRoute,
+  SearchAgentsRoute: SearchAgentsRoute,
   SyncRoute: SyncRoute,
   ApiAiGenerateResumeRoute: ApiAiGenerateResumeRoute,
   ApiAiInsightsRoute: ApiAiInsightsRoute,
@@ -682,6 +744,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiV3JobContentRoute: ApiV3JobContentRoute,
   ApiV3JobsRoute: ApiV3JobsRouteWithChildren,
   ApiV3LogsRoute: ApiV3LogsRoute,
+  ApiV3MyJobsRoute: ApiV3MyJobsRoute,
   ApiV3StatsRoute: ApiV3StatsRoute,
 }
 export const routeTree = rootRouteImport

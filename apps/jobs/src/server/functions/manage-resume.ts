@@ -36,6 +36,19 @@ export interface ResumeData {
   education?: EducationEntry[];
   certifications?: string[];
   rawText?: string;
+  // ── Job preferences for personalized recommendations ──
+  preferredTitles?: string[];
+  seniorityLevel?: string;
+  preferredIndustries?: string[];
+  excludedIndustries?: string[];
+  preferredLocations?: string[];
+  remotePreference?: string; // 'remote' | 'hybrid' | 'onsite' | 'any'
+  salaryMin?: number;
+  salaryMax?: number;
+  salaryCurrency?: string;
+  employmentTypes?: string[];
+  excludedCompanies?: string[];
+  excludedKeywords?: string[];
   updatedAt?: string;
 }
 
@@ -65,6 +78,18 @@ export const getResume = createServerFn({ method: "GET" }).handler(
         education: row.education ? JSON.parse(row.education) : [],
         certifications: row.certifications ? JSON.parse(row.certifications) : [],
         rawText: row.rawText ?? undefined,
+        preferredTitles: row.preferredTitles ? JSON.parse(row.preferredTitles) : [],
+        seniorityLevel: row.seniorityLevel ?? undefined,
+        preferredIndustries: row.preferredIndustries ? JSON.parse(row.preferredIndustries) : [],
+        excludedIndustries: row.excludedIndustries ? JSON.parse(row.excludedIndustries) : [],
+        preferredLocations: row.preferredLocations ? JSON.parse(row.preferredLocations) : [],
+        remotePreference: row.remotePreference ?? undefined,
+        salaryMin: row.salaryMin ?? undefined,
+        salaryMax: row.salaryMax ?? undefined,
+        salaryCurrency: row.salaryCurrency ?? undefined,
+        employmentTypes: row.employmentTypes ? JSON.parse(row.employmentTypes) : [],
+        excludedCompanies: row.excludedCompanies ? JSON.parse(row.excludedCompanies) : [],
+        excludedKeywords: row.excludedKeywords ? JSON.parse(row.excludedKeywords) : [],
         updatedAt: row.updatedAt ?? undefined,
       };
     } catch (err) {
@@ -106,6 +131,18 @@ export const saveResume = createServerFn({ method: "POST" })
       ...(data.experience !== undefined && { experience: JSON.stringify(data.experience) }),
       ...(data.education !== undefined && { education: JSON.stringify(data.education) }),
       ...(data.certifications !== undefined && { certifications: JSON.stringify(data.certifications) }),
+      ...(data.preferredTitles !== undefined && { preferredTitles: JSON.stringify(data.preferredTitles) }),
+      ...(data.seniorityLevel !== undefined && { seniorityLevel: data.seniorityLevel ?? null }),
+      ...(data.preferredIndustries !== undefined && { preferredIndustries: JSON.stringify(data.preferredIndustries) }),
+      ...(data.excludedIndustries !== undefined && { excludedIndustries: JSON.stringify(data.excludedIndustries) }),
+      ...(data.preferredLocations !== undefined && { preferredLocations: JSON.stringify(data.preferredLocations) }),
+      ...(data.remotePreference !== undefined && { remotePreference: data.remotePreference ?? null }),
+      ...(data.salaryMin !== undefined && { salaryMin: data.salaryMin ?? null }),
+      ...(data.salaryMax !== undefined && { salaryMax: data.salaryMax ?? null }),
+      ...(data.salaryCurrency !== undefined && { salaryCurrency: data.salaryCurrency ?? null }),
+      ...(data.employmentTypes !== undefined && { employmentTypes: JSON.stringify(data.employmentTypes) }),
+      ...(data.excludedCompanies !== undefined && { excludedCompanies: JSON.stringify(data.excludedCompanies) }),
+      ...(data.excludedKeywords !== undefined && { excludedKeywords: JSON.stringify(data.excludedKeywords) }),
     };
 
     await db
@@ -115,6 +152,25 @@ export const saveResume = createServerFn({ method: "POST" })
         target: [masterResume.userId],
         set: { ...baseValues, ...structuredValues },
       });
+
+    // Re-embed the profile so recommendations reflect the latest resume/preferences.
+    // Best-effort: skipped silently when Vectorize/AI bindings are unavailable.
+    try {
+      if (env.VECTORIZE && env.AI) {
+        const { getUserProfile } = await import("@/lib/user-profile");
+        const { upsertProfileVector } = await import("@/lib/ai/embeddings");
+        const profile = await getUserProfile(db, user.id);
+        if (profile.text) {
+          await upsertProfileVector(env.VECTORIZE as any, env.AI as any, user.id, profile.text);
+          await db
+            .update(masterResume)
+            .set({ profileEmbeddedAt: now })
+            .where(eq(masterResume.userId, user.id));
+        }
+      }
+    } catch (err) {
+      console.error("[saveResume] profile re-embed failed:", err);
+    }
 
     return { success: true, updatedAt: now };
   });

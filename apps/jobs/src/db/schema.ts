@@ -21,16 +21,46 @@ export const jobs = sqliteTable('jobs', {
   isCleansed: integer('is_cleansed').default(0), // 0 = needs cleansing, 1 = cleansed
   payRange: text('pay_range'),
   postDate: integer('post_date', { mode: 'timestamp' }),
-  sourceUrl: text('source_url').notNull().unique(),
-  sourceName: text('source_name').notNull(),
+  sourceUrl: text('source_url').notNull().unique(), // primary source URL (back-compat); full list in jobSources
+  sourceName: text('source_name').notNull(),        // primary source name (back-compat)
   categoryId: integer('category_id')
     .notNull()
     .references(() => categories.id),
   remoteType: text('remote_type').notNull().default('fully_remote'),
+  // ── Normalized personalization fields (additive, nullable) ──
+  location: text('location'),
+  salaryMin: integer('salary_min'),
+  salaryMax: integer('salary_max'),
+  salaryCurrency: text('salary_currency'),
+  employmentType: text('employment_type'),     // 'full_time' | 'part_time' | 'contract' | 'temporary' | 'internship'
+  seniorityLevel: text('seniority_level'),      // 'entry' | 'associate' | 'mid' | 'senior' | 'lead' | 'director' | 'executive'
+  companyNormalized: text('company_normalized'), // normalized company fingerprint for dedup
+  contentHash: text('content_hash'),             // hash of normalized title+company+description for exact-content dedup
+  dedupeKey: text('dedupe_key'),                 // semantic identity: company::title::location
+  embeddedAt: integer('embedded_at', { mode: 'timestamp' }), // Vectorize sync watermark (null = needs embedding)
   createdAt: integer('created_at', { mode: 'timestamp' })
     .notNull()
     .default(sql`(unixepoch())`),
   updatedAt: integer('updated_at', { mode: 'timestamp' })
+    .notNull()
+    .default(sql`(unixepoch())`),
+})
+
+// One canonical job can be posted on multiple sources. Each row records a source URL that
+// maps to the same canonical jobs.id, so re-posts update freshness instead of duplicating.
+export const jobSources = sqliteTable('job_sources', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  jobId: integer('job_id')
+    .notNull()
+    .references(() => jobs.id),
+  sourceName: text('source_name').notNull(),
+  sourceUrl: text('source_url').notNull().unique(),
+  payRange: text('pay_range'),
+  postDate: integer('post_date', { mode: 'timestamp' }),
+  firstSeenAt: integer('first_seen_at', { mode: 'timestamp' })
+    .notNull()
+    .default(sql`(unixepoch())`),
+  lastSeenAt: integer('last_seen_at', { mode: 'timestamp' })
     .notNull()
     .default(sql`(unixepoch())`),
 })
@@ -131,6 +161,8 @@ export type Category = typeof categories.$inferSelect
 export type NewCategory = typeof categories.$inferInsert
 export type Job = typeof jobs.$inferSelect
 export type NewJob = typeof jobs.$inferInsert
+export type JobSource = typeof jobSources.$inferSelect
+export type NewJobSource = typeof jobSources.$inferInsert
 export type SyncHistory = typeof syncHistory.$inferSelect
 export type NewSyncHistory = typeof syncHistory.$inferInsert
 export type DuplicateJob = typeof duplicateJobs.$inferSelect
@@ -169,6 +201,20 @@ export const masterResume = sqliteTable('master_resume', {
   education: text('education'),       // JSON: { school, degree, field, year }[]
   certifications: text('certifications'), // JSON: string[]
   rawText: text('raw_text'),          // Original uploaded document text
+  // ── Job preferences for personalized recommendations (additive, nullable) ──
+  preferredTitles: text('preferred_titles'),         // JSON: string[]
+  seniorityLevel: text('seniority_level'),            // 'entry' | 'associate' | 'mid' | 'senior' | 'lead' | 'director' | 'executive'
+  preferredIndustries: text('preferred_industries'), // JSON: string[]
+  excludedIndustries: text('excluded_industries'),   // JSON: string[]
+  preferredLocations: text('preferred_locations'),   // JSON: string[]
+  remotePreference: text('remote_preference'),        // 'remote' | 'hybrid' | 'onsite' | 'any'
+  salaryMin: integer('salary_min'),
+  salaryMax: integer('salary_max'),
+  salaryCurrency: text('salary_currency'),
+  employmentTypes: text('employment_types'),          // JSON: string[]
+  excludedCompanies: text('excluded_companies'),      // JSON: string[]
+  excludedKeywords: text('excluded_keywords'),        // JSON: string[]
+  profileEmbeddedAt: text('profile_embedded_at'),     // ISO timestamp of last profile embedding
   updatedAt: text('updated_at'),
 })
 
@@ -285,6 +331,49 @@ export const linkedinJobResults = sqliteTable('linkedin_job_results', {
   updatedAt: text('updated_at').notNull(),
 })
 
+// ─── Search Agents ────────────────────────────────────────────────────────────
+// Saved searches that run against the canonical jobs DB (no browser scraping).
+// Generalizes the legacy linkedinSavedSearches table.
+export const searchAgents = sqliteTable('search_agents', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  userId: integer('user_id').notNull().references(() => users.id),
+  name: text('name').notNull(),
+  criteria: text('criteria').notNull(), // JSON: { keywords, titles[], location, remotePreference, salaryMin, seniority, employmentType[], sources[], categoryIds[], excludes[] }
+  isActive: integer('is_active').notNull().default(1),
+  autoFavoriteThreshold: integer('auto_favorite_threshold').notNull().default(75), // masterScore cutoff for auto-favorite
+  lastRunAt: text('last_run_at'),
+  createdAt: text('created_at').notNull(),
+  updatedAt: text('updated_at').notNull(),
+})
+
+// ─── User Jobs ────────────────────────────────────────────────────────────────
+// Per-user relationship to a canonical job. The merge centerpiece: replaces the
+// per-user linkedinJobResults table. One row per (user, job).
+export const userJobs = sqliteTable('user_jobs', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  userId: integer('user_id').notNull().references(() => users.id),
+  jobId: integer('job_id').notNull().references(() => jobs.id),
+  relationship: text('relationship', { enum: ['agent', 'manual'] }).notNull().default('manual'),
+  favorited: integer('favorited', { mode: 'boolean' }).notNull().default(false),
+  autoFavorited: integer('auto_favorited', { mode: 'boolean' }).notNull().default(false),
+  searchAgentId: integer('search_agent_id').references(() => searchAgents.id),
+  recommendationScore: integer('recommendation_score'), // 0-100 lightweight vector similarity (All-jobs ranking)
+  // ── LLM synthesis vs resume (migrated from linkedinJobResults) ──
+  atsScore: integer('ats_score'),
+  careerScore: integer('career_score'),
+  outlookScore: integer('outlook_score'),
+  masterScore: integer('master_score'),
+  atsReason: text('ats_reason'),
+  careerReason: text('career_reason'),
+  outlookReason: text('outlook_reason'),
+  isUnicorn: integer('is_unicorn', { mode: 'boolean' }).notNull().default(false),
+  unicornReason: text('unicorn_reason'),
+  status: text('status', { enum: ['Analyzed', 'Prepped', 'Applied', 'Interviewed', 'Hired', 'Archived'] }).notNull().default('Analyzed'),
+  scoredAt: text('scored_at'),
+  createdAt: text('created_at').notNull(),
+  updatedAt: text('updated_at').notNull(),
+})
+
 // ─── Inferred Types (user-centric tables) ─────────────────────────────────────
 export type User = typeof users.$inferSelect
 export type NewUser = typeof users.$inferInsert
@@ -302,3 +391,7 @@ export type LinkedinSavedSearch = typeof linkedinSavedSearches.$inferSelect
 export type NewLinkedinSavedSearch = typeof linkedinSavedSearches.$inferInsert
 export type LinkedinJobResult = typeof linkedinJobResults.$inferSelect
 export type NewLinkedinJobResult = typeof linkedinJobResults.$inferInsert
+export type SearchAgent = typeof searchAgents.$inferSelect
+export type NewSearchAgent = typeof searchAgents.$inferInsert
+export type UserJob = typeof userJobs.$inferSelect
+export type NewUserJob = typeof userJobs.$inferInsert

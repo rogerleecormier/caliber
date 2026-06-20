@@ -12,6 +12,7 @@ export interface CloudflareEnv {
   KV: KVNamespace;
   AI: Ai;
   BROWSER: Fetcher;
+  VECTORIZE: VectorizeIndex;
 }
 
 export function getCloudflareEnv(): Partial<CloudflareEnv> {
