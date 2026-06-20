@@ -57,13 +57,21 @@ export const Route = createFileRoute('/api/discovery/stats')({
           const validationFailures = failureStats?.validation_failures ?? 0;
           const falsePositiveRate = totalCount > 0 ? (validationFailures / totalCount) : 0;
 
+          // Fetch discovered boards
+          const { results: boards } = await env.DB.prepare(`
+            SELECT * FROM boards 
+            WHERE last_discovered_at IS NOT NULL OR discovery_phase IS NOT NULL OR validated = 1
+            ORDER BY last_discovered_at DESC, discovered_at DESC 
+            LIMIT 100
+          `).all<any>();
+
           // Fetch recent audit logs
           const recentAudit = await env.DB.prepare(`
             SELECT id, event_type, ats, board_token, details, actor, created_at
             FROM audit_log
-            WHERE event_type = 'board_discovered'
+            WHERE event_type IN ('board_discovered', 'board_validation_failed')
             ORDER BY created_at DESC
-            LIMIT 10
+            LIMIT 30
           `).all<{
             id: string;
             event_type: string;
@@ -82,6 +90,7 @@ export const Route = createFileRoute('/api/discovery/stats')({
             discovered_last_week: overallStats?.discovered_last_week ?? 0,
             by_phase: phaseStats.results ?? [],
             false_positive_rate: Number(falsePositiveRate.toFixed(4)),
+            boards: boards || [],
             recent_audit: recentAudit.results.map(row => ({
               ...row,
               details: row.details ? JSON.parse(row.details) : {}

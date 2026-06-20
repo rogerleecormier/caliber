@@ -1,4 +1,3 @@
-import { env as cfEnv } from "cloudflare:workers";
 import type { JobIngestionMessage } from "@/lib/job-ingestion-queue";
 
 export interface SessionUser {
@@ -26,13 +25,25 @@ export interface CloudflareEnv {
   THEIRSTACK_API_KEY?: string;
 }
 
+let cfEnv: any = {};
+if (typeof window === "undefined") {
+  try {
+    // Dynamic import to prevent Vite from bundling cloudflare:workers statically on the client
+    import(/* @vite-ignore */ "cloudflare:workers")
+      .then((mod) => {
+        cfEnv = mod.env;
+      })
+      .catch(() => {});
+  } catch {}
+}
+
 let cachedEnv: Partial<CloudflareEnv> | null = null;
 let proxyPromise: Promise<Partial<CloudflareEnv>> | null = null;
 
 export async function getCloudflareEnvAsync(): Promise<Partial<CloudflareEnv>> {
   if (cachedEnv) return cachedEnv;
 
-  const env = cfEnv as unknown as Partial<CloudflareEnv>;
+  const env = ((globalThis as any).__CF_ENV__ || cfEnv) as unknown as Partial<CloudflareEnv>;
 
   // In development, use platform proxy to get bindings
   if (!env.DB && typeof globalThis !== "undefined" && (import.meta.env?.DEV || process.env.NODE_ENV === "development")) {
@@ -63,7 +74,7 @@ export async function getCloudflareEnvAsync(): Promise<Partial<CloudflareEnv>> {
 
 export function getCloudflareEnv(): Partial<CloudflareEnv> {
   // For synchronous access in production/remote, return cfEnv directly
-  const env = cfEnv as unknown as Partial<CloudflareEnv>;
+  const env = ((globalThis as any).__CF_ENV__ || cfEnv) as unknown as Partial<CloudflareEnv>;
 
   // In production, cfEnv should have the bindings
   if (env.DB) return env;

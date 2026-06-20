@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { createFileRoute, useRouter } from '@tanstack/react-router';
+import { createFileRoute } from '@tanstack/react-router';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Shield,
   Search,
@@ -8,17 +9,29 @@ import {
   Trash2,
   CheckCircle2,
   XCircle,
-  Activity,
-  Layers,
-  Database,
-  TrendingUp,
-  AlertTriangle,
-  ExternalLink,
-  HelpCircle,
-  ArrowRight
+  HelpCircle
 } from 'lucide-react';
 import { PageHero, PageSection } from '@caliber/ui-kit';
 import { getCloudflareEnvAsync } from '@/lib/cloudflare';
+
+async function fetchDiscoveryData() {
+  const res = await fetch('/api/discovery/stats');
+  if (!res.ok) throw new Error('Failed to fetch discovery stats');
+  const data = await res.json() as any;
+  if (!data.success) throw new Error(data.error || 'Failed to fetch discovery stats');
+  return {
+    stats: {
+      total_boards: data.total_boards,
+      validated_boards: data.validated_boards,
+      active_boards: data.active_boards,
+      discovered_last_week: data.discovered_last_week,
+      by_phase: data.by_phase,
+      false_positive_rate: data.false_positive_rate
+    },
+    boards: data.boards || [],
+    logs: data.recent_audit || []
+  };
+}
 
 export const Route = createFileRoute('/discovery')({
   loader: async () => {
@@ -74,12 +87,12 @@ export const Route = createFileRoute('/discovery')({
         LIMIT 100
       `).all<any>();
 
-      // 5. Fetch audit logs
+      // 5. Fetch audit logs (both discovery and validation failure events)
       const { results: logs } = await db.prepare(`
         SELECT * FROM audit_log 
-        WHERE event_type = 'board_discovered' 
+        WHERE event_type IN ('board_discovered', 'board_validation_failed') 
         ORDER BY created_at DESC 
-        LIMIT 20
+        LIMIT 30
       `).all<any>();
 
       return {
@@ -107,18 +120,30 @@ export const Route = createFileRoute('/discovery')({
 });
 
 function DiscoveryDashboard() {
-  const router = useRouter();
+  const queryClient = useQueryClient();
   const loaderData = Route.useLoaderData() as any;
-  const { stats, boards: initialBoards, logs: initialLogs } = loaderData;
 
-  const [boards, setBoards] = useState<any[]>(initialBoards);
-  const [logs, setLogs] = useState<any[]>(initialLogs);
+  const [autoRefresh, setAutoRefresh] = useState(true);
   const [search, setSearch] = useState('');
   const [atsFilter, setAtsFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
 
   const [statusMessage, setStatusMessage] = useState<{ text: string; type: 'success' | 'error' | 'info' } | null>(null);
   const [runningAction, setRunningAction] = useState<string | null>(null);
+
+  // useQuery to poll discovery stats and update react-query cache
+  const { data } = useQuery({
+    queryKey: ['discovery-data'],
+    queryFn: fetchDiscoveryData,
+    initialData: loaderData,
+    refetchInterval: autoRefresh ? 10000 : false,
+  });
+
+  const { stats, boards, logs } = data || {
+    stats: { total_boards: 0, validated_boards: 0, active_boards: 0, discovered_last_week: 0, by_phase: [], false_positive_rate: 0 },
+    boards: [],
+    logs: []
+  };
 
   const showStatus = (text: string, type: 'success' | 'error' | 'info' = 'info') => {
     setStatusMessage({ text, type });
@@ -136,7 +161,7 @@ function DiscoveryDashboard() {
       const data = await res.json() as any;
       if (data.success) {
         showStatus(`Phase ${phase} complete! Boards discovered successfully.`, 'success');
-        router.invalidate();
+        await queryClient.invalidateQueries({ queryKey: ['discovery-data'] });
       } else {
         showStatus(data.error || `Phase ${phase} failed`, 'error');
       }
@@ -158,7 +183,7 @@ function DiscoveryDashboard() {
       const data = await res.json() as any;
       if (data.success) {
         showStatus('Daily discovery cron triggered successfully! Phases enqueued.', 'success');
-        router.invalidate();
+        await queryClient.invalidateQueries({ queryKey: ['discovery-data'] });
       } else {
         showStatus(data.error || 'Failed to trigger cron', 'error');
       }
@@ -182,11 +207,10 @@ function DiscoveryDashboard() {
       if (data.success) {
         if (data.validated) {
           showStatus('Board token validated successfully! Active crawl enabled.', 'success');
-          setBoards(prev => prev.map(b => b.id === boardId ? { ...b, validated: 1, is_active: 1, validation_error_count: 0 } : b));
         } else {
           showStatus('Board validation failed. Check endpoint validity.', 'error');
-          setBoards(prev => prev.map(b => b.id === boardId ? { ...b, validation_error_count: (b.validation_error_count || 0) + 1 } : b));
         }
+        await queryClient.invalidateQueries({ queryKey: ['discovery-data'] });
       } else {
         showStatus(data.error || 'Validation request failed', 'error');
       }
@@ -208,8 +232,8 @@ function DiscoveryDashboard() {
       });
       const data = await res.json() as any;
       if (data.success) {
-        setBoards(prev => prev.map(b => b.id === boardId ? { ...b, is_active: !currentActive ? 1 : 0 } : b));
         showStatus('Crawler board active status updated.', 'success');
+        await queryClient.invalidateQueries({ queryKey: ['discovery-data'] });
       } else {
         showStatus(data.error || 'Failed to toggle board status', 'error');
       }
@@ -232,8 +256,8 @@ function DiscoveryDashboard() {
       });
       const data = await res.json() as any;
       if (data.success) {
-        setBoards(prev => prev.filter(b => b.id !== boardId));
         showStatus('Board removed from discovery results.', 'success');
+        await queryClient.invalidateQueries({ queryKey: ['discovery-data'] });
       } else {
         showStatus(data.error || 'Failed to delete board', 'error');
       }
@@ -245,7 +269,7 @@ function DiscoveryDashboard() {
   };
 
   // Filter boards
-  const filteredBoards = boards.filter(board => {
+  const filteredBoards = boards.filter((board: any) => {
     const matchesSearch = !search ||
       board.token.toLowerCase().includes(search.toLowerCase()) ||
       (board.company_name && board.company_name.toLowerCase().includes(search.toLowerCase()));
@@ -285,14 +309,36 @@ function DiscoveryDashboard() {
         title="Board Discovery"
         description="Auto-discover, validate, and index Greenhouse, Lever, Ashby, and Workable ATS boards dynamically."
         actions={
-          <button
-            onClick={handleTriggerCron}
-            disabled={runningAction === 'all'}
-            className="inline-flex items-center gap-2 rounded-lg bg-primary-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-primary-700 disabled:opacity-50 cursor-pointer shadow-sm"
-          >
-            <RefreshCw className={`h-4 w-4 ${runningAction === 'all' ? 'animate-spin' : ''}`} />
-            Run Discovery Cron
-          </button>
+          <div className="flex items-center gap-2">
+            <label className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white/70 px-3 py-2 text-sm font-medium text-slate-700 cursor-pointer shadow-sm">
+              <input
+                type="checkbox"
+                checked={autoRefresh}
+                onChange={(e) => setAutoRefresh(e.target.checked)}
+                className="rounded text-primary-600 focus:ring-primary-500"
+              />
+              Auto-refresh
+            </label>
+            <button
+              onClick={async () => {
+                showStatus('Refreshing discovery data...', 'info');
+                await queryClient.invalidateQueries({ queryKey: ['discovery-data'] });
+                showStatus('Discovery data refreshed!', 'success');
+              }}
+              className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white/70 px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 cursor-pointer shadow-sm"
+            >
+              <RefreshCw className="h-4 w-4" />
+              Refresh
+            </button>
+            <button
+              onClick={handleTriggerCron}
+              disabled={runningAction === 'all'}
+              className="inline-flex items-center gap-2 rounded-lg bg-primary-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-primary-700 disabled:opacity-50 cursor-pointer shadow-sm"
+            >
+              <Play className={`h-4 w-4 ${runningAction === 'all' ? 'animate-spin' : ''}`} />
+              Run Discovery Cron
+            </button>
+          </div>
         }
       />
 
@@ -428,7 +474,7 @@ function DiscoveryDashboard() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200">
-              {filteredBoards.map(board => (
+              {filteredBoards.map((board: any) => (
                 <tr key={board.id} className="hover:bg-slate-50/80 transition-colors">
                   <td className="p-4 font-semibold text-slate-900 text-sm">
                     {board.company_name || board.token.charAt(0).toUpperCase() + board.token.slice(1)}
@@ -523,13 +569,27 @@ function DiscoveryDashboard() {
                 details = typeof log.details === 'string' ? JSON.parse(log.details) : log.details;
               } catch (e) {}
 
+              const isSuccess = log.event_type === 'board_discovered';
+
               return (
                 <div key={log.id} className="py-2.5 flex items-start justify-between gap-4">
                   <div>
                     <span className="text-slate-500 font-medium">[{new Date(log.created_at).toLocaleTimeString()}]</span>{' '}
-                    <span className="text-green-400 font-semibold">{log.ats}:{log.board_token}</span> discovered via{' '}
-                    <span className="text-indigo-400 font-semibold">{getPhaseName(details.phase)}</span>{' '}
-                    with <span className="text-yellow-400 font-semibold">{details.confidence}</span> confidence.
+                    <span className={`${isSuccess ? 'text-green-400' : 'text-red-400'} font-semibold`}>
+                      {log.ats}:{log.board_token}
+                    </span>{' '}
+                    {isSuccess ? (
+                      <>
+                        discovered via{' '}
+                        <span className="text-indigo-400 font-semibold">{getPhaseName(details.phase)}</span>{' '}
+                        with <span className="text-yellow-400 font-semibold">{details.confidence}</span> confidence.
+                      </>
+                    ) : (
+                      <>
+                        validation <span className="text-red-400 font-semibold">failed</span> checking{' '}
+                        <span className="text-indigo-400 font-semibold">{getPhaseName(details.phase)}</span> candidate
+                      </>
+                    )}
                   </div>
                   <span className="text-[10px] bg-slate-800 px-2 py-0.5 rounded text-slate-400 shrink-0 font-sans uppercase tracking-wider">
                     {log.actor}
