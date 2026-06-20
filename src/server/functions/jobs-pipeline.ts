@@ -238,14 +238,28 @@ export const getRecommendedJobs = createServerFn({ method: "GET" })
     const now = new Date().toISOString();
 
     for (const job of matchedJobs) {
-      // Check if user already has a normalized_jobs row for this canonical job
+      // 1. Fetch sourceUrl from jobSources first
+      const [sourceRow] = await db
+        .select({ sourceUrl: jobSources.sourceUrl, ats: jobSources.ats })
+        .from(jobSources)
+        .where(eq(jobSources.canonicalId, job.id))
+        .limit(1);
+
+      const sourceUrl = sourceRow?.sourceUrl || `https://caliber.internal/jobs/canonical/${job.id}`;
+      const sourceOrigin = sourceRow?.ats || 'unknown';
+      const canonicalUrl = canonicalizeJobUrl(sourceUrl);
+
+      // 2. Check if user already has a normalized_jobs row for this canonical job or URL
       let [existing] = await db
         .select()
         .from(normalizedJobs)
         .where(
           and(
             eq(normalizedJobs.userId, sessionUser.id),
-            eq(normalizedJobs.canonicalJobId, job.id)
+            or(
+              eq(normalizedJobs.canonicalJobId, job.id),
+              eq(normalizedJobs.canonicalSourceUrl, canonicalUrl)
+            )
           )
         )
         .limit(1);
@@ -253,6 +267,15 @@ export const getRecommendedJobs = createServerFn({ method: "GET" })
       let item: any;
 
       if (existing) {
+        // If the existing row doesn't have the canonicalJobId linked, update it
+        if (existing.canonicalJobId !== job.id) {
+          await db
+            .update(normalizedJobs)
+            .set({ canonicalJobId: job.id })
+            .where(eq(normalizedJobs.id, existing.id));
+          existing.canonicalJobId = job.id;
+        }
+
         item = {
           ...existing,
           id: existing.id,
@@ -287,16 +310,6 @@ export const getRecommendedJobs = createServerFn({ method: "GET" })
           }
         }
 
-        // Fetch sourceUrl from jobSources
-        const [sourceRow] = await db
-          .select({ sourceUrl: jobSources.sourceUrl, ats: jobSources.ats })
-          .from(jobSources)
-          .where(eq(jobSources.canonicalId, job.id))
-          .limit(1);
-
-        const sourceUrl = sourceRow?.sourceUrl || `https://caliber.internal/jobs/canonical/${job.id}`;
-        const sourceOrigin = sourceRow?.ats || 'unknown';
-
         // Insert into normalizedJobs as recommendation (isFavorited = false)
         const [inserted] = await db
           .insert(normalizedJobs)
@@ -309,7 +322,7 @@ export const getRecommendedJobs = createServerFn({ method: "GET" })
             employerName: job.companyDisplay,
             location: job.locationDisplay || null,
             sourceUrl,
-            canonicalSourceUrl: canonicalizeJobUrl(sourceUrl),
+            canonicalSourceUrl: canonicalUrl,
             description: job.descriptionPlain || null,
             snippet: job.descriptionPlain ? job.descriptionPlain.substring(0, 300) : null,
             salary: job.compensationMin || job.compensationMax
