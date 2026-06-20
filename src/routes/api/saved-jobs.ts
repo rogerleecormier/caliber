@@ -66,8 +66,8 @@ export const Route = createFileRoute('/api/saved-jobs')({
             ats: job.source || 'quick_search',
             boardToken: 'quick_search',
             sourceJobId: job.id || crypto.randomUUID(),
-            sourceUrl: job.jobUrl || job.sourceUrl || '',
-            applyUrl: job.jobUrl || job.sourceUrl || '',
+            sourceUrl: job.jobUrl || job.sourceUrl || `https://caliber.internal/jobs/canonical/${canonicalId}`,
+            applyUrl: job.jobUrl || job.sourceUrl || `https://caliber.internal/jobs/canonical/${canonicalId}`,
             rawHash: normalized.rawHash,
           });
 
@@ -104,7 +104,7 @@ export const Route = createFileRoute('/api/saved-jobs')({
           }
 
           // 5. Upsert to normalized_jobs with isFavorited = true
-          const canonicalUrl = canonicalizeJobUrl(job.jobUrl || job.sourceUrl || '');
+          const canonicalUrl = canonicalizeJobUrl(job.jobUrl || job.sourceUrl || `https://caliber.internal/jobs/canonical/${canonicalId}`);
           const now = new Date().toISOString();
 
           const [existing] = await db

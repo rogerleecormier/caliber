@@ -294,7 +294,7 @@ export const getRecommendedJobs = createServerFn({ method: "GET" })
           .where(eq(jobSources.canonicalId, job.id))
           .limit(1);
 
-        const sourceUrl = sourceRow?.sourceUrl || '';
+        const sourceUrl = sourceRow?.sourceUrl || `https://caliber.internal/jobs/canonical/${job.id}`;
         const sourceOrigin = sourceRow?.ats || 'unknown';
 
         // Insert into normalizedJobs as recommendation (isFavorited = false)

@@ -182,7 +182,8 @@ export async function runAgentPoller(env: CloudflareEnv): Promise<void> {
         }
 
         // 3. Upsert normalized_jobs with favorited flag and canonical ID reference
-        const canonicalUrl = canonicalizeJobUrl(job.sourceUrl);
+        const rawSourceUrl = job.sourceUrl || `https://caliber.internal/jobs/canonical/${canonicalId}`;
+        const canonicalUrl = canonicalizeJobUrl(rawSourceUrl);
         const [existing] = await db
           .select()
           .from(normalizedJobs)
@@ -223,7 +224,7 @@ export async function runAgentPoller(env: CloudflareEnv): Promise<void> {
             jobTitle: job.title,
             employerName: job.company,
             location: job.location || null,
-            sourceUrl: job.sourceUrl,
+            sourceUrl: rawSourceUrl,
             canonicalSourceUrl: canonicalUrl,
             description: job.description || null,
             snippet: job.snippet || null,
