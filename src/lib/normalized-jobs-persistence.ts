@@ -38,6 +38,7 @@ export type { PipelineStatus, PipelineCounts, PipelineStatusKey };
 export type NormalizedJobRow = NormalizedJob & {
   ownerEmail?: string | null;
   documents?: Array<{ id: number; docType: string; r2Key: string; fileName: string }>;
+  status?: PipelineStatus;
 };
 
 export type SearchConfigurationRow = {
@@ -526,6 +527,7 @@ export async function listNormalizedJobs(args: {
       return {
         ...row,
         currentStage: normalizePipelineStatus(row.currentStage),
+        status: normalizePipelineStatus(row.currentStage),
         documents: docs.map((d) => ({
           id: d.id,
           docType: d.docType,

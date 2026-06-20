@@ -84,12 +84,12 @@ async function processAtsJobMessage(
     await db
       .update(schema.normalizedJobs)
       .set({
-        jobTitle: payload.title,
-        employerName: company,
-        description: payload.description,
-        descriptionPruned,
-        categoryId,
-        postDateText: payload.postDate,
+        jobTitle: payload.title && payload.title.trim() !== '' ? payload.title : existing[0].jobTitle,
+        employerName: company || existing[0].employerName,
+        description: payload.description || existing[0].description,
+        descriptionPruned: descriptionPruned || existing[0].descriptionPruned,
+        categoryId: categoryId || existing[0].categoryId,
+        postDateText: payload.postDate || existing[0].postDateText,
         lastSeenAt: now,
         updatedAt: now,
       })

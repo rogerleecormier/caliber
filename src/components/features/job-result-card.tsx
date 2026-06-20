@@ -30,6 +30,7 @@ export type JobResultCardJob = {
   salary?: string | null;
   snippet?: string | null;
   description?: string | null;
+  descriptionPruned?: string | null;
   postDateText?: string | null;
   firstSeenAt?: string | null;
   createdAt?: string | null;
@@ -37,6 +38,7 @@ export type JobResultCardJob = {
   ownerEmail?: string | null;
   status?: JobStatus | null;
   sourceName?: string | null;
+  sourceOrigin?: string | null;
   score?: {
     atsScore: number;
     careerScore: number;
@@ -116,10 +118,12 @@ export function JobResultCard({
   const score = getScore(job);
   const hasUrl = !!(job.sourceUrl && job.sourceUrl !== "text-input");
   const [downloadingKey, setDownloadingKey] = useState<string | null>(null);
-  const cleanedSnippet = useMemo(
-    () => (job.snippet ? cleanJobDescription(job.snippet) : ''),
-    [job.snippet]
-  );
+  const cleanedSnippet = useMemo(() => {
+    const text = job.snippet || job.descriptionPruned || job.description;
+    if (!text) return '';
+    const clean = cleanJobDescription(text);
+    return clean.length > 300 ? clean.substring(0, 300) + '...' : clean;
+  }, [job.snippet, job.descriptionPruned, job.description]);
 
   const mostRecentDocuments = (() => {
     if (!job.documents || job.documents.length === 0) return [];
@@ -188,14 +192,14 @@ export function JobResultCard({
         <div className="space-y-4">
           <div className="space-y-3">
           <div className="flex flex-wrap items-center gap-2">
-            {job.sourceName && (
+            {(job.sourceName || job.sourceOrigin) && (
               <Badge className={`border-0 px-2 py-0 text-[10px] text-white ${
-                job.sourceName.toLowerCase() === 'linkedin' ? 'bg-sky-600' :
-                job.sourceName.toLowerCase() === 'greenhouse' ? 'bg-emerald-600' :
-                job.sourceName.toLowerCase() === 'lever' ? 'bg-indigo-600' :
-                job.sourceName.toLowerCase() === 'workable' ? 'bg-violet-600' : 'bg-slate-600'
+                (job.sourceName || job.sourceOrigin)!.toLowerCase() === 'linkedin' ? 'bg-sky-600' :
+                (job.sourceName || job.sourceOrigin)!.toLowerCase() === 'greenhouse' ? 'bg-emerald-600' :
+                (job.sourceName || job.sourceOrigin)!.toLowerCase() === 'lever' ? 'bg-indigo-600' :
+                (job.sourceName || job.sourceOrigin)!.toLowerCase() === 'workable' ? 'bg-violet-600' : 'bg-slate-600'
               }`}>
-                {job.sourceName}
+                {job.sourceName || (job.sourceOrigin ? job.sourceOrigin.charAt(0).toUpperCase() + job.sourceOrigin.slice(1) : '')}
               </Badge>
             )}
             {job.resultSource === "history" ? (
@@ -214,12 +218,17 @@ export function JobResultCard({
               </Badge>
             ) : null}
           </div>
-          {job.postDateText || job.firstSeenAt || job.ownerEmail ? (
+          {(job.postDateText && job.postDateText !== "Invalid Date") || job.firstSeenAt || job.ownerEmail ? (
             <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500">
-              {job.postDateText ? (
+              {job.postDateText && job.postDateText !== "Invalid Date" ? (
                 <div className="flex items-center gap-1">
                   <span className="text-[10px] font-medium text-slate-400">Posted:</span>
-                  <Caption className="text-xs text-slate-600">{job.postDateText}</Caption>
+                  <Caption className="text-xs text-slate-600">
+                    {(() => {
+                      const d = new Date(job.postDateText);
+                      return !isNaN(d.getTime()) ? d.toLocaleDateString() : job.postDateText;
+                    })()}
+                  </Caption>
                 </div>
               ) : null}
               {job.firstSeenAt ? (

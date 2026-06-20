@@ -64,7 +64,7 @@ export const executeAdHocSearch = createServerFn({ method: "POST" })
           location: job.location,
           sourceUrl: job.jobUrl,
           sourceName: job.source,
-          postDateText: job.postedDate ? new Date(job.postedDate).toLocaleDateString() : null,
+          postDateText: job.postedDate && !isNaN(new Date(job.postedDate).getTime()) ? new Date(job.postedDate).toLocaleDateString() : null,
           firstSeenAt: null,
           createdAt: null,
           workplaceType: job.remote ? 'remote' : null,

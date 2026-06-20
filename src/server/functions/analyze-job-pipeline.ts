@@ -499,9 +499,72 @@ export const ANALYSIS_CONTEXT_TOKEN_BUDGET = Math.min(48_000, WORKERS_AI_CONTEXT
 export const ANALYSIS_MIN_SECTION_TOKENS = 4_000;
 
 export function buildAnalysisPrompt(jdSnippet: string, resumeSnippet: string): { system: string; user: string } {
+  const currentDate = new Date().toISOString().split('T')[0];
   return {
     system: `You are a JSON-only API. You are an Executive Resume Strategist, ATS Optimizer, and Job Market Analyst. Respond with ONLY a valid JSON object, nothing else. No markdown, no prose, no code fences. Start your response with { and end with }.`,
-    user: `Perform a comprehensive analysis of this job posting against the candidate's resume.\n\nJOB POSTING:\n${jdSnippet}\n\nCANDIDATE RESUME:\n${resumeSnippet}\n\nReturn a JSON object with these exact keys:\n{\n  "jobTitle": "string",\n  "company": "string",\n  "industry": "string",\n  "location": "string",\n  "matchScore": integer 1-100,\n  "gapAnalysis": {\n    "matched": [{"requirement": "string", "requirementType": "required|preferred", "explanation": "string"}],\n    "partial": [{"requirement": "string", "requirementType": "required|preferred", "explanation": "string"}],\n    "gap": [{"requirement": "string", "requirementType": "required|preferred", "explanation": "string"}]\n  },\n  "recommendations": ["string"],\n  "pursue": boolean,\n  "pursueJustification": "string",\n  "keywords": ["string"],\n  "strategyNote": "string",\n  "personalInterest": "string",\n  "careerAnalysis": {"trajectory": "string", "recommendation": "pursue|consider|pass", "reasoning": "string", "salaryAssessment": {"listed": "string|null", "projectedRange": "string", "assessment": "string"}},\n  "insights": {\n    "workLifeBalance": "excellent|good|moderate|demanding|unknown",\n    "remoteFlexibility": "fully_remote|hybrid|office|unknown",\n    "seniorityLevel": "entry|mid|senior|lead|executive|unknown",\n    "cultureSignals": [{"signal": "string", "interpretation": "string", "sentiment": "positive|neutral|warning"}],\n    "redFlags": [{"flag": "string", "reason": "string"}]\n  }\n}\n\nGAP ANALYSIS STRUCTURE:\nYou MUST organize requirements into three explicit arrays: matched, partial, and gap.\n- matched: Requirements where the candidate fulfills the criteria completely.\n- partial: Requirements where the candidate fulfills the criteria partially (include explanation of the gap).\n- gap: Requirements entirely missing from the candidate's profile.\n\nGAP ANALYSIS COVERAGE RULES:\n- Extract a BROAD requirement set from the ENTIRE JD, not just the top 3 themes.\n- Read every section and every paragraph, including narrative copy, logistics, client expectations, travel notes, ways-of-working language, delivery descriptions, and company/context paragraphs when they imply candidate expectations.\n- Capture requirements that are hidden in plain sight, even when they are not in a bullet list or not under headings like \"Requirements\" or \"What You'll Bring\".\n- When the JD contains multiple requirement bullets or multiple implied expectations, reflect that breadth in gapAnalysis.\n- Target 8-12 distinct requirements across all three arrays when the JD contains enough requirements.\n- Use explicit qualification bullets, delivery expectations, and implied fit constraints from across the full posting.\n- Include logistical constraints if they are material to fit, such as hybrid/on-site expectations, travel expectations, location/commutable-distance expectations, or required client presence.\n- Do NOT collapse unrelated requirements into one combined row. Keep separate items for distinct concepts like consulting leadership, PMO transformation, healthcare domain, entertainment/hospitality domain, SDLC ownership, cloud platforms, AI-enabled delivery tools, stakeholder management, agile delivery, communication/influence, travel, hybrid work, and client-facing presence.\n- Keep each requirement short, atomic, and specific.\n- Mark each item as required or preferred based on the JD language and context.\n\nMATCH SCORE: 90-100=near-perfect, 75-89=strong, 60-74=moderate, 40-59=weak, 1-39=unqualified. If 3+ required requirements are missing, score cannot exceed 70. If 5+ required requirements are missing, score cannot exceed 50. Preferred requirements should influence score less than required ones.\n\nSTRICT EVIDENCE: Do not infer certifications or named tool experience not explicitly in the resume. For education, if the JD asks for a related/similar degree, treat adjacent degrees as partial rather than missing unless the exact degree is strictly required. For industry/domain background, if the JD asks for similar/related industry experience, treat adjacent domain experience as partial rather than missing.\n\nTRANSFERABLE SKILLS: For non-cert/non-tech items, adjacent evidence = partial (not missing).\n\nINSIGHTS: Limit cultureSignals to 3 max, redFlags to 3 max. Base workLifeBalance and remoteFlexibility on signals in the job description. Set seniorityLevel from title and requirements.`,
+    user: `Today's Date: ${currentDate}
+
+Perform a comprehensive analysis of this job posting against the candidate's resume.
+
+JOB POSTING:
+${jdSnippet}
+
+CANDIDATE RESUME:
+${resumeSnippet}
+
+Return a JSON object with these exact keys:
+{
+  "jobTitle": "string",
+  "company": "string",
+  "industry": "string",
+  "location": "string",
+  "matchScore": integer 1-100,
+  "gapAnalysis": {
+    "matched": [{"requirement": "string", "requirementType": "required|preferred", "explanation": "string"}],
+    "partial": [{"requirement": "string", "requirementType": "required|preferred", "explanation": "string"}],
+    "gap": [{"requirement": "string", "requirementType": "required|preferred", "explanation": "string"}]
+  },
+  "recommendations": ["string"],
+  "pursue": boolean,
+  "pursueJustification": "string",
+  "keywords": ["string"],
+  "strategyNote": "string",
+  "personalInterest": "string",
+  "careerAnalysis": {"trajectory": "string", "recommendation": "pursue|consider|pass", "reasoning": "string", "salaryAssessment": {"listed": "string|null", "projectedRange": "string", "assessment": "string"}},
+  "insights": {
+    "workLifeBalance": "excellent|good|moderate|demanding|unknown",
+    "remoteFlexibility": "fully_remote|hybrid|office|unknown",
+    "seniorityLevel": "entry|mid|senior|lead|executive|unknown",
+    "cultureSignals": [{"signal": "string", "interpretation": "string", "sentiment": "positive|neutral|warning"}],
+    "redFlags": [{"flag": "string", "reason": "string"}]
+  }
+}
+
+GAP ANALYSIS STRUCTURE:
+You MUST organize requirements into three explicit arrays: matched, partial, and gap.
+- matched: Requirements where the candidate fulfills the criteria completely.
+- partial: Requirements where the candidate fulfills the criteria partially (include explanation of the gap).
+- gap: Requirements entirely missing from the candidate's profile.
+
+GAP ANALYSIS COVERAGE RULES:
+- Extract a BROAD requirement set from the ENTIRE JD, not just the top 3 themes.
+- Read every section and every paragraph, including narrative copy, logistics, client expectations, travel notes, ways-of-working language, delivery descriptions, and company/context paragraphs when they imply candidate expectations.
+- Capture requirements that are hidden in plain sight, even when they are not in a bullet list or not under headings like "Requirements" or "What You'll Bring".
+- When the JD contains multiple requirement bullets or multiple implied expectations, reflect that breadth in gapAnalysis.
+- Target 8-12 distinct requirements across all three arrays when the JD contains enough requirements.
+- Use explicit qualification bullets, delivery expectations, and implied fit constraints from across the full posting.
+- Include logistical constraints if they are material to fit, such as hybrid/on-site expectations, travel expectations, location/commutable-distance expectations, or required client presence.
+- Do NOT collapse unrelated requirements into one combined row. Keep separate items for distinct concepts like consulting leadership, PMO transformation, healthcare domain, entertainment/hospitality domain, SDLC ownership, cloud platforms, AI-enabled delivery tools, stakeholder management, agile delivery, communication/influence, travel, hybrid work, and client-facing presence.
+- Keep each requirement short, atomic, and specific.
+- Mark each item as required or preferred based on the JD language and context.
+
+MATCH SCORE: 90-100=near-perfect, 75-89=strong, 60-74=moderate, 40-59=weak, 1-39=unqualified. If 3+ required requirements are missing, score cannot exceed 70. If 5+ required requirements are missing, score cannot exceed 50. Preferred requirements should influence score less than required ones.
+
+STRICT EVIDENCE: Do not infer certifications or named tool experience not explicitly in the resume. For education, if the JD asks for a related/similar degree, treat adjacent degrees as partial rather than missing unless the exact degree is strictly required. For industry/domain background, if the JD asks for similar/related industry experience, treat adjacent domain experience as partial rather than missing.
+
+TRANSFERABLE SKILLS: For non-cert/non-tech items, adjacent evidence = partial (not missing).
+
+INSIGHTS: Limit cultureSignals to 3 max, redFlags to 3 max. Base workLifeBalance and remoteFlexibility on signals in the job description. Set seniorityLevel from title and requirements.`,
   };
 }
 

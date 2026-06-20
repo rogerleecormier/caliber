@@ -122,7 +122,14 @@ export function JobTableView({
                 </td>
                 <td className="px-4 py-3">
                   <div className="font-semibold text-slate-900">{job.title}</div>
-                  <div className="text-xs text-slate-500">{job.postDateText}</div>
+                  <div className="text-xs text-slate-500">
+                    {job.postDateText && job.postDateText !== "Invalid Date"
+                      ? (() => {
+                          const d = new Date(job.postDateText);
+                          return !isNaN(d.getTime()) ? d.toLocaleDateString() : job.postDateText;
+                        })()
+                      : ""}
+                  </div>
                 </td>
                 <td className="px-4 py-3">
                   <div className="font-medium text-slate-700">{job.company}</div>

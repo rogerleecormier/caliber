@@ -90,7 +90,7 @@ export async function searchAdzunaJobs(
         location: item.location?.display_name || 'US',
         sourceUrl: item.redirect_url,
         sourceName: 'Adzuna',
-        postDateText: item.created ? new Date(item.created).toLocaleDateString() : null,
+        postDateText: item.created && !isNaN(new Date(item.created).getTime()) ? new Date(item.created).toLocaleDateString() : null,
         firstSeenAt: new Date().toISOString(),
         createdAt: new Date().toISOString(),
         workplaceType: workplace,
