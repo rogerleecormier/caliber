@@ -4,6 +4,7 @@
 import { aggregateAnalytics } from './src/server/cron/aggregate-analytics'
 import { runAgentPoller } from './src/server/cron/agent-poller'
 import { runGreenhouseSyncCron } from './src/server/cron/greenhouse-sync'
+import { runBoardCrawlerCron } from './src/server/cron/board-crawler'
 import { processJobIngestionBatch } from './src/server/queue/job-ingestion-consumer'
 import { processScrapeRequestBatch } from './src/server/queue/scrape-request-consumer'
 import type { CloudflareEnv } from './src/lib/cloudflare'
@@ -26,21 +27,32 @@ export default {
     const db = getDb(env.DB)
     await runAgentPoller(env)
     await runGreenhouseSyncCron(db)
+    try {
+      await runBoardCrawlerCron(env)
+    } catch (e) {
+      console.error('Failed to run board crawler cron:', e)
+    }
     if (new Date().getUTCHours() % 6 === 0) {
       await aggregateAnalytics(env)
     }
   },
 
   async queue(
-    batch: MessageBatch<JobIngestionMessage | ScrapeRequestQueueMessage>,
+    batch: MessageBatch<any>,
     env: CloudflareEnv,
     _ctx: ExecutionContext,
   ) {
     if (!env.DB) throw new Error('Database unavailable')
-    const db = getDb(env.DB)
-
-    // Route to appropriate consumer based on message type
+    
+    // Route to appropriate consumer based on queue name or message type
     if (batch.messages.length > 0) {
+      if ((batch as any).queue === 'crawl-jobs') {
+        const { processCrawlJobsQueue } = await import('./src/server/rate-limit/queue-handler')
+        await processCrawlJobsQueue(batch, env)
+        return
+      }
+      
+      const db = getDb(env.DB)
       const firstMessage = batch.messages[0]?.body as any
       if (firstMessage?.type === 'scrape_job_content') {
         // Scrape request queue
@@ -59,3 +71,6 @@ export default {
     }
   },
 }
+
+export { RateLimiter } from './src/server/rate-limit/durable-object'
+

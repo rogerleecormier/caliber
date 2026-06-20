@@ -14,6 +14,8 @@ export interface CloudflareEnv {
   AI: Ai;
   BROWSER: Fetcher;
   JOB_INGESTION_QUEUE?: Queue<JobIngestionMessage>;
+  CRAWL_JOBS_QUEUE?: Queue<any>;
+  RATE_LIMITER?: DurableObjectNamespace;
   ADMIN_PROMOTION_TOKEN?: string;
   BETTER_AUTH_SECRET?: string;
   BETTER_AUTH_URL?: string;

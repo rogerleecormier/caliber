@@ -1,4 +1,4 @@
-import { sqliteTable, text, integer, real } from 'drizzle-orm/sqlite-core'
+import { sqliteTable, text, integer, real, index, uniqueIndex } from 'drizzle-orm/sqlite-core'
 import { sql } from 'drizzle-orm'
 
 export const categories = sqliteTable('categories', {
@@ -415,3 +415,101 @@ export type NormalizedJob = typeof normalizedJobs.$inferSelect
 export type NewNormalizedJob = typeof normalizedJobs.$inferInsert
 export type GreenhouseOrg = typeof greenhouseOrgs.$inferSelect
 export type NewGreenhouseOrg = typeof greenhouseOrgs.$inferInsert
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Crawler Job Agent tables
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const canonicalJobs = sqliteTable('canonical_jobs', {
+  id: text('id').primaryKey(),
+  companyDisplay: text('company_display').notNull(),
+  companyNorm: text('company_norm').notNull(),
+  titleDisplay: text('title_display').notNull(),
+  titleNorm: text('title_norm').notNull(),
+  locationDisplay: text('location_display'),
+  locationNorm: text('location_norm'),
+  remote: integer('remote', { mode: 'boolean' }).default(false),
+  employmentType: text('employment_type'),
+  experienceLevel: text('experience_level'),
+  department: text('department'),
+  team: text('team'),
+  descriptionPlain: text('description_plain'),
+  descriptionHtml: text('description_html'),
+  compensationMin: real('compensation_min'),
+  compensationMax: real('compensation_max'),
+  compensationCurrency: text('compensation_currency'),
+  isListed: integer('is_listed', { mode: 'boolean' }).default(true),
+  dedupKey: text('dedup_key').unique().notNull(),
+  vectorId: text('vector_id'),
+  firstSeenAt: text('first_seen_at').notNull(),
+  lastSeenAt: text('last_seen_at').notNull(),
+  expiresAt: text('expires_at'),
+  createdAt: text('created_at').notNull(),
+  updatedAt: text('updated_at').notNull(),
+}, (table) => ({
+  idxCanonicalDedupKey: index('idx_canonical_dedup_key').on(table.dedupKey),
+  idxCanonicalCompanyTitle: index('idx_canonical_company_title').on(table.companyNorm, table.titleNorm),
+  idxCanonicalLocation: index('idx_canonical_location').on(table.locationNorm),
+  idxCanonicalExpires: index('idx_canonical_expires').on(table.expiresAt),
+}))
+
+export const jobSources = sqliteTable('job_sources', {
+  id: text('id').primaryKey(),
+  canonicalId: text('canonical_id').notNull().references(() => canonicalJobs.id, { onDelete: 'cascade' }),
+  ats: text('ats').notNull(),
+  boardToken: text('board_token').notNull(),
+  sourceJobId: text('source_job_id').notNull(),
+  sourceUrl: text('source_url').notNull(),
+  applyUrl: text('apply_url').notNull(),
+  rawHash: text('raw_hash').notNull(),
+  firstSeenAt: text('first_seen_at').notNull(),
+  lastSeenAt: text('last_seen_at').notNull(),
+  createdAt: text('created_at').notNull(),
+  updatedAt: text('updated_at').notNull(),
+}, (table) => ({
+  uniqueAtsBoardSourceJob: uniqueIndex('unique_ats_board_source_job').on(table.ats, table.boardToken, table.sourceJobId),
+  idxSourcesCanonical: index('idx_sources_canonical').on(table.canonicalId),
+  idxSourcesAtsBoard: index('idx_sources_ats_board').on(table.ats, table.boardToken),
+  idxSourcesLastSeen: index('idx_sources_last_seen').on(table.lastSeenAt),
+}))
+
+export const boards = sqliteTable('boards', {
+  id: text('id').primaryKey(),
+  ats: text('ats').notNull(),
+  token: text('token').notNull(),
+  companyName: text('company_name'),
+  crawlFrequencyTier: text('crawl_frequency_tier').default('tier2'), // 'tier1' | 'tier2' | 'tier3'
+  isActive: integer('is_active', { mode: 'boolean' }).default(true),
+  lastCrawledAt: text('last_crawled_at'),
+  crawlErrorCount: integer('crawl_error_count').default(0),
+  crawlErrorLastAt: text('crawl_error_last_at'),
+  discoveredAt: text('discovered_at').notNull(),
+  createdAt: text('created_at').notNull(),
+}, (table) => ({
+  uniqueAtsToken: uniqueIndex('unique_ats_token').on(table.ats, table.token),
+  idxBoardsActive: index('idx_boards_active').on(table.isActive, table.crawlFrequencyTier),
+}))
+
+export const auditLog = sqliteTable('audit_log', {
+  id: text('id').primaryKey(),
+  eventType: text('event_type').notNull(), // crawl_start | dedup_merge | vector_insert | error
+  ats: text('ats'),
+  boardToken: text('board_token'),
+  canonicalId: text('canonical_id'),
+  sourceId: text('source_id'),
+  details: text('details'), // JSON stringified
+  actor: text('actor').default('system'),
+  createdAt: text('created_at').notNull(),
+}, (table) => ({
+  idxAuditCreated: index('idx_audit_created').on(table.createdAt),
+}))
+
+export type CanonicalJob = typeof canonicalJobs.$inferSelect
+export type NewCanonicalJob = typeof canonicalJobs.$inferInsert
+export type JobSource = typeof jobSources.$inferSelect
+export type NewJobSource = typeof jobSources.$inferInsert
+export type Board = typeof boards.$inferSelect
+export type NewBoard = typeof boards.$inferInsert
+export type AuditLog = typeof auditLog.$inferSelect
+export type NewAuditLog = typeof auditLog.$inferInsert
+

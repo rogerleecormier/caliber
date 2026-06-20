@@ -18,16 +18,23 @@ import { Route as LinkedinSearchRouteImport } from './routes/linkedin-search'
 import { Route as LinkedinJobsRouteImport } from './routes/linkedin-jobs'
 import { Route as JobsRouteImport } from './routes/jobs'
 import { Route as DashboardRouteImport } from './routes/dashboard'
+import { Route as CrawlerDashboardRouteImport } from './routes/crawler-dashboard'
 import { Route as AdminSetupRouteImport } from './routes/admin-setup'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ApiTestRouteImport } from './routes/api/test'
+import { Route as ApiMetricsRouteImport } from './routes/api/metrics'
 import { Route as ApiV3StatsRouteImport } from './routes/api/v3/stats'
 import { Route as ApiV3LogsRouteImport } from './routes/api/v3/logs'
 import { Route as ApiV3JobsRouteImport } from './routes/api/v3/jobs'
 import { Route as ApiV3JobContentRouteImport } from './routes/api/v3/job-content'
 import { Route as ApiV3CategoriesRouteImport } from './routes/api/v3/categories'
 import { Route as ApiJobsSearchRouteImport } from './routes/api/jobs/search'
+import { Route as ApiJobsCrawlerSearchRouteImport } from './routes/api/jobs/crawler-search'
+import { Route as ApiCrawlToggleBoardRouteImport } from './routes/api/crawl/toggle-board'
+import { Route as ApiCrawlSaveBoardRouteImport } from './routes/api/crawl/save-board'
+import { Route as ApiCrawlCronRouteImport } from './routes/api/crawl/cron'
+import { Route as ApiCrawlAtsRouteImport } from './routes/api/crawl/$ats'
 import { Route as ApiAuthSignOutRouteImport } from './routes/api/auth/sign-out'
 import { Route as ApiAuthGetSessionRouteImport } from './routes/api/auth/get-session'
 import { Route as ApiAiUnicornRouteImport } from './routes/api/ai/unicorn'
@@ -87,6 +94,11 @@ const DashboardRoute = DashboardRouteImport.update({
   path: '/dashboard',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CrawlerDashboardRoute = CrawlerDashboardRouteImport.update({
+  id: '/crawler-dashboard',
+  path: '/crawler-dashboard',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AdminSetupRoute = AdminSetupRouteImport.update({
   id: '/admin-setup',
   path: '/admin-setup',
@@ -105,6 +117,11 @@ const IndexRoute = IndexRouteImport.update({
 const ApiTestRoute = ApiTestRouteImport.update({
   id: '/api/test',
   path: '/api/test',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiMetricsRoute = ApiMetricsRouteImport.update({
+  id: '/api/metrics',
+  path: '/api/metrics',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiV3StatsRoute = ApiV3StatsRouteImport.update({
@@ -135,6 +152,31 @@ const ApiV3CategoriesRoute = ApiV3CategoriesRouteImport.update({
 const ApiJobsSearchRoute = ApiJobsSearchRouteImport.update({
   id: '/api/jobs/search',
   path: '/api/jobs/search',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiJobsCrawlerSearchRoute = ApiJobsCrawlerSearchRouteImport.update({
+  id: '/api/jobs/crawler-search',
+  path: '/api/jobs/crawler-search',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiCrawlToggleBoardRoute = ApiCrawlToggleBoardRouteImport.update({
+  id: '/api/crawl/toggle-board',
+  path: '/api/crawl/toggle-board',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiCrawlSaveBoardRoute = ApiCrawlSaveBoardRouteImport.update({
+  id: '/api/crawl/save-board',
+  path: '/api/crawl/save-board',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiCrawlCronRoute = ApiCrawlCronRouteImport.update({
+  id: '/api/crawl/cron',
+  path: '/api/crawl/cron',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiCrawlAtsRoute = ApiCrawlAtsRouteImport.update({
+  id: '/api/crawl/$ats',
+  path: '/api/crawl/$ats',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiAuthSignOutRoute = ApiAuthSignOutRouteImport.update({
@@ -208,6 +250,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
   '/admin-setup': typeof AdminSetupRoute
+  '/crawler-dashboard': typeof CrawlerDashboardRoute
   '/dashboard': typeof DashboardRoute
   '/jobs': typeof JobsRoute
   '/linkedin-jobs': typeof LinkedinJobsRoute
@@ -217,6 +260,7 @@ export interface FileRoutesByFullPath {
   '/profile': typeof ProfileRoute
   '/signup': typeof SignupRoute
   '/sync': typeof SyncRoute
+  '/api/metrics': typeof ApiMetricsRoute
   '/api/test': typeof ApiTestRoute
   '/api/admin/cleanup-non-us-jobs': typeof ApiAdminCleanupNonUsJobsRoute
   '/api/ai/generate-resume': typeof ApiAiGenerateResumeRoute
@@ -228,6 +272,11 @@ export interface FileRoutesByFullPath {
   '/api/ai/unicorn': typeof ApiAiUnicornRoute
   '/api/auth/get-session': typeof ApiAuthGetSessionRoute
   '/api/auth/sign-out': typeof ApiAuthSignOutRoute
+  '/api/crawl/$ats': typeof ApiCrawlAtsRoute
+  '/api/crawl/cron': typeof ApiCrawlCronRoute
+  '/api/crawl/save-board': typeof ApiCrawlSaveBoardRoute
+  '/api/crawl/toggle-board': typeof ApiCrawlToggleBoardRoute
+  '/api/jobs/crawler-search': typeof ApiJobsCrawlerSearchRoute
   '/api/jobs/search': typeof ApiJobsSearchRoute
   '/api/v3/categories': typeof ApiV3CategoriesRoute
   '/api/v3/job-content': typeof ApiV3JobContentRoute
@@ -242,6 +291,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
   '/admin-setup': typeof AdminSetupRoute
+  '/crawler-dashboard': typeof CrawlerDashboardRoute
   '/dashboard': typeof DashboardRoute
   '/jobs': typeof JobsRoute
   '/linkedin-jobs': typeof LinkedinJobsRoute
@@ -251,6 +301,7 @@ export interface FileRoutesByTo {
   '/profile': typeof ProfileRoute
   '/signup': typeof SignupRoute
   '/sync': typeof SyncRoute
+  '/api/metrics': typeof ApiMetricsRoute
   '/api/test': typeof ApiTestRoute
   '/api/admin/cleanup-non-us-jobs': typeof ApiAdminCleanupNonUsJobsRoute
   '/api/ai/generate-resume': typeof ApiAiGenerateResumeRoute
@@ -262,6 +313,11 @@ export interface FileRoutesByTo {
   '/api/ai/unicorn': typeof ApiAiUnicornRoute
   '/api/auth/get-session': typeof ApiAuthGetSessionRoute
   '/api/auth/sign-out': typeof ApiAuthSignOutRoute
+  '/api/crawl/$ats': typeof ApiCrawlAtsRoute
+  '/api/crawl/cron': typeof ApiCrawlCronRoute
+  '/api/crawl/save-board': typeof ApiCrawlSaveBoardRoute
+  '/api/crawl/toggle-board': typeof ApiCrawlToggleBoardRoute
+  '/api/jobs/crawler-search': typeof ApiJobsCrawlerSearchRoute
   '/api/jobs/search': typeof ApiJobsSearchRoute
   '/api/v3/categories': typeof ApiV3CategoriesRoute
   '/api/v3/job-content': typeof ApiV3JobContentRoute
@@ -277,6 +333,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
   '/admin-setup': typeof AdminSetupRoute
+  '/crawler-dashboard': typeof CrawlerDashboardRoute
   '/dashboard': typeof DashboardRoute
   '/jobs': typeof JobsRoute
   '/linkedin-jobs': typeof LinkedinJobsRoute
@@ -286,6 +343,7 @@ export interface FileRoutesById {
   '/profile': typeof ProfileRoute
   '/signup': typeof SignupRoute
   '/sync': typeof SyncRoute
+  '/api/metrics': typeof ApiMetricsRoute
   '/api/test': typeof ApiTestRoute
   '/api/admin/cleanup-non-us-jobs': typeof ApiAdminCleanupNonUsJobsRoute
   '/api/ai/generate-resume': typeof ApiAiGenerateResumeRoute
@@ -297,6 +355,11 @@ export interface FileRoutesById {
   '/api/ai/unicorn': typeof ApiAiUnicornRoute
   '/api/auth/get-session': typeof ApiAuthGetSessionRoute
   '/api/auth/sign-out': typeof ApiAuthSignOutRoute
+  '/api/crawl/$ats': typeof ApiCrawlAtsRoute
+  '/api/crawl/cron': typeof ApiCrawlCronRoute
+  '/api/crawl/save-board': typeof ApiCrawlSaveBoardRoute
+  '/api/crawl/toggle-board': typeof ApiCrawlToggleBoardRoute
+  '/api/jobs/crawler-search': typeof ApiJobsCrawlerSearchRoute
   '/api/jobs/search': typeof ApiJobsSearchRoute
   '/api/v3/categories': typeof ApiV3CategoriesRoute
   '/api/v3/job-content': typeof ApiV3JobContentRoute
@@ -313,6 +376,7 @@ export interface FileRouteTypes {
     | '/'
     | '/admin'
     | '/admin-setup'
+    | '/crawler-dashboard'
     | '/dashboard'
     | '/jobs'
     | '/linkedin-jobs'
@@ -322,6 +386,7 @@ export interface FileRouteTypes {
     | '/profile'
     | '/signup'
     | '/sync'
+    | '/api/metrics'
     | '/api/test'
     | '/api/admin/cleanup-non-us-jobs'
     | '/api/ai/generate-resume'
@@ -333,6 +398,11 @@ export interface FileRouteTypes {
     | '/api/ai/unicorn'
     | '/api/auth/get-session'
     | '/api/auth/sign-out'
+    | '/api/crawl/$ats'
+    | '/api/crawl/cron'
+    | '/api/crawl/save-board'
+    | '/api/crawl/toggle-board'
+    | '/api/jobs/crawler-search'
     | '/api/jobs/search'
     | '/api/v3/categories'
     | '/api/v3/job-content'
@@ -347,6 +417,7 @@ export interface FileRouteTypes {
     | '/'
     | '/admin'
     | '/admin-setup'
+    | '/crawler-dashboard'
     | '/dashboard'
     | '/jobs'
     | '/linkedin-jobs'
@@ -356,6 +427,7 @@ export interface FileRouteTypes {
     | '/profile'
     | '/signup'
     | '/sync'
+    | '/api/metrics'
     | '/api/test'
     | '/api/admin/cleanup-non-us-jobs'
     | '/api/ai/generate-resume'
@@ -367,6 +439,11 @@ export interface FileRouteTypes {
     | '/api/ai/unicorn'
     | '/api/auth/get-session'
     | '/api/auth/sign-out'
+    | '/api/crawl/$ats'
+    | '/api/crawl/cron'
+    | '/api/crawl/save-board'
+    | '/api/crawl/toggle-board'
+    | '/api/jobs/crawler-search'
     | '/api/jobs/search'
     | '/api/v3/categories'
     | '/api/v3/job-content'
@@ -381,6 +458,7 @@ export interface FileRouteTypes {
     | '/'
     | '/admin'
     | '/admin-setup'
+    | '/crawler-dashboard'
     | '/dashboard'
     | '/jobs'
     | '/linkedin-jobs'
@@ -390,6 +468,7 @@ export interface FileRouteTypes {
     | '/profile'
     | '/signup'
     | '/sync'
+    | '/api/metrics'
     | '/api/test'
     | '/api/admin/cleanup-non-us-jobs'
     | '/api/ai/generate-resume'
@@ -401,6 +480,11 @@ export interface FileRouteTypes {
     | '/api/ai/unicorn'
     | '/api/auth/get-session'
     | '/api/auth/sign-out'
+    | '/api/crawl/$ats'
+    | '/api/crawl/cron'
+    | '/api/crawl/save-board'
+    | '/api/crawl/toggle-board'
+    | '/api/jobs/crawler-search'
     | '/api/jobs/search'
     | '/api/v3/categories'
     | '/api/v3/job-content'
@@ -416,6 +500,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AdminRoute: typeof AdminRoute
   AdminSetupRoute: typeof AdminSetupRoute
+  CrawlerDashboardRoute: typeof CrawlerDashboardRoute
   DashboardRoute: typeof DashboardRoute
   JobsRoute: typeof JobsRoute
   LinkedinJobsRoute: typeof LinkedinJobsRoute
@@ -425,6 +510,7 @@ export interface RootRouteChildren {
   ProfileRoute: typeof ProfileRoute
   SignupRoute: typeof SignupRoute
   SyncRoute: typeof SyncRoute
+  ApiMetricsRoute: typeof ApiMetricsRoute
   ApiTestRoute: typeof ApiTestRoute
   ApiAdminCleanupNonUsJobsRoute: typeof ApiAdminCleanupNonUsJobsRoute
   ApiAiGenerateResumeRoute: typeof ApiAiGenerateResumeRoute
@@ -436,6 +522,11 @@ export interface RootRouteChildren {
   ApiAiUnicornRoute: typeof ApiAiUnicornRoute
   ApiAuthGetSessionRoute: typeof ApiAuthGetSessionRoute
   ApiAuthSignOutRoute: typeof ApiAuthSignOutRoute
+  ApiCrawlAtsRoute: typeof ApiCrawlAtsRoute
+  ApiCrawlCronRoute: typeof ApiCrawlCronRoute
+  ApiCrawlSaveBoardRoute: typeof ApiCrawlSaveBoardRoute
+  ApiCrawlToggleBoardRoute: typeof ApiCrawlToggleBoardRoute
+  ApiJobsCrawlerSearchRoute: typeof ApiJobsCrawlerSearchRoute
   ApiJobsSearchRoute: typeof ApiJobsSearchRoute
   ApiV3CategoriesRoute: typeof ApiV3CategoriesRoute
   ApiV3JobContentRoute: typeof ApiV3JobContentRoute
@@ -511,6 +602,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/crawler-dashboard': {
+      id: '/crawler-dashboard'
+      path: '/crawler-dashboard'
+      fullPath: '/crawler-dashboard'
+      preLoaderRoute: typeof CrawlerDashboardRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/admin-setup': {
       id: '/admin-setup'
       path: '/admin-setup'
@@ -537,6 +635,13 @@ declare module '@tanstack/react-router' {
       path: '/api/test'
       fullPath: '/api/test'
       preLoaderRoute: typeof ApiTestRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/metrics': {
+      id: '/api/metrics'
+      path: '/api/metrics'
+      fullPath: '/api/metrics'
+      preLoaderRoute: typeof ApiMetricsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/v3/stats': {
@@ -579,6 +684,41 @@ declare module '@tanstack/react-router' {
       path: '/api/jobs/search'
       fullPath: '/api/jobs/search'
       preLoaderRoute: typeof ApiJobsSearchRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/jobs/crawler-search': {
+      id: '/api/jobs/crawler-search'
+      path: '/api/jobs/crawler-search'
+      fullPath: '/api/jobs/crawler-search'
+      preLoaderRoute: typeof ApiJobsCrawlerSearchRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/crawl/toggle-board': {
+      id: '/api/crawl/toggle-board'
+      path: '/api/crawl/toggle-board'
+      fullPath: '/api/crawl/toggle-board'
+      preLoaderRoute: typeof ApiCrawlToggleBoardRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/crawl/save-board': {
+      id: '/api/crawl/save-board'
+      path: '/api/crawl/save-board'
+      fullPath: '/api/crawl/save-board'
+      preLoaderRoute: typeof ApiCrawlSaveBoardRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/crawl/cron': {
+      id: '/api/crawl/cron'
+      path: '/api/crawl/cron'
+      fullPath: '/api/crawl/cron'
+      preLoaderRoute: typeof ApiCrawlCronRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/crawl/$ats': {
+      id: '/api/crawl/$ats'
+      path: '/api/crawl/$ats'
+      fullPath: '/api/crawl/$ats'
+      preLoaderRoute: typeof ApiCrawlAtsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/auth/sign-out': {
@@ -691,6 +831,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRoute: AdminRoute,
   AdminSetupRoute: AdminSetupRoute,
+  CrawlerDashboardRoute: CrawlerDashboardRoute,
   DashboardRoute: DashboardRoute,
   JobsRoute: JobsRoute,
   LinkedinJobsRoute: LinkedinJobsRoute,
@@ -700,6 +841,7 @@ const rootRouteChildren: RootRouteChildren = {
   ProfileRoute: ProfileRoute,
   SignupRoute: SignupRoute,
   SyncRoute: SyncRoute,
+  ApiMetricsRoute: ApiMetricsRoute,
   ApiTestRoute: ApiTestRoute,
   ApiAdminCleanupNonUsJobsRoute: ApiAdminCleanupNonUsJobsRoute,
   ApiAiGenerateResumeRoute: ApiAiGenerateResumeRoute,
@@ -711,6 +853,11 @@ const rootRouteChildren: RootRouteChildren = {
   ApiAiUnicornRoute: ApiAiUnicornRoute,
   ApiAuthGetSessionRoute: ApiAuthGetSessionRoute,
   ApiAuthSignOutRoute: ApiAuthSignOutRoute,
+  ApiCrawlAtsRoute: ApiCrawlAtsRoute,
+  ApiCrawlCronRoute: ApiCrawlCronRoute,
+  ApiCrawlSaveBoardRoute: ApiCrawlSaveBoardRoute,
+  ApiCrawlToggleBoardRoute: ApiCrawlToggleBoardRoute,
+  ApiJobsCrawlerSearchRoute: ApiJobsCrawlerSearchRoute,
   ApiJobsSearchRoute: ApiJobsSearchRoute,
   ApiV3CategoriesRoute: ApiV3CategoriesRoute,
   ApiV3JobContentRoute: ApiV3JobContentRoute,

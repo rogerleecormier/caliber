@@ -86,3 +86,24 @@ max_batch_size = 10
 max_batch_timeout = 30
 max_retries = 2
 dead_letter_queue = "scrape-request-dlq"
+
+# Crawl Jobs Queue — buffer for crawling ATS boards
+[[queues.producers]]
+binding = "CRAWL_JOBS_QUEUE"
+queue = "crawl-jobs"
+
+[[queues.consumers]]
+queue = "crawl-jobs"
+max_batch_size = 100
+max_batch_timeout = 30
+max_retries = 3
+
+# Rate Limiter Durable Object
+[[durable_objects.bindings]]
+name = "RATE_LIMITER"
+class_name = "RateLimiter"
+
+[[migrations]]
+tag = "v1"
+new_classes = ["RateLimiter"]
+
