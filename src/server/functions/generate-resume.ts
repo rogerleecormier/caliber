@@ -20,6 +20,7 @@ import {
   getDefaultSectionValue,
   enforceGuardrails,
   formatPhoneNumber,
+  looksLikePromptEcho,
 } from "@/lib/resume-section-parsing";
 import {
   SECTION_PROMPT_PROFESSIONAL_SUMMARY,
@@ -183,32 +184,7 @@ export const generateResume = createServerFn({ method: "POST" })
         return false;
       };
 
-      // Detects when a weak model echoes the prompt's own instruction text back
-      // as "content" instead of tailoring the resume (e.g. a summary that reads
-      // "Summarize the CURRENT SUMMARY to fit the TARGET JOB", or competencies
-      // like "Tailor 8 core competencies from a provided list"). Such output is
-      // valid JSON and non-empty, so it would otherwise ship straight into the
-      // PDF. When detected, we discard it and fall back to the real section.
-      const PROMPT_ECHO_MARKERS = [
-        "current summary",
-        "target job",
-        "job description",
-        "executive resume strategist",
-        "core competencies from a provided list",
-        "competencies explicitly in the candidate",
-        "keyword alignment",
-        "order by relevance",
-        "single skill/domain area",
-        "json only",
-        "no markdown",
-        "no prose",
-        "respond with only",
-        "return only this exact json",
-      ];
-      const looksLikePromptEcho = (value: any): boolean => {
-        const haystack = (typeof value === "string" ? value : JSON.stringify(value)).toLowerCase();
-        return PROMPT_ECHO_MARKERS.some((m) => haystack.includes(m));
-      };
+
 
       const tailoredSections = await Promise.all(
         sectionsToTailor.map(async (sectionType) => {

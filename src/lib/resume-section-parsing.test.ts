@@ -5,6 +5,7 @@ import {
   getDefaultSectionValue,
   enforceGuardrails,
   formatPhoneNumber,
+  looksLikePromptEcho,
 } from "./resume-section-parsing";
 
 describe("formatPhoneNumber", () => {
@@ -397,3 +398,29 @@ describe("parseSectionResponse", () => {
     expect(result[0].bullets).toHaveLength(5);
   });
 });
+
+describe("looksLikePromptEcho", () => {
+  it("returns true for exact or substring prompt instruction echos", () => {
+    // String content containing prompt instructions
+    expect(looksLikePromptEcho("Write a professional summary by SUMMARIZING THE CANDIDATE'S CURRENT SUMMARY below")).toBe(true);
+    expect(looksLikePromptEcho("Only use competencies explicitly in the candidate's resume")).toBe(true);
+    expect(looksLikePromptEcho("The 3-4 sentence summary text goes here")).toBe(true);
+    expect(looksLikePromptEcho("competency 1")).toBe(true);
+    expect(looksLikePromptEcho("category name 1")).toBe(true);
+    expect(looksLikePromptEcho("skill 1")).toBe(true);
+
+    // Array content containing placeholders or instructions
+    expect(looksLikePromptEcho(["Competency 1", "Competency 2"])).toBe(true);
+  });
+
+  it("returns false for valid resume content including job description/target job references", () => {
+    // Strings with target job / job description words that should not trigger echo detection anymore
+    expect(looksLikePromptEcho("PMP-certified Technical Project Manager seeking to apply skills to the target job.")).toBe(false);
+    expect(looksLikePromptEcho("Experienced developer aligning solutions with the job description requirements.")).toBe(false);
+    expect(looksLikePromptEcho("Proven record of keyword alignment in search indexing architecture.")).toBe(false);
+
+    // Arrays with valid skills/competencies
+    expect(looksLikePromptEcho(["Project Management", "Agile Leadership", "Solutions Architecture"])).toBe(false);
+  });
+});
+

@@ -199,6 +199,42 @@ export function enforceGuardrails(sectionType: SectionType, content: any): any {
   }
 }
 
+export const PROMPT_ECHO_MARKERS = [
+  "summarizing the candidate's current summary",
+  "selecting and emphasizing only the parts that fit the target job",
+  "do not pull facts, skills, or terminology from this job description into the summary",
+  "every claim, skill, tool, title, domain, and metric must be traceable to the current summary",
+  "the 3-4 sentence summary text goes here",
+  "exactly 8 competencies (no more, no less)",
+  "only use competencies explicitly in the candidate's resume",
+  "prioritize job description keyword alignment",
+  "order by relevance to this specific job",
+  "each competency must be a short skill/domain phrase",
+  "return only this exact json",
+  "respond with only valid json",
+  "output valid json and nothing else. no markdown, no prose",
+  "competency 1",
+  "competency 2",
+  "competency 3",
+  "competency 4",
+  "competency 5",
+  "competency 6",
+  "competency 7",
+  "competency 8",
+  "category name 1",
+  "category name 2",
+  "skill 1",
+  "skill 2",
+  "skill 3",
+  "skill 4",
+  "skill 5",
+];
+
+export function looksLikePromptEcho(value: any): boolean {
+  const haystack = (typeof value === "string" ? value : JSON.stringify(value)).toLowerCase();
+  return PROMPT_ECHO_MARKERS.some((m) => haystack.includes(m));
+}
+
 export function parseSectionResponse<T extends SectionType>(raw: string, sectionType: T): SectionContent[T] {
   try {
     console.log(`[parseSectionResponse] Parsing ${sectionType}, raw response:`, raw.substring(0, 500));
