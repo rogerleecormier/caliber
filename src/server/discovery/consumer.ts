@@ -57,19 +57,20 @@ async function discoverFromCompanyLists(env: any): Promise<DiscoveredBoard[]> {
   console.log('[Discovery:company_lists] Fetching seed company lists...');
   const [fortune500, ycList, cbList] = await Promise.all([
     fetchFortuneList(),
-    fetchYCBatch('S23'),
+    fetchYCBatch(''), // Pull all YC companies to broaden the discovery seed pool
     fetchCrunchbaseCompanies(),
   ]);
 
-  console.log(`[Discovery:company_lists] Loaded: Fortune 500 (${fortune500.length}), YC S23 (${ycList.length}), Crunchbase (${cbList.length})`);
+  console.log(`[Discovery:company_lists] Loaded: Fortune 500 (${fortune500.length}), YC (${ycList.length}), Crunchbase (${cbList.length})`);
   const merged = await mergeCompanySources([fortune500, ycList, cbList]);
   console.log(`[Discovery:company_lists] Merged into ${merged.length} unique companies`);
 
   const results: DiscoveredBoard[] = [];
 
-  // Probe career pages for a small slice to prevent timeout (limit to 15 companies per run)
-  const probeSlice = merged.slice(0, 15);
-  console.log(`[Discovery:company_lists] Probing careers pages for slice of 15 companies: ${probeSlice.map(c => c.name).join(', ')}`);
+  // Shuffle the merged companies list to probe a different random set on every pipeline execution
+  const shuffled = [...merged].sort(() => Math.random() - 0.5);
+  const probeSlice = shuffled.slice(0, 15);
+  console.log(`[Discovery:company_lists] Probing careers pages for a randomized slice of 15 companies: ${probeSlice.map(c => c.name).join(', ')}`);
 
   for (const company of probeSlice) {
     const domain = company.domain || `${company.name.toLowerCase().replace(/[^a-z0-9]/g, '')}.com`;
@@ -98,9 +99,9 @@ async function discoverFromCompanyLists(env: any): Promise<DiscoveredBoard[]> {
 
 async function discoverViaLlmInference(env: any): Promise<DiscoveredBoard[]> {
   console.log('[Discovery:llm_inference] Querying unvalidated boards from database...');
-  // Query pending potential companies or unvalidated companies
+  // Query a random selection of pending potential companies or unvalidated companies to try new inferences
   const unvalidated = await env.DB.prepare(`
-    SELECT DISTINCT company_name FROM boards WHERE validated = 0 LIMIT 10
+    SELECT DISTINCT company_name FROM boards WHERE validated = 0 ORDER BY RANDOM() LIMIT 10
   `).all<{ company_name: string }>();
 
   const targetCompanies = unvalidated.results ?? [];
