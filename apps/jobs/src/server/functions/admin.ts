@@ -5,7 +5,7 @@ import bcrypt from "bcryptjs";
 import { getCloudflareEnv } from "@/lib/cloudflare";
 import { getDb } from "@/db/db";
 import { resolveSessionUser } from "@/lib/resolve-user";
-import { users, masterResume, jobAnalyses, analyticsSummary, linkedinJobResults, linkedinSavedSearches } from "@/db/schema";
+import { users, masterResume, jobAnalyses, analyticsSummary, userJobs, searchAgents } from "@/db/schema";
 
 async function requireAdmin() {
   const user = await resolveSessionUser();
@@ -51,8 +51,8 @@ export const deleteUser = createServerFn({ method: "POST" })
     await db.delete(masterResume).where(eq(masterResume.userId, data.userId));
     await db.delete(jobAnalyses).where(eq(jobAnalyses.userId, data.userId));
     await db.delete(analyticsSummary).where(eq(analyticsSummary.userId, data.userId));
-    await db.delete(linkedinJobResults).where(eq(linkedinJobResults.userId, data.userId));
-    await db.delete(linkedinSavedSearches).where(eq(linkedinSavedSearches.userId, data.userId));
+    await db.delete(userJobs).where(eq(userJobs.userId, data.userId));
+    await db.delete(searchAgents).where(eq(searchAgents.userId, data.userId));
     await db.delete(users).where(eq(users.id, data.userId));
 
     return { success: true };

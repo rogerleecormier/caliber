@@ -17,6 +17,8 @@ import JobCard from "../components/JobCard";
 import SearchBar from "../components/SearchBar";
 import FilterDropdown from "../components/FilterDropdown";
 import SortControls from "../components/SortControls";
+import { JobResultCard, type JobStatus, type JobResultCardJob } from "../components/features/job-result-card";
+import { updateUserJobStatus, deleteUserJobs, USER_JOB_STATUSES } from "@/server/functions/user-jobs";
 import type { JobWithCategory } from "../lib/search-utils";
 import type { JobScoreResult } from "./api/ai/score-all";
 
@@ -81,6 +83,7 @@ interface UserJobRecord {
   isUnicorn: boolean | number | null;
   unicornReason: string | null;
   relationship: string;
+  status: JobStatus | null;
 }
 
 type EnrichedJob = JobWithCategory & { userJob?: UserJobRecord | null };
@@ -99,6 +102,29 @@ function userJobToScore(job: EnrichedJob): JobScoreResult | undefined {
     outlookReason: uj.outlookReason ?? "",
     isUnicorn: !!uj.isUnicorn,
     unicornReason: uj.unicornReason ?? null,
+  };
+}
+
+function jobToResultCard(job: EnrichedJob): JobResultCardJob {
+  const uj = job.userJob;
+  return {
+    id: job.id,
+    title: job.title,
+    company: job.company ?? "",
+    location: (job as any).location ?? null,
+    sourceUrl: job.sourceUrl,
+    salary: (job as any).payRange ?? null,
+    snippet: (job as any).description ?? null,
+    description: (job as any).fullDescription ?? (job as any).description ?? null,
+    status: uj?.status ?? "Analyzed",
+    masterScore: uj?.masterScore ?? null,
+    atsScore: uj?.atsScore ?? null,
+    careerScore: uj?.careerScore ?? null,
+    outlookScore: uj?.outlookScore ?? null,
+    atsReason: uj?.atsReason ?? null,
+    isUnicorn: uj?.isUnicorn ?? null,
+    unicornReason: uj?.unicornReason ?? null,
+    relationship: uj?.relationship ?? null,
   };
 }
 
@@ -247,6 +273,26 @@ function HomePage() {
       console.error("Error toggling favorite:", err);
     }
   }, [loadFavorites]);
+
+  const handleStatusChange = useCallback(async (jobId: number, status: JobStatus) => {
+    setMyJobs((prev) => prev.map((j) =>
+      j.id === jobId ? { ...j, userJob: { ...(j.userJob as UserJobRecord), status } } : j));
+    try {
+      await updateUserJobStatus({ data: { jobId, status } });
+    } catch (err) {
+      console.error("Error updating status:", err);
+    }
+  }, []);
+
+  const handleRemoveFromMyJobs = useCallback(async (jobId: number) => {
+    setMyJobs((prev) => prev.filter((j) => j.id !== jobId));
+    setFavoriteIds((prev) => { const c = new Set(prev); c.delete(jobId); return c; });
+    try {
+      await deleteUserJobs({ data: { jobIds: [jobId] } });
+    } catch (err) {
+      console.error("Error removing job:", err);
+    }
+  }, []);
 
   const handleSearch = useCallback((query: string) => setSearchQuery(query), []);
   const handleCategorySelect = useCallback((id: number | null) => setSelectedCategoryId(id), []);
@@ -440,18 +486,32 @@ function HomePage() {
             </div>
           ) : (
             <>
-              <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
-                {visibleJobs.map((job: EnrichedJob) => (
-                  <JobCard
-                    key={job.id}
-                    job={job}
-                    score={userJobToScore(job)}
-                    favorited={favoriteIds.has(job.id)}
-                    onToggleFavorite={toggleFavorite}
-                    onCompanyClick={handleCompanySelect}
-                  />
-                ))}
-              </div>
+              {view === "my" ? (
+                <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+                  {visibleJobs.map((job: EnrichedJob) => (
+                    <JobResultCard
+                      key={job.id}
+                      job={jobToResultCard(job)}
+                      statusOptions={USER_JOB_STATUSES}
+                      onStatusChange={(status) => handleStatusChange(job.id, status)}
+                      onRemove={() => handleRemoveFromMyJobs(job.id)}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
+                  {visibleJobs.map((job: EnrichedJob) => (
+                    <JobCard
+                      key={job.id}
+                      job={job}
+                      score={userJobToScore(job)}
+                      favorited={favoriteIds.has(job.id)}
+                      onToggleFavorite={toggleFavorite}
+                      onCompanyClick={handleCompanySelect}
+                    />
+                  ))}
+                </div>
+              )}
 
               {view === "all" && (
                 <div ref={loadMoreRef} className="flex h-20 items-center justify-center">

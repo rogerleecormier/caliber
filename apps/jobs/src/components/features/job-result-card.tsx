@@ -2,7 +2,6 @@ import { Link } from "@tanstack/react-router";
 import type { ChangeEvent, ReactNode } from "react";
 import { useState } from "react";
 import {
-  Badge,
   Body,
   Button,
   Caption,
@@ -20,39 +19,28 @@ import {
   MapPin,
   MessageSquareText,
   Sparkles,
+  Star,
+  Trash2,
   TriangleAlert,
   TrendingUp,
 } from "lucide-react";
 import { getScoreBorderColor } from "@/lib/scoreUtils";
-import {
-  generateLinkedinOutreach,
-  getLinkedinInlineInsights,
-} from "@/server/functions/linkedin-searches";
+import { generateJobOutreach, getJobInsights } from "@/server/functions/job-insights";
 
-export type LinkedinJobStatus = "Analyzed" | "Prepped" | "Applied" | "Interviewed" | "Hired" | "Archived";
+export type JobStatus = "Analyzed" | "Prepped" | "Applied" | "Interviewed" | "Hired" | "Archived";
 
-export type LinkedinResultCardJob = {
-  id?: number;
+// Canonical job + the per-user scores/status from user_jobs.
+export type JobResultCardJob = {
+  id: number;
   title: string;
   company: string;
-  location: string;
+  location?: string | null;
   sourceUrl: string;
   salary?: string | null;
   snippet?: string | null;
   description?: string | null;
   postDateText?: string | null;
-  resultSource?: string;
-  ownerEmail?: string | null;
-  status?: LinkedinJobStatus | null;
-  score?: {
-    atsScore: number;
-    careerScore: number;
-    outlookScore: number;
-    masterScore: number;
-    atsReason?: string;
-    isUnicorn?: boolean;
-    unicornReason?: string | null;
-  };
+  status?: JobStatus | null;
   masterScore?: number | null;
   atsScore?: number | null;
   careerScore?: number | null;
@@ -60,23 +48,20 @@ export type LinkedinResultCardJob = {
   atsReason?: string | null;
   isUnicorn?: number | boolean | null;
   unicornReason?: string | null;
+  relationship?: string | null;
 };
 
-type InlineInsights = Awaited<ReturnType<typeof getLinkedinInlineInsights>>;
+type InlineInsights = Awaited<ReturnType<typeof getJobInsights>>;
 
-interface LinkedinResultCardProps {
-  job: LinkedinResultCardJob;
-  isNew?: boolean;
-  selected?: boolean;
-  showSelection?: boolean;
-  onSelect?: () => void;
-  statusOptions?: LinkedinJobStatus[];
-  onStatusChange?: (status: LinkedinJobStatus) => void | Promise<void>;
+interface JobResultCardProps {
+  job: JobResultCardJob;
+  statusOptions?: JobStatus[];
+  onStatusChange?: (status: JobStatus) => void | Promise<void>;
   statusPending?: boolean;
+  onRemove?: () => void | Promise<void>;
 }
 
-function getScore(job: LinkedinResultCardJob) {
-  if (job.score) return job.score;
+function getScore(job: JobResultCardJob) {
   if (
     job.masterScore == null ||
     job.atsScore == null ||
@@ -85,7 +70,6 @@ function getScore(job: LinkedinResultCardJob) {
   ) {
     return null;
   }
-
   return {
     atsScore: job.atsScore,
     careerScore: job.careerScore,
@@ -130,7 +114,6 @@ function InsightTile({
     amber: "border-amber-100 bg-amber-50 text-amber-800",
     red: "border-red-100 bg-red-50 text-red-800",
   };
-
   return (
     <div className={`rounded-xl border p-3 ${tones[tone]}`}>
       <div className="mb-1 flex items-center gap-1.5">
@@ -146,16 +129,13 @@ function InsightTile({
   );
 }
 
-export function LinkedinResultCard({
+export function JobResultCard({
   job,
-  isNew = false,
-  selected = false,
-  showSelection = false,
-  onSelect,
   statusOptions,
   onStatusChange,
   statusPending = false,
-}: LinkedinResultCardProps) {
+  onRemove,
+}: JobResultCardProps) {
   const score = getScore(job);
   const [insights, setInsights] = useState<InlineInsights | null>(null);
   const [insightsLoading, setInsightsLoading] = useState(false);
@@ -165,13 +145,22 @@ export function LinkedinResultCard({
   const [outreachCopied, setOutreachCopied] = useState(false);
   const [outreachError, setOutreachError] = useState<string | null>(null);
 
+  const insightInput = {
+    title: job.title,
+    company: job.company,
+    location: job.location,
+    salary: job.salary,
+    snippet: job.snippet,
+    description: job.description,
+    sourceUrl: job.sourceUrl,
+  };
+
   async function loadInsights() {
     if (insights || insightsLoading) return;
     setInsightsLoading(true);
     setInsightsError(null);
     try {
-      const result = await getLinkedinInlineInsights({ data: job });
-      setInsights(result);
+      setInsights(await getJobInsights({ data: insightInput }));
     } catch (error) {
       setInsightsError(error instanceof Error ? error.message : "Unable to generate insights.");
     } finally {
@@ -184,7 +173,7 @@ export function LinkedinResultCard({
     setOutreachError(null);
     setOutreachCopied(false);
     try {
-      const result = await generateLinkedinOutreach({ data: job });
+      const result = await generateJobOutreach({ data: insightInput });
       setOutreach(result.message);
     } catch (error) {
       setOutreachError(error instanceof Error ? error.message : "Unable to generate outreach.");
@@ -209,53 +198,28 @@ export function LinkedinResultCard({
   return (
     <PrimaryCard
       title={job.title}
-      description={`${job.company} · ${job.location}`}
-      className={`shadow-sm transition hover:shadow-md ${
-        selected
-          ? "ring-2 ring-primary-300 bg-white/85"
-          : isNew
-            ? "ring-2 ring-indigo-300 bg-indigo-50/30"
-            : "bg-white/85"
-      } ${getScoreBorderColor(score?.masterScore ?? 0)}`}
+      description={`${job.company}${job.location ? ` · ${job.location}` : ""}`}
+      className={`shadow-sm transition hover:shadow-md bg-white/85 ${getScoreBorderColor(score?.masterScore ?? 0)}`}
     >
       <div className="space-y-4">
         <div className="space-y-3">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex min-w-0 flex-wrap items-center gap-2">
-              {showSelection ? (
-                <input
-                  type="checkbox"
-                  checked={selected}
-                  onChange={onSelect}
-                  className="h-4 w-4 shrink-0 rounded border-slate-300 text-primary-600"
-                  aria-label={`Select ${job.title} at ${job.company}`}
-                />
-              ) : null}
-                {job.postDateText ? (
-                  <Caption className="text-xs text-slate-500">{job.postDateText}</Caption>
-                ) : null}
-                {job.resultSource === "history" ? (
-                  <Badge variant="success" className="px-2 py-0 text-[10px]">
-                    Tracked
-                  </Badge>
-                ) : null}
-                {isNew ? (
-                  <Badge className="border-0 bg-indigo-600 px-2 py-0 text-[10px] text-white">
-                    New Match
-                  </Badge>
-                ) : null}
-                {score?.isUnicorn ? (
-                  <Badge variant="warning" className="px-2 py-0 text-[10px]" title={score.unicornReason || "Unicorn opportunity"}>
-                    Unicorn
-                  </Badge>
-                ) : null}
-                {job.ownerEmail ? (
-                  <Caption className="text-[11px] text-slate-500">
-                    {job.ownerEmail}
-                  </Caption>
-                ) : null}
-            </div>
-
+          <div className="flex flex-wrap items-center gap-2">
+            {job.postDateText ? <Caption className="text-xs text-slate-500">{job.postDateText}</Caption> : null}
+            {job.relationship === "agent" ? (
+              <span className="inline-flex items-center rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">Agent</span>
+            ) : (
+              <span className="inline-flex items-center gap-1 rounded-full bg-amber-500 px-2 py-0.5 text-[10px] font-semibold text-white">
+                <Star className="h-2.5 w-2.5" /> Saved
+              </span>
+            )}
+            {score?.isUnicorn ? (
+              <span
+                className="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-700"
+                title={score.unicornReason || "Unicorn opportunity"}
+              >
+                Unicorn
+              </span>
+            ) : null}
           </div>
 
           {score ? (
@@ -275,11 +239,7 @@ export function LinkedinResultCard({
                   <Caption variant="semibold" className="block text-[10px] uppercase tracking-wide text-slate-500">
                     {label}
                   </Caption>
-                  <Body
-                    size="sm"
-                    weight="semibold"
-                    className={label === "Match" ? "text-emerald-700" : "text-slate-800"}
-                  >
+                  <Body size="sm" weight="semibold" className={label === "Match" ? "text-emerald-700" : "text-slate-800"}>
                     {value}
                   </Body>
                 </div>
@@ -288,22 +248,16 @@ export function LinkedinResultCard({
           ) : null}
 
           {job.salary ? (
-            <Body size="sm" weight="medium" className="text-emerald-700">
-              {job.salary}
-            </Body>
+            <Body size="sm" weight="medium" className="text-emerald-700">{job.salary}</Body>
           ) : null}
           {job.snippet ? (
-            <Body size="sm" className="line-clamp-2 leading-relaxed text-slate-600">
-              {job.snippet}
-            </Body>
+            <Body size="sm" className="line-clamp-2 leading-relaxed text-slate-600">{job.snippet}</Body>
           ) : null}
         </div>
 
         <details
           className="rounded-lg border border-slate-200 bg-slate-50/70"
-          onToggle={(event) => {
-            if (event.currentTarget.open) void loadInsights();
-          }}
+          onToggle={(event) => { if (event.currentTarget.open) void loadInsights(); }}
         >
           <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2.5">
             <span className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-slate-600">
@@ -315,51 +269,27 @@ export function LinkedinResultCard({
           <div className="space-y-3 border-t border-slate-200 px-3 py-3">
             {insightsLoading ? (
               <Body size="sm" className="inline-flex items-center gap-2 text-slate-500">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Generating insights
+                <Loader2 className="h-4 w-4 animate-spin" /> Generating insights
               </Body>
             ) : insightsError ? (
               <Body size="sm" className="text-red-600">{insightsError}</Body>
             ) : insights ? (
               <>
                 <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                  <InsightTile
-                    icon={<DollarSign className="h-3.5 w-3.5 text-emerald-600" />}
-                    label="Salary"
-                    value={formatSalary(insights, job.salary)}
-                    tone="emerald"
-                  />
-                  <InsightTile
-                    icon={<Briefcase className="h-3.5 w-3.5 text-amber-600" />}
-                    label="Work-Life"
-                    value={insights.workLifeBalance ?? "Unknown"}
-                    tone={workLifeTone}
-                  />
-                  <InsightTile
-                    icon={<MapPin className="h-3.5 w-3.5 text-sky-600" />}
-                    label="Flex"
-                    value={formatRemote(insights.remoteFlexibility)}
-                    tone="sky"
-                  />
-                  <InsightTile
-                    icon={<TrendingUp className="h-3.5 w-3.5 text-violet-600" />}
-                    label="Seniority"
-                    value={insights.seniorityLevel ?? "Unknown"}
-                    tone="violet"
-                  />
+                  <InsightTile icon={<DollarSign className="h-3.5 w-3.5 text-emerald-600" />} label="Salary" value={formatSalary(insights, job.salary)} tone="emerald" />
+                  <InsightTile icon={<Briefcase className="h-3.5 w-3.5 text-amber-600" />} label="Work-Life" value={insights.workLifeBalance ?? "Unknown"} tone={workLifeTone} />
+                  <InsightTile icon={<MapPin className="h-3.5 w-3.5 text-sky-600" />} label="Flex" value={formatRemote(insights.remoteFlexibility)} tone="sky" />
+                  <InsightTile icon={<TrendingUp className="h-3.5 w-3.5 text-violet-600" />} label="Seniority" value={insights.seniorityLevel ?? "Unknown"} tone="violet" />
                 </div>
                 {insights.redFlags?.length ? (
                   <div className="space-y-2">
                     <Caption variant="semibold" className="inline-flex items-center gap-1 text-xs uppercase tracking-wide text-red-600">
-                      <TriangleAlert className="h-3.5 w-3.5" />
-                      Red Flags
+                      <TriangleAlert className="h-3.5 w-3.5" /> Red Flags
                     </Caption>
                     {insights.redFlags.map((flag) => (
                       <div key={`${flag.flag}-${flag.reason}`} className="rounded-xl border border-red-100 bg-red-50 p-3">
                         <Body size="sm" weight="semibold" className="text-red-800">{flag.flag}</Body>
-                        <Caption className="mt-1 block text-xs leading-relaxed text-red-600">
-                          {flag.reason}
-                        </Caption>
+                        <Caption className="mt-1 block text-xs leading-relaxed text-red-600">{flag.reason}</Caption>
                       </div>
                     ))}
                   </div>
@@ -378,84 +308,64 @@ export function LinkedinResultCard({
             <Label className="flex min-w-0 shrink items-center gap-2 text-xs text-slate-500">
               Status
               <select
-                value={(job.status ?? "Analyzed") as LinkedinJobStatus}
-                onChange={(event: ChangeEvent<HTMLSelectElement>) =>
-                  onStatusChange(event.target.value as LinkedinJobStatus)
-                }
+                value={(job.status ?? "Analyzed") as JobStatus}
+                onChange={(event: ChangeEvent<HTMLSelectElement>) => onStatusChange(event.target.value as JobStatus)}
                 disabled={statusPending}
                 className="h-8 w-36 rounded-lg border border-slate-200 bg-white px-2 text-xs font-semibold text-slate-700 disabled:opacity-60"
                 aria-label={`Status for ${job.title}`}
               >
-                {statusOptions.map((status) => (
-                  <option key={status} value={status}>{status}</option>
-                ))}
+                {statusOptions.map((status) => (<option key={status} value={status}>{status}</option>))}
               </select>
             </Label>
-          ) : (
-            <span />
-          )}
+          ) : (<span />)}
           <div className="flex shrink-0 items-center gap-1.5">
-          <Link
-            to="/analyze"
-            search={{ url: job.sourceUrl }}
-            className="inline-flex h-8 items-center gap-1 whitespace-nowrap rounded-lg border border-violet-200 bg-violet-50 px-2.5 text-xs font-semibold text-violet-700 transition hover:bg-violet-100"
-          >
-            <Sparkles className="h-3.5 w-3.5" />
-            Analyze
-          </Link>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={handleGenerateOutreach}
-            disabled={outreachLoading}
-            className="h-8 whitespace-nowrap border-slate-200 px-2.5 text-slate-700"
-          >
-            {outreachLoading ? (
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-            ) : (
-              <MessageSquareText className="h-3.5 w-3.5" />
-            )}
-            Outreach
-          </Button>
-          <a
-            href={job.sourceUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex h-8 items-center gap-1 whitespace-nowrap rounded-lg bg-primary-600 px-2.5 text-xs font-semibold text-white transition hover:bg-primary-700"
-          >
-            Open <ExternalLink className="h-3.5 w-3.5" />
-          </a>
+            <Link
+              to="/analyze"
+              search={{ url: job.sourceUrl }}
+              className="inline-flex h-8 items-center gap-1 whitespace-nowrap rounded-lg border border-violet-200 bg-violet-50 px-2.5 text-xs font-semibold text-violet-700 transition hover:bg-violet-100"
+            >
+              <Sparkles className="h-3.5 w-3.5" /> Analyze
+            </Link>
+            <Button
+              type="button" variant="outline" size="sm"
+              onClick={handleGenerateOutreach} disabled={outreachLoading}
+              className="h-8 whitespace-nowrap border-slate-200 px-2.5 text-slate-700"
+            >
+              {outreachLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <MessageSquareText className="h-3.5 w-3.5" />}
+              Outreach
+            </Button>
+            {onRemove ? (
+              <Button type="button" variant="outline" size="sm" onClick={onRemove} className="h-8 border-red-200 px-2 text-red-600" title="Remove from My Jobs">
+                <Trash2 className="h-3.5 w-3.5" />
+              </Button>
+            ) : null}
+            <a
+              href={job.sourceUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex h-8 items-center gap-1 whitespace-nowrap rounded-lg bg-primary-600 px-2.5 text-xs font-semibold text-white transition hover:bg-primary-700"
+            >
+              Open <ExternalLink className="h-3.5 w-3.5" />
+            </a>
           </div>
         </div>
 
-        {outreachError ? (
-          <Body size="sm" className="text-red-600">{outreachError}</Body>
-        ) : null}
+        {outreachError ? <Body size="sm" className="text-red-600">{outreachError}</Body> : null}
         {outreach ? (
           <div className="grid gap-2 rounded-lg border border-slate-200 bg-slate-50 p-3 sm:grid-cols-[1fr_auto] sm:items-start">
             <div>
               <Caption variant="semibold" className="mb-1 block text-[10px] uppercase tracking-wide text-slate-500">
                 Outreach blurb
               </Caption>
-              <Body size="sm" className="text-slate-700">
-                {outreach}
-              </Body>
+              <Body size="sm" className="text-slate-700">{outreach}</Body>
             </div>
             <div className="flex justify-end gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={handleGenerateOutreach}
-                disabled={outreachLoading}
-              >
+              <Button type="button" variant="outline" size="sm" onClick={handleGenerateOutreach} disabled={outreachLoading}>
                 {outreachLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <MessageSquareText className="h-3.5 w-3.5" />}
                 Refresh
               </Button>
               <Button type="button" variant="outline" size="sm" onClick={copyOutreach}>
-                <Copy className="h-3.5 w-3.5" />
-                {outreachCopied ? "Copied" : "Copy"}
+                <Copy className="h-3.5 w-3.5" /> {outreachCopied ? "Copied" : "Copy"}
               </Button>
             </div>
           </div>

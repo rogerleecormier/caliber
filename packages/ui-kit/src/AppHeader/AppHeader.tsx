@@ -344,7 +344,7 @@ export function AppHeader({
       : getSharedAuthOrigin(window.location.href);
   const appOrigin = getAppOrigin(app, currentPath);
   const resolvedUser = user ?? null;
-  const canAccessLinkedInSearch = app === "jobs" && resolvedUser?.role === "admin";
+  const canAccessSearchAgents = app === "jobs" && !!resolvedUser;
 
   const loginHref = useMemo(() => {
     if (app === "corporate") return "/login";
@@ -491,15 +491,15 @@ export function AppHeader({
       tone: "primary",
       appScope: "jobs",
     },
-    ...(canAccessLinkedInSearch
+    ...(canAccessSearchAgents
       ? [
           {
             type: "link",
-            key: "linkedin-hub",
-            label: "LinkedIn Hub",
-            sublabel: "Job pipeline & search",
-            href: "https://jobs.spearyx.com/linkedin-hub",
-            path: "/linkedin-hub",
+            key: "search-agents",
+            label: "Search Agents",
+            sublabel: "Automated job discovery",
+            href: `${appOrigin}/search-agents`,
+            path: "/search-agents",
             icon: Briefcase,
             tone: "indigo",
             appScope: "jobs",

@@ -13,9 +13,6 @@ import { Route as SyncRouteImport } from './routes/sync'
 import { Route as SearchAgentsRouteImport } from './routes/search-agents'
 import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as LoginRouteImport } from './routes/login'
-import { Route as LinkedinSearchRouteImport } from './routes/linkedin-search'
-import { Route as LinkedinJobsRouteImport } from './routes/linkedin-jobs'
-import { Route as LinkedinHubRouteImport } from './routes/linkedin-hub'
 import { Route as JobsRouteImport } from './routes/jobs'
 import { Route as HistoryRouteImport } from './routes/history'
 import { Route as DashboardRouteImport } from './routes/dashboard'
@@ -30,7 +27,6 @@ import { Route as ApiV3LogsRouteImport } from './routes/api/v3/logs'
 import { Route as ApiV3JobsRouteImport } from './routes/api/v3/jobs'
 import { Route as ApiV3JobContentRouteImport } from './routes/api/v3/job-content'
 import { Route as ApiV3CategoriesRouteImport } from './routes/api/v3/categories'
-import { Route as ApiLinkedinSearchRouteImport } from './routes/api/linkedin/search'
 import { Route as ApiAuthMeRouteImport } from './routes/api/auth/me'
 import { Route as ApiAuthLogoutRouteImport } from './routes/api/auth/logout'
 import { Route as ApiAiUnicornRouteImport } from './routes/api/ai/unicorn'
@@ -61,21 +57,6 @@ const ProfileRoute = ProfileRouteImport.update({
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const LinkedinSearchRoute = LinkedinSearchRouteImport.update({
-  id: '/linkedin-search',
-  path: '/linkedin-search',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const LinkedinJobsRoute = LinkedinJobsRouteImport.update({
-  id: '/linkedin-jobs',
-  path: '/linkedin-jobs',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const LinkedinHubRoute = LinkedinHubRouteImport.update({
-  id: '/linkedin-hub',
-  path: '/linkedin-hub',
   getParentRoute: () => rootRouteImport,
 } as any)
 const JobsRoute = JobsRouteImport.update({
@@ -148,11 +129,6 @@ const ApiV3CategoriesRoute = ApiV3CategoriesRouteImport.update({
   path: '/api/v3/categories',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiLinkedinSearchRoute = ApiLinkedinSearchRouteImport.update({
-  id: '/api/linkedin/search',
-  path: '/api/linkedin/search',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const ApiAuthMeRoute = ApiAuthMeRouteImport.update({
   id: '/api/auth/me',
   path: '/api/auth/me',
@@ -216,9 +192,6 @@ export interface FileRoutesByFullPath {
   '/dashboard': typeof DashboardRoute
   '/history': typeof HistoryRoute
   '/jobs': typeof JobsRoute
-  '/linkedin-hub': typeof LinkedinHubRoute
-  '/linkedin-jobs': typeof LinkedinJobsRoute
-  '/linkedin-search': typeof LinkedinSearchRoute
   '/login': typeof LoginRoute
   '/profile': typeof ProfileRoute
   '/search-agents': typeof SearchAgentsRoute
@@ -234,7 +207,6 @@ export interface FileRoutesByFullPath {
   '/api/ai/unicorn': typeof ApiAiUnicornRoute
   '/api/auth/logout': typeof ApiAuthLogoutRoute
   '/api/auth/me': typeof ApiAuthMeRoute
-  '/api/linkedin/search': typeof ApiLinkedinSearchRoute
   '/api/v3/categories': typeof ApiV3CategoriesRoute
   '/api/v3/job-content': typeof ApiV3JobContentRoute
   '/api/v3/jobs': typeof ApiV3JobsRouteWithChildren
@@ -250,9 +222,6 @@ export interface FileRoutesByTo {
   '/dashboard': typeof DashboardRoute
   '/history': typeof HistoryRoute
   '/jobs': typeof JobsRoute
-  '/linkedin-hub': typeof LinkedinHubRoute
-  '/linkedin-jobs': typeof LinkedinJobsRoute
-  '/linkedin-search': typeof LinkedinSearchRoute
   '/login': typeof LoginRoute
   '/profile': typeof ProfileRoute
   '/search-agents': typeof SearchAgentsRoute
@@ -268,7 +237,6 @@ export interface FileRoutesByTo {
   '/api/ai/unicorn': typeof ApiAiUnicornRoute
   '/api/auth/logout': typeof ApiAuthLogoutRoute
   '/api/auth/me': typeof ApiAuthMeRoute
-  '/api/linkedin/search': typeof ApiLinkedinSearchRoute
   '/api/v3/categories': typeof ApiV3CategoriesRoute
   '/api/v3/job-content': typeof ApiV3JobContentRoute
   '/api/v3/jobs': typeof ApiV3JobsRouteWithChildren
@@ -286,9 +254,6 @@ export interface FileRoutesById {
   '/dashboard': typeof DashboardRoute
   '/history': typeof HistoryRoute
   '/jobs': typeof JobsRoute
-  '/linkedin-hub': typeof LinkedinHubRoute
-  '/linkedin-jobs': typeof LinkedinJobsRoute
-  '/linkedin-search': typeof LinkedinSearchRoute
   '/login': typeof LoginRoute
   '/profile': typeof ProfileRoute
   '/search-agents': typeof SearchAgentsRoute
@@ -304,7 +269,6 @@ export interface FileRoutesById {
   '/api/ai/unicorn': typeof ApiAiUnicornRoute
   '/api/auth/logout': typeof ApiAuthLogoutRoute
   '/api/auth/me': typeof ApiAuthMeRoute
-  '/api/linkedin/search': typeof ApiLinkedinSearchRoute
   '/api/v3/categories': typeof ApiV3CategoriesRoute
   '/api/v3/job-content': typeof ApiV3JobContentRoute
   '/api/v3/jobs': typeof ApiV3JobsRouteWithChildren
@@ -323,9 +287,6 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/history'
     | '/jobs'
-    | '/linkedin-hub'
-    | '/linkedin-jobs'
-    | '/linkedin-search'
     | '/login'
     | '/profile'
     | '/search-agents'
@@ -341,7 +302,6 @@ export interface FileRouteTypes {
     | '/api/ai/unicorn'
     | '/api/auth/logout'
     | '/api/auth/me'
-    | '/api/linkedin/search'
     | '/api/v3/categories'
     | '/api/v3/job-content'
     | '/api/v3/jobs'
@@ -357,9 +317,6 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/history'
     | '/jobs'
-    | '/linkedin-hub'
-    | '/linkedin-jobs'
-    | '/linkedin-search'
     | '/login'
     | '/profile'
     | '/search-agents'
@@ -375,7 +332,6 @@ export interface FileRouteTypes {
     | '/api/ai/unicorn'
     | '/api/auth/logout'
     | '/api/auth/me'
-    | '/api/linkedin/search'
     | '/api/v3/categories'
     | '/api/v3/job-content'
     | '/api/v3/jobs'
@@ -392,9 +348,6 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/history'
     | '/jobs'
-    | '/linkedin-hub'
-    | '/linkedin-jobs'
-    | '/linkedin-search'
     | '/login'
     | '/profile'
     | '/search-agents'
@@ -410,7 +363,6 @@ export interface FileRouteTypes {
     | '/api/ai/unicorn'
     | '/api/auth/logout'
     | '/api/auth/me'
-    | '/api/linkedin/search'
     | '/api/v3/categories'
     | '/api/v3/job-content'
     | '/api/v3/jobs'
@@ -428,9 +380,6 @@ export interface RootRouteChildren {
   DashboardRoute: typeof DashboardRoute
   HistoryRoute: typeof HistoryRoute
   JobsRoute: typeof JobsRoute
-  LinkedinHubRoute: typeof LinkedinHubRoute
-  LinkedinJobsRoute: typeof LinkedinJobsRoute
-  LinkedinSearchRoute: typeof LinkedinSearchRoute
   LoginRoute: typeof LoginRoute
   ProfileRoute: typeof ProfileRoute
   SearchAgentsRoute: typeof SearchAgentsRoute
@@ -444,7 +393,6 @@ export interface RootRouteChildren {
   ApiAiUnicornRoute: typeof ApiAiUnicornRoute
   ApiAuthLogoutRoute: typeof ApiAuthLogoutRoute
   ApiAuthMeRoute: typeof ApiAuthMeRoute
-  ApiLinkedinSearchRoute: typeof ApiLinkedinSearchRoute
   ApiV3CategoriesRoute: typeof ApiV3CategoriesRoute
   ApiV3JobContentRoute: typeof ApiV3JobContentRoute
   ApiV3JobsRoute: typeof ApiV3JobsRouteWithChildren
@@ -481,27 +429,6 @@ declare module '@tanstack/react-router' {
       path: '/login'
       fullPath: '/login'
       preLoaderRoute: typeof LoginRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/linkedin-search': {
-      id: '/linkedin-search'
-      path: '/linkedin-search'
-      fullPath: '/linkedin-search'
-      preLoaderRoute: typeof LinkedinSearchRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/linkedin-jobs': {
-      id: '/linkedin-jobs'
-      path: '/linkedin-jobs'
-      fullPath: '/linkedin-jobs'
-      preLoaderRoute: typeof LinkedinJobsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/linkedin-hub': {
-      id: '/linkedin-hub'
-      path: '/linkedin-hub'
-      fullPath: '/linkedin-hub'
-      preLoaderRoute: typeof LinkedinHubRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/jobs': {
@@ -600,13 +527,6 @@ declare module '@tanstack/react-router' {
       path: '/api/v3/categories'
       fullPath: '/api/v3/categories'
       preLoaderRoute: typeof ApiV3CategoriesRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/linkedin/search': {
-      id: '/api/linkedin/search'
-      path: '/api/linkedin/search'
-      fullPath: '/api/linkedin/search'
-      preLoaderRoute: typeof ApiLinkedinSearchRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/auth/me': {
@@ -723,9 +643,6 @@ const rootRouteChildren: RootRouteChildren = {
   DashboardRoute: DashboardRoute,
   HistoryRoute: HistoryRoute,
   JobsRoute: JobsRoute,
-  LinkedinHubRoute: LinkedinHubRoute,
-  LinkedinJobsRoute: LinkedinJobsRoute,
-  LinkedinSearchRoute: LinkedinSearchRoute,
   LoginRoute: LoginRoute,
   ProfileRoute: ProfileRoute,
   SearchAgentsRoute: SearchAgentsRoute,
@@ -739,7 +656,6 @@ const rootRouteChildren: RootRouteChildren = {
   ApiAiUnicornRoute: ApiAiUnicornRoute,
   ApiAuthLogoutRoute: ApiAuthLogoutRoute,
   ApiAuthMeRoute: ApiAuthMeRoute,
-  ApiLinkedinSearchRoute: ApiLinkedinSearchRoute,
   ApiV3CategoriesRoute: ApiV3CategoriesRoute,
   ApiV3JobContentRoute: ApiV3JobContentRoute,
   ApiV3JobsRoute: ApiV3JobsRouteWithChildren,
