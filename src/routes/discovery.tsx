@@ -51,11 +51,11 @@ function DiscoveryDashboard() {
         job_feeds: 'Job Feeds',
       };
       const label = phaseLabels[phase] ?? phase;
-      const toastId = toast.loading(`Enqueuing ${label} phase…`, { duration: Infinity });
+      const toastId = toast.loading(`Enqueuing ${label}…`, { duration: Infinity });
       const res = await fetch(`/api/discovery/run-phase?phase=${phase}`, { method: 'POST' });
       const data = await res.json() as any;
       if (!data.success) {
-        toast.dismiss(toastId);
+        toast.error(`Failed to enqueue ${label}`, { id: toastId, duration: 5000 });
         throw new Error(data.error || `Phase ${phase} failed`);
       }
       toast.success(`${label} phase enqueued`, {
@@ -66,57 +66,46 @@ function DiscoveryDashboard() {
       return data;
     },
     onError: (err: any) => {
-      toast.error(err.message || 'Error triggering discovery phase');
+      toast.error(err.message || 'Error triggering discovery phase', { duration: 5000 });
     }
   });
 
   const triggerCronMutation = useMutation({
     mutationFn: async () => {
-      const toastId = toast.loading('Starting discovery cron…', { duration: Infinity });
-
-      const phaseLabels: Record<string, string> = {
-        company_lists: 'Company Lists',
-        llm_inference: 'LLM Inference',
-        aggregators: 'Aggregators',
-        search_engine: 'Search Engines',
-        job_feeds: 'Job Feeds',
-      };
-
+      const phaseLabels = ['Company Lists', 'LLM Inference', 'Aggregators', 'Search Engines', 'Job Feeds'];
       const phases = ['company_lists', 'llm_inference', 'aggregators', 'search_engine', 'job_feeds'];
-      const enqueued: string[] = [];
 
-      for (const phase of phases) {
-        await new Promise(r => setTimeout(r, 120));
-        enqueued.push(phase);
-        const remaining = phases.slice(enqueued.length);
-        const lines = [
-          ...enqueued.map(p => `✓ ${phaseLabels[p]}`),
-          ...remaining.map(p => `○ ${phaseLabels[p]}`),
-        ].join('\n');
-        toast.loading(
-          <span className="whitespace-pre font-mono text-xs leading-relaxed">{lines}</span>,
-          { id: toastId, description: `Enqueuing phase ${enqueued.length} of ${phases.length}…` }
-        );
+      const toastId = toast.loading('Enqueuing discovery phases…', {
+        description: `0 of ${phases.length} enqueued`,
+        duration: Infinity,
+      });
+
+      for (let i = 0; i < phases.length; i++) {
+        await new Promise(r => setTimeout(r, 130));
+        toast.loading(`Enqueuing ${phaseLabels[i]}…`, {
+          id: toastId,
+          description: `${i + 1} of ${phases.length} enqueued`,
+          duration: Infinity,
+        });
       }
 
       const res = await fetch('/api/discovery/cron?bypass=true', { method: 'POST' });
       const data = await res.json() as any;
       if (!data.success) {
-        toast.dismiss(toastId);
+        toast.error('Failed to trigger discovery cron', { id: toastId, duration: 5000 });
         throw new Error(data.error || 'Failed to trigger cron');
       }
 
-      toast.success(
-        <span className="whitespace-pre font-mono text-xs leading-relaxed">
-          {phases.map(p => `✓ ${phaseLabels[p]}`).join('\n')}
-        </span>,
-        { id: toastId, description: 'All 5 discovery phases enqueued — workers processing in background', duration: 8000 }
-      );
+      toast.success('All discovery phases enqueued', {
+        id: toastId,
+        description: 'Workers are processing in the background',
+        duration: 5000,
+      });
 
       return data;
     },
     onError: (err: any) => {
-      toast.error(err.message || 'Error triggering discovery cron');
+      toast.error(err.message || 'Error triggering discovery cron', { duration: 5000 });
     }
   });
 
