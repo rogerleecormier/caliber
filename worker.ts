@@ -11,6 +11,9 @@ import type { CloudflareEnv } from './src/lib/cloudflare'
 import { getDb } from './src/db/db'
 import type { JobIngestionMessage } from './src/lib/job-ingestion-queue'
 import type { ScrapeRequestQueueMessage } from './src/lib/scrape-request-queue'
+import { RateLimiter } from './src/server/rate-limit/durable-object'
+
+export { RateLimiter }
 
 export default {
   async fetch(request: Request, env: any, ctx: ExecutionContext) {

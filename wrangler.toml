@@ -121,12 +121,11 @@ max_batch_timeout = 5
 max_retries = 1
 
 # Rate Limiter Durable Object
-# Note: Disabled for dev builds due to export type generation issues
-# [[durable_objects.bindings]]
-# name = "RATE_LIMITER"
-# class_name = "RateLimiter"
+[[durable_objects.bindings]]
+name = "RATE_LIMITER"
+class_name = "RateLimiter"
 
-# [[migrations]]
-# tag = "v1"
-# new_classes = ["RateLimiter"]
+[[migrations]]
+tag = "v1"
+new_classes = ["RateLimiter"]
 
