@@ -14,7 +14,7 @@ import { getCloudflareEnvAsync } from "@/lib/cloudflare";
 import type { PipelineStatus } from "@/lib/pipeline-constants";
 import { getDb } from "@/db/db";
 import { user as userTable, canonicalJobs, masterResume, normalizedJobs, jobSources } from "@/db/schema";
-import { eq, and, inArray, or, gte, isNull } from "drizzle-orm";
+import { eq, and, inArray, or, gte, isNull, like, desc, asc, sql, count, ne } from "drizzle-orm";
 import { scoreJobAgainstProfile } from "@/lib/ai/job-score";
 import { canonicalizeJobUrl } from "@/lib/normalized-jobs-persistence";
 import {
@@ -202,12 +202,16 @@ export const getRecommendedJobs = createServerFn({ method: "GET" })
       }
     }
 
-    // 3. Query canonical_jobs matching user filters
-    const whereConditions: any[] = [eq(canonicalJobs.isListed, true)];
-    
-    if (candidateIds.length > 0) {
-      whereConditions.push(inArray(canonicalJobs.id, candidateIds));
+    // 3. If Vectorize returned no candidates, return empty — don't fall back to arbitrary jobs
+    if (candidateIds.length === 0) {
+      return { jobs: [] };
     }
+
+    // Query canonical_jobs matching vector-matched IDs and user filters
+    const whereConditions: any[] = [
+      eq(canonicalJobs.isListed, true),
+      inArray(canonicalJobs.id, candidateIds),
+    ];
 
     // Apply remote preference
     if (userRow.preferredRemote === 'remote') {
@@ -310,7 +314,7 @@ export const getRecommendedJobs = createServerFn({ method: "GET" })
           }
         }
 
-        // Insert into normalizedJobs as recommendation (isFavorited = false)
+        // Insert into normalizedJobs as recommendation (unstarred — user must explicitly favorite)
         const [inserted] = await db
           .insert(normalizedJobs)
           .values({
@@ -378,4 +382,185 @@ export const togglePipelineJobFavorite = createServerFn({ method: "POST" })
       .set({ isFavorited: data.isFavorited })
       .where(and(eq(normalizedJobs.id, data.id), eq(normalizedJobs.userId, user.id)));
     return { success: true, id: data.id, isFavorited: data.isFavorited };
+  });
+
+// ─── Catalog Browser ──────────────────────────────────────────────────────────
+
+export const getCatalogJobs = createServerFn({ method: "GET" })
+  .inputValidator((data: {
+    query?: string;
+    remote?: boolean;
+    company?: string;
+    ats?: string;
+    salaryMin?: number;
+    page?: number;
+    pageSize?: number;
+  }) => data)
+  .handler(async (ctx: any) => { const { data } = ctx;
+    const user = await resolveSessionUser((ctx as any)?.request);
+    if (!user) throw new Error("Not authenticated");
+    const env = await getCloudflareEnvAsync();
+    if (!env.DB) return { jobs: [], total: 0, page: 1, pageSize: 20 };
+    const db = getDb(env.DB);
+
+    const page = data.page ?? 1;
+    const pageSize = data.pageSize ?? 20;
+    const offset = (page - 1) * pageSize;
+
+    // Build where conditions for canonical_jobs
+    const conditions: any[] = [eq(canonicalJobs.isListed, true)];
+
+    if (data.query?.trim()) {
+      const q = `%${data.query.trim().toLowerCase()}%`;
+      conditions.push(or(
+        like(canonicalJobs.titleNorm, q),
+        like(canonicalJobs.companyNorm, q),
+      ));
+    }
+    if (data.remote === true) conditions.push(eq(canonicalJobs.remote, true));
+    if (data.remote === false) conditions.push(eq(canonicalJobs.remote, false));
+    if (data.company?.trim()) {
+      conditions.push(like(canonicalJobs.companyNorm, `%${data.company.trim().toLowerCase()}%`));
+    }
+    if (data.salaryMin) {
+      conditions.push(or(
+        isNull(canonicalJobs.compensationMax),
+        gte(canonicalJobs.compensationMax, data.salaryMin),
+      ));
+    }
+
+    // ATS filter — join job_sources
+    const atsFilter = data.ats?.trim();
+
+    // Count total
+    const countRows = await db
+      .select({ total: count() })
+      .from(canonicalJobs)
+      .leftJoin(jobSources, eq(jobSources.canonicalId, canonicalJobs.id))
+      .where(and(...conditions, atsFilter ? eq(jobSources.ats, atsFilter) : undefined));
+    const total = Number(countRows[0]?.total ?? 0);
+
+    // Fetch page
+    const rows = await db
+      .select({
+        id: canonicalJobs.id,
+        titleDisplay: canonicalJobs.titleDisplay,
+        companyDisplay: canonicalJobs.companyDisplay,
+        locationDisplay: canonicalJobs.locationDisplay,
+        remote: canonicalJobs.remote,
+        employmentType: canonicalJobs.employmentType,
+        experienceLevel: canonicalJobs.experienceLevel,
+        compensationMin: canonicalJobs.compensationMin,
+        compensationMax: canonicalJobs.compensationMax,
+        compensationCurrency: canonicalJobs.compensationCurrency,
+        firstSeenAt: canonicalJobs.firstSeenAt,
+        lastSeenAt: canonicalJobs.lastSeenAt,
+        ats: jobSources.ats,
+        sourceUrl: jobSources.sourceUrl,
+        applyUrl: jobSources.applyUrl,
+      })
+      .from(canonicalJobs)
+      .leftJoin(jobSources, eq(jobSources.canonicalId, canonicalJobs.id))
+      .where(and(...conditions, atsFilter ? eq(jobSources.ats, atsFilter) : undefined))
+      .orderBy(desc(canonicalJobs.lastSeenAt))
+      .limit(pageSize)
+      .offset(offset);
+
+    // Check which canonical jobs the user has already saved
+    const canonicalIds = rows.map((r) => r.id).filter(Boolean);
+    const savedRows = canonicalIds.length > 0
+      ? await db
+          .select({ canonicalJobId: normalizedJobs.canonicalJobId, isFavorited: normalizedJobs.isFavorited })
+          .from(normalizedJobs)
+          .where(and(
+            eq(normalizedJobs.userId, user.id),
+            inArray(normalizedJobs.canonicalJobId, canonicalIds),
+          ))
+      : [];
+
+    const savedMap = new Map(savedRows.map((r) => [r.canonicalJobId, r.isFavorited]));
+
+    const jobs = rows.map((r) => ({
+      ...r,
+      isSaved: savedMap.has(r.id),
+      isFavorited: savedMap.get(r.id) === true || savedMap.get(r.id) === 1,
+    }));
+
+    return { jobs, total, page, pageSize };
+  });
+
+export const starCatalogJob = createServerFn({ method: "POST" })
+  .inputValidator((data: { canonicalJobId: string; star: boolean }) => data)
+  .handler(async (ctx: any) => { const { data } = ctx;
+    const user = await resolveSessionUser((ctx as any)?.request);
+    if (!user) throw new Error("Not authenticated");
+    const env = await getCloudflareEnvAsync();
+    if (!env.DB) throw new Error("Database unavailable");
+    const db = getDb(env.DB);
+
+    // Find the canonical job
+    const [canonical] = await db
+      .select()
+      .from(canonicalJobs)
+      .where(eq(canonicalJobs.id, data.canonicalJobId))
+      .limit(1);
+    if (!canonical) throw new Error("Job not found");
+
+    // Get source URL
+    const [source] = await db
+      .select({ sourceUrl: jobSources.sourceUrl, ats: jobSources.ats })
+      .from(jobSources)
+      .where(eq(jobSources.canonicalId, canonical.id))
+      .limit(1);
+
+    const sourceUrl = source?.sourceUrl ?? `https://caliber.internal/jobs/canonical/${canonical.id}`;
+    const canonicalUrl = canonicalizeJobUrl(sourceUrl);
+    const now = new Date().toISOString();
+
+    // Upsert into normalized_jobs
+    const [existing] = await db
+      .select({ id: normalizedJobs.id })
+      .from(normalizedJobs)
+      .where(and(
+        eq(normalizedJobs.userId, user.id),
+        or(
+          eq(normalizedJobs.canonicalJobId, canonical.id),
+          eq(normalizedJobs.canonicalSourceUrl, canonicalUrl),
+        ),
+      ))
+      .limit(1);
+
+    if (existing) {
+      await db
+        .update(normalizedJobs)
+        .set({ isFavorited: data.star, updatedAt: now })
+        .where(eq(normalizedJobs.id, existing.id));
+      return { success: true, id: existing.id, isFavorited: data.star };
+    }
+
+    // Insert new row
+    const [inserted] = await db
+      .insert(normalizedJobs)
+      .values({
+        userId: user.id,
+        canonicalJobId: canonical.id,
+        isFavorited: data.star,
+        currentStage: 'Favorited',
+        sourceOrigin: source?.ats ?? 'unknown',
+        jobTitle: canonical.titleDisplay,
+        employerName: canonical.companyDisplay,
+        location: canonical.locationDisplay ?? null,
+        sourceUrl,
+        canonicalSourceUrl: canonicalUrl,
+        isFlagged: false,
+        remoteType: canonical.remote ? 'fully_remote' : 'unspecified',
+        workplaceType: canonical.remote ? 'remote' : 'on-site',
+        discoveryTimestamp: now,
+        lastSeenAt: now,
+        createdAt: now,
+        updatedAt: now,
+      })
+      .returning();
+
+    return { success: true, id: inserted.id, isFavorited: data.star };
   });

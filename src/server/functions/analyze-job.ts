@@ -153,6 +153,7 @@ export const analyzeJob = createServerFn({ method: "POST" })
           careerAnalysis: JSON.stringify(analysis.careerAnalysis),
           insights: analysis.insights ? JSON.stringify(analysis.insights) : null,
           currentStage: 'Analyzed',
+          isFavorited: true,
           isFlagged: false,
           remoteType: 'fully_remote',
           discoveryTimestamp: now,

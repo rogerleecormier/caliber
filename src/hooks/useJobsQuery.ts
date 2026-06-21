@@ -38,7 +38,7 @@ export function useJobsQuery({ searchParams }: UseJobsQueryOptions) {
           ...searchParams,
           pageSize: PAGE_SIZE,
           excludeFavorited: searchParams.analyzedOnly,
-          isFavorited: searchParams.view === "my-jobs" ? true : undefined,
+          isFavorited: true,
         },
       });
       return result;

@@ -416,7 +416,15 @@ export async function listNormalizedJobs(args: {
       : undefined,
     args.green ? gte(normalizedJobs.masterScore, 80) : undefined,
     args.excludeFavorited ? sql`${normalizedJobs.currentStage} != 'Favorited'` : undefined,
-    args.isFavorited !== undefined ? eq(normalizedJobs.isFavorited, args.isFavorited) : undefined,
+    // Pipeline visibility: show jobs user explicitly starred OR jobs progressed beyond Favorited stage
+    args.isFavorited === true
+      ? or(
+          eq(normalizedJobs.isFavorited, true),
+          sql`${normalizedJobs.currentStage} != 'Favorited'`,
+        )
+      : args.isFavorited === false
+        ? and(eq(normalizedJobs.isFavorited, false), sql`${normalizedJobs.currentStage} = 'Favorited'`)
+        : undefined,
   );
   const whereClause = args.status
     ? and(baseWhereClause, eq(normalizedJobs.currentStage, args.status as PipelineStatus))

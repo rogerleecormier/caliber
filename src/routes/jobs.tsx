@@ -6,9 +6,15 @@ import {
   BookMarked,
   Briefcase,
   BarChart3,
+  Building2,
+  ChevronLeft,
+  ChevronRight,
   Grid3x3,
+  Globe,
   Loader2,
   Search,
+  SlidersHorizontal,
+  Star,
   Table2,
   Trash2,
   Sparkles,
@@ -42,12 +48,16 @@ import {
   setPipelineJobStatus,
   getRecommendedJobs,
   togglePipelineJobFavorite,
+  getCatalogJobs,
+  starCatalogJob,
 } from "@/server/functions/jobs-pipeline";
 import {
   PIPELINE_STATUSES,
   STATUS_TONES,
 } from "@/lib/pipeline-constants";
 import { useJobsQuery } from "@/hooks/useJobsQuery";
+import { useCatalogQuery } from "@/hooks/useCatalogQuery";
+import type { CatalogFilters } from "@/hooks/useCatalogQuery";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -120,7 +130,7 @@ export const Route = createFileRoute("/jobs")({
           ...deps,
           pageSize: PAGE_SIZE,
           excludeFavorited: deps.analyzedOnly,
-          isFavorited: deps.view === "my-jobs" ? true : undefined,
+          isFavorited: true,
         },
       }),
       deps.view === "all-jobs" ? getRecommendedJobs() : Promise.resolve({ jobs: [] }),
@@ -330,45 +340,7 @@ function JobsPage() {
 
         {/* All Jobs Tab */}
         {activeTab === "all-jobs" && (
-          <div className="space-y-6">
-            <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-4">
-              <h3 className="font-semibold text-indigo-900 mb-1">Recommended for You</h3>
-              <p className="text-sm text-indigo-800">
-                These are top matches based on semantic similarity to your resume, salary requirements, location, and remote preferences.
-              </p>
-            </div>
-
-            {loaderData.recommendedJobs && loaderData.recommendedJobs.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {loaderData.recommendedJobs.map((job: any) => (
-                  <JobResultCard
-                    key={job.id}
-                    job={job}
-                    isFavorited={job.isFavorited}
-                    onToggleFavorite={async () => {
-                      try {
-                        const newFav = !job.isFavorited;
-                        await togglePipelineJobFavorite({ data: { id: job.id, isFavorited: newFav } });
-                        // Refresh the loader data to show the updated favorite status
-                        navigate({ search: (prev) => prev });
-                      } catch (err) {
-                        alert(err instanceof Error ? err.message : "Failed to toggle favorite");
-                      }
-                    }}
-                    onAnalyzeClick={() => openAnalysisModal(job)}
-                    isAnalyzed={job.status === "Analyzed" || !!job.analyzedAt}
-                  />
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-12">
-                <Sparkles className="h-12 w-12 text-slate-300 mx-auto mb-4" />
-                <p className="text-slate-600">
-                  No recommended jobs found. Make sure you have uploaded your resume and configured search preferences in your Profile.
-                </p>
-              </div>
-            )}
-          </div>
+          <CatalogBrowser onAnalyzeClick={openAnalysisModal} />
         )}
 
         {/* Quick Search Tab */}
@@ -1213,6 +1185,361 @@ function JobsListSkeleton() {
           ))}
         </div>
       </div>
+    </div>
+  );
+}
+
+// ─── Catalog Browser ──────────────────────────────────────────────────────────
+
+// ─── Catalog Browser (TanStack Query + Pacer) ─────────────────────────────────
+
+const ATS_OPTIONS = [
+  { value: '', label: 'All Sources' },
+  { value: 'greenhouse', label: 'Greenhouse' },
+  { value: 'lever', label: 'Lever' },
+  { value: 'workable', label: 'Workable' },
+  { value: 'ashby', label: 'Ashby' },
+];
+
+const SALARY_OPTIONS = [
+  { value: 0, label: 'Any salary' },
+  { value: 50000, label: '$50K+' },
+  { value: 75000, label: '$75K+' },
+  { value: 100000, label: '$100K+' },
+  { value: 125000, label: '$125K+' },
+  { value: 150000, label: '$150K+' },
+  { value: 200000, label: '$200K+' },
+];
+
+const atsBadgeClass: Record<string, string> = {
+  greenhouse: 'bg-emerald-100 text-emerald-700',
+  lever: 'bg-indigo-100 text-indigo-700',
+  workable: 'bg-sky-100 text-sky-700',
+  ashby: 'bg-violet-100 text-violet-700',
+};
+
+function formatSalary(min?: number | null, max?: number | null) {
+  if (!min && !max) return null;
+  const fmt = (n: number) => `$${(n / 1000).toFixed(0)}K`;
+  if (min && max) return `${fmt(min)}–${fmt(max)}`;
+  if (max) return `Up to ${fmt(max)}`;
+  return `${fmt(min!)}+`;
+}
+
+function CatalogBrowser({ onAnalyzeClick }: { onAnalyzeClick: (job: any) => void }) {
+  // Local filter state — text inputs are debounced inside useCatalogQuery via @tanstack/react-pacer
+  const [filters, setFilters] = useState<CatalogFilters>({
+    query: '',
+    remote: undefined,
+    company: '',
+    ats: '',
+    salaryMin: 0,
+    page: 1,
+  });
+  const [filtersOpen, setFiltersOpen] = useState(false);
+
+  const {
+    data,
+    isFetching,
+    isLoading,
+    starMutation,
+    prefetchPage,
+    totalPages,
+    isDebouncing,
+  } = useCatalogQuery(filters);
+
+  const hasActiveFilters =
+    filters.remote !== undefined || filters.company || filters.ats || filters.salaryMin > 0;
+
+  const setFilter = <K extends keyof CatalogFilters>(key: K, value: CatalogFilters[K]) => {
+    setFilters((prev) => ({ ...prev, [key]: value, page: key !== 'page' ? 1 : prev.page }));
+  };
+
+  const clearFilters = () =>
+    setFilters((prev) => ({ ...prev, remote: undefined, company: '', ats: '', salaryMin: 0, page: 1 }));
+
+  const handlePageChange = (p: number) => {
+    setFilter('page', p);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleStar = (job: any) => {
+    starMutation.mutate({ canonicalJobId: job.id, star: !job.isFavorited });
+  };
+
+  const spinning = isFetching || isDebouncing;
+
+  return (
+    <div className="space-y-4">
+      {/* Header */}
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div>
+          <h2 className="text-xl font-bold text-slate-900">Job Catalog</h2>
+          <p className="text-sm text-slate-500 mt-0.5">
+            {data
+              ? `${data.total.toLocaleString()} jobs · ⭐ star any job to add it to My Jobs`
+              : 'Loading catalog…'}
+          </p>
+        </div>
+        <button
+          onClick={() => setFiltersOpen((o) => !o)}
+          className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-sm font-medium transition ${
+            filtersOpen || hasActiveFilters
+              ? 'bg-slate-900 text-white border-slate-900'
+              : 'bg-white text-slate-700 border-slate-200 hover:border-slate-300'
+          }`}
+        >
+          <SlidersHorizontal className="h-4 w-4" />
+          Filters
+          {hasActiveFilters && <span className="ml-1 h-2 w-2 rounded-full bg-amber-400" />}
+        </button>
+      </div>
+
+      {/* Search */}
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
+        <input
+          type="text"
+          value={filters.query}
+          onChange={(e) => setFilter('query', e.target.value)}
+          placeholder="Search by title or company…"
+          className="w-full pl-10 pr-10 py-2.5 border border-slate-200 rounded-xl bg-white text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition"
+        />
+        {spinning && (
+          <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-indigo-400 animate-spin" />
+        )}
+      </div>
+
+      {/* Filters panel */}
+      {filtersOpen && (
+        <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {/* Work type */}
+            <div>
+              <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-2">Work Type</label>
+              <div className="flex gap-1.5">
+                {([{ label: 'Any', val: undefined }, { label: 'Remote', val: true }, { label: 'On-site', val: false }] as const).map(({ label, val }) => (
+                  <button
+                    key={label}
+                    onClick={() => setFilter('remote', val as boolean | undefined)}
+                    className={`flex-1 py-1.5 rounded-lg border text-xs font-medium transition ${
+                      filters.remote === val
+                        ? 'bg-indigo-600 text-white border-indigo-600'
+                        : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Company */}
+            <div>
+              <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-2">Company</label>
+              <div className="relative">
+                <Building2 className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400 pointer-events-none" />
+                <input
+                  type="text"
+                  value={filters.company}
+                  onChange={(e) => setFilter('company', e.target.value)}
+                  placeholder="e.g. Stripe"
+                  className="w-full pl-8 pr-3 py-1.5 border border-slate-200 rounded-lg bg-white text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+            </div>
+
+            {/* ATS Source */}
+            <div>
+              <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-2">ATS Source</label>
+              <select
+                value={filters.ats}
+                onChange={(e) => setFilter('ats', e.target.value)}
+                className="w-full py-1.5 px-2 border border-slate-200 rounded-lg bg-white text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              >
+                {ATS_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+              </select>
+            </div>
+
+            {/* Salary */}
+            <div>
+              <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-2">Min Salary</label>
+              <select
+                value={filters.salaryMin}
+                onChange={(e) => setFilter('salaryMin', Number(e.target.value))}
+                className="w-full py-1.5 px-2 border border-slate-200 rounded-lg bg-white text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              >
+                {SALARY_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+              </select>
+            </div>
+          </div>
+
+          {hasActiveFilters && (
+            <div className="flex justify-end">
+              <button onClick={clearFilters} className="px-3 py-1.5 text-xs font-medium text-slate-500 hover:text-slate-900 transition">
+                Clear all filters
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Results */}
+      {isLoading ? (
+        <div className="text-center py-16">
+          <Loader2 className="h-8 w-8 text-slate-300 mx-auto mb-3 animate-spin" />
+          <p className="text-slate-400 text-sm">Loading catalog…</p>
+        </div>
+      ) : data && data.jobs.length > 0 ? (
+        <>
+          <div
+            className={`divide-y divide-slate-100 border border-slate-200 rounded-xl overflow-hidden bg-white shadow-sm transition-opacity ${
+              isFetching ? 'opacity-60' : 'opacity-100'
+            }`}
+          >
+            {data.jobs.map((job) => {
+              const salary = formatSalary(job.compensationMin, job.compensationMax);
+              const badgeCls = atsBadgeClass[job.ats ?? ''] ?? 'bg-slate-100 text-slate-600';
+              const isStarring = starMutation.isPending && (starMutation.variables as any)?.canonicalJobId === job.id;
+
+              return (
+                <div
+                  key={job.id}
+                  className="flex items-start gap-3 px-4 py-3.5 hover:bg-slate-50/80 transition group"
+                >
+                  {/* Star */}
+                  <button
+                    onClick={() => handleStar(job)}
+                    disabled={isStarring}
+                    title={job.isFavorited ? 'Remove from My Jobs' : 'Star to add to My Jobs'}
+                    className={`mt-0.5 flex-shrink-0 transition-all ${
+                      job.isFavorited ? 'text-amber-400 scale-110' : 'text-slate-200 hover:text-amber-400 hover:scale-110'
+                    } ${isStarring ? 'opacity-50 animate-pulse' : ''}`}
+                  >
+                    <Star className="h-5 w-5" fill={job.isFavorited ? 'currentColor' : 'none'} strokeWidth={1.5} />
+                  </button>
+
+                  {/* Info */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-start gap-2 justify-between">
+                      <div className="min-w-0 flex-1">
+                        <p className="font-semibold text-slate-900 text-sm leading-tight truncate">{job.titleDisplay}</p>
+                        <p className="text-sm text-slate-500 mt-0.5 truncate">{job.companyDisplay}</p>
+                      </div>
+                      <div className="flex items-center gap-1.5 flex-shrink-0">
+                        {job.ats && (
+                          <span className={`px-2 py-0.5 rounded-full text-[11px] font-bold uppercase tracking-wide ${badgeCls}`}>
+                            {job.ats}
+                          </span>
+                        )}
+                        {job.remote && (
+                          <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-teal-50 text-teal-700 text-[11px] font-bold">
+                            <Globe className="h-3 w-3" />
+                            Remote
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2 mt-1 text-[12px] text-slate-400">
+                      {job.locationDisplay && <span>{job.locationDisplay}</span>}
+                      {salary && <span className="text-emerald-600 font-semibold">{salary}</span>}
+                      {job.experienceLevel && <span className="capitalize">{job.experienceLevel.replace(/_/g, ' ')}</span>}
+                      {job.lastSeenAt && (
+                        <span>{new Date(job.lastSeenAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
+                      )}
+                      {job.isSaved && !job.isFavorited && (
+                        <span className="text-slate-400 italic">in pipeline</span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Hover actions */}
+                  <div className="flex items-center gap-1.5 flex-shrink-0 opacity-0 group-hover:opacity-100 transition">
+                    {(job.applyUrl || job.sourceUrl) && (
+                      <a
+                        href={job.applyUrl ?? job.sourceUrl ?? '#'}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="px-2.5 py-1 text-[12px] font-semibold bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition"
+                      >
+                        Apply
+                      </a>
+                    )}
+                    <button
+                      onClick={() => onAnalyzeClick({
+                        ...job,
+                        title: job.titleDisplay,
+                        company: job.companyDisplay,
+                        sourceUrl: job.applyUrl ?? job.sourceUrl,
+                      })}
+                      className="px-2.5 py-1 text-[12px] font-medium border border-slate-200 text-slate-600 rounded-lg hover:bg-slate-100 transition"
+                    >
+                      Analyze
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between pt-1">
+              <p className="text-sm text-slate-500">
+                Page {filters.page} of {totalPages} &middot; {data.total.toLocaleString()} jobs
+              </p>
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => handlePageChange(filters.page - 1)}
+                  disabled={filters.page <= 1}
+                  onMouseEnter={() => filters.page > 1 && prefetchPage(filters.page - 1)}
+                  className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </button>
+                {Array.from({ length: Math.min(7, totalPages) }, (_, i) => {
+                  const p = filters.page;
+                  const n = totalPages;
+                  const pg = n <= 7 ? i + 1 : p <= 4 ? i + 1 : p >= n - 3 ? n - 6 + i : p - 3 + i;
+                  return (
+                    <button
+                      key={pg}
+                      onClick={() => handlePageChange(pg)}
+                      onMouseEnter={() => pg !== p && prefetchPage(pg)}
+                      className={`min-w-[32px] h-8 px-2 text-sm rounded-lg border transition ${
+                        pg === p
+                          ? 'bg-indigo-600 text-white border-indigo-600 font-semibold'
+                          : 'border-slate-200 text-slate-600 hover:bg-slate-50'
+                      }`}
+                    >
+                      {pg}
+                    </button>
+                  );
+                })}
+                <button
+                  onClick={() => handlePageChange(filters.page + 1)}
+                  disabled={filters.page >= totalPages}
+                  onMouseEnter={() => filters.page < totalPages && prefetchPage(filters.page + 1)}
+                  className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition"
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+          )}
+        </>
+      ) : data ? (
+        <div className="text-center py-16 border border-slate-200 rounded-xl bg-white">
+          <Search className="h-10 w-10 text-slate-300 mx-auto mb-3" />
+          <p className="text-slate-600 font-medium">No jobs match your filters</p>
+          <p className="text-slate-400 text-sm mt-1">Try adjusting your search or clearing filters</p>
+          {hasActiveFilters && (
+            <button onClick={clearFilters} className="mt-3 px-4 py-1.5 text-sm font-medium text-indigo-600 hover:text-indigo-700 transition">
+              Clear all filters
+            </button>
+          )}
+        </div>
+      ) : null}
     </div>
   );
 }
