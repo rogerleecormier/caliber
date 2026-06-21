@@ -9,12 +9,18 @@ async function handleCronTrigger(request: Request) {
     const forceAll = url.searchParams.get('force') === 'true';
 
     const env = await getCloudflareEnvAsync();
-    const result = await runBoardCrawlerCron(env as any, forceAll);
+
+    // Enqueue the cron work to avoid blocking the main thread
+    if (env.CRAWL_CRON_QUEUE) {
+      await env.CRAWL_CRON_QUEUE.send({ forceAll });
+    } else {
+      // Fallback: run synchronously if queue not available
+      await runBoardCrawlerCron(env as any, forceAll);
+    }
 
     return json({
       success: true,
-      message: `Enqueued ${result.enqueuedCount} crawler jobs`,
-      enqueuedCount: result.enqueuedCount,
+      message: 'Crawler cron scheduled',
       forceAll
     });
   } catch (error) {

@@ -109,6 +109,17 @@ max_batch_size = 5
 max_batch_timeout = 10
 max_retries = 3
 
+# Crawl Cron Queue — non-blocking cron job execution
+[[queues.producers]]
+binding = "CRAWL_CRON_QUEUE"
+queue = "crawl-cron-queue"
+
+[[queues.consumers]]
+queue = "crawl-cron-queue"
+max_batch_size = 1
+max_batch_timeout = 5
+max_retries = 1
+
 # Rate Limiter Durable Object
 [[durable_objects.bindings]]
 name = "RATE_LIMITER"

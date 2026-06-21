@@ -75,7 +75,19 @@ export default {
         await processDiscoveryQueue(batch, env)
         return
       }
-      
+
+      if (queueName === 'crawl-cron-queue') {
+        const message = batch.messages[0]?.body as any
+        try {
+          await runBoardCrawlerCron(env as any, message?.forceAll || false)
+          batch.ackAll()
+        } catch (e) {
+          console.error('[crawl-cron-queue] Error:', e)
+          batch.retryAll()
+        }
+        return
+      }
+
       const db = getDb(env.DB)
       const firstMessage = batch.messages[0]?.body as any
       if (firstMessage?.type === 'scrape_job_content') {
