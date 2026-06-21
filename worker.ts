@@ -133,5 +133,3 @@ export default {
   },
 }
 
-export { RateLimiter } from './src/server/rate-limit/durable-object'
-

@@ -144,15 +144,16 @@ const EMPTY = (period: string): AnalyticsSummaryData => ({
   allJobs: [],
 });
 
-export const getAnalytics = createServerFn({ method: "GET" })
+export const getAnalytics = createServerFn({ method: "POST" })
   .inputValidator((data: { period?: string }) => data)
-  .handler(async (ctx: any): Promise<AnalyticsSummaryData | null> => { const { data } = ctx;
+  .handler(async (ctx: any): Promise<AnalyticsSummaryData> => {
+    const { data } = ctx;
     try {
       const env = await getCloudflareEnvAsync();
       if (!env.DB) return EMPTY(data.period ?? "all_time");
 
-      const user = await resolveSessionUser((ctx as any)?.request);
-      if (!user) return null;
+      const user = await resolveSessionUser();
+      if (!user) return EMPTY(data.period ?? "all_time");
 
       const period = data.period ?? "all_time";
       const db = getDb(env.DB);

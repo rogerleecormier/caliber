@@ -31,7 +31,7 @@ const config = defineConfig({
     },
   },
   optimizeDeps: {
-    exclude: ["wrangler", "blake3-wasm", "miniflare", "undici"],
+    exclude: ["wrangler", "blake3-wasm", "miniflare", "undici", "@cloudflare/unenv-preset"],
   },
   build: {
     rollupOptions: {

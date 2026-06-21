@@ -1,4 +1,4 @@
-import { createFileRoute, Link, defer } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { getAnalytics, type AnalyticsSummaryData } from "@/server/functions/get-analytics";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -52,10 +52,6 @@ export const Route = createFileRoute("/dashboard")({
     const ctx = context as { user?: { id: string } | null };
     if (!ctx.user) requireLoginRedirect();
   },
-  loader: async () =>
-    defer<{ analyticsData: Promise<AnalyticsSummaryData> }>({
-      analyticsData: getAnalytics({ data: { period: "all_time" } }),
-    }),
   component: DashboardPage,
   pendingComponent: DashboardLoading,
 });
@@ -84,12 +80,19 @@ const ChartTooltip = ({ active, payload, label }: any) => {
 
 // Main Dashboard Page
 function DashboardPage() {
-  const { analyticsData } = Route.useLoaderData() as any;
+  const { data, isLoading } = useQuery({
+    queryKey: ["analytics", "all_time"],
+    queryFn: async () => getAnalytics({ data: { period: "all_time" } }),
+  });
+
+  if (isLoading || !data) {
+    return <DashboardLoading />;
+  }
 
   return (
     <div className="spx-page space-y-8 pb-16">
       <DashboardHeader />
-      <DashboardContent initialData={analyticsData} />
+      <DashboardContent initialData={data} />
     </div>
   );
 }
