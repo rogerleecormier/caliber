@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { extractTokenFromUrl, inferTokenFromCompanyDomain } from './patterns';
 import { validateBoardToken } from './consumer';
+import { monitorIndeedForJobs } from './feeds';
 
 describe('Dynamic Board Discovery Unit Tests', () => {
   describe('extractTokenFromUrl', () => {
@@ -108,6 +109,62 @@ describe('Dynamic Board Discovery Unit Tests', () => {
 
       const isValid = await validateBoardToken('ashby', 'railway');
       expect(isValid).toBe(false);
+    });
+  });
+
+  describe('monitorIndeedForJobs', () => {
+    beforeEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    it('should extract boards from Indeed when successful', async () => {
+      const mockFetch = vi.fn().mockResolvedValue({
+        ok: true,
+        text: async () => `
+          <html>
+            <body>
+              <a href="https://boards.greenhouse.io/acme-corp/jobs/1">Acme Greenhouse</a>
+              <a href="https://jobs.lever.co/another-corp">Another Corp Lever</a>
+            </body>
+          </html>
+        `
+      });
+      vi.stubGlobal('fetch', mockFetch);
+
+      const boards = await monitorIndeedForJobs(['engineering'], {});
+      expect(boards).toEqual([
+        { company: 'Acme-corp', ats: 'greenhouse', token: 'acme-corp', source: 'rss' },
+        { company: 'Another-corp', ats: 'lever', token: 'another-corp', source: 'rss' }
+      ]);
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+    });
+
+    it('should fall back to Hacker News RSS feed when Indeed returns 403', async () => {
+      const mockFetch = vi.fn()
+        .mockResolvedValueOnce({
+          ok: false,
+          status: 403,
+          statusText: 'Forbidden'
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          text: async () => `
+            <rss>
+              <item>
+                <description>
+                  <![CDATA[We use Greenhouse: https://boards.greenhouse.io/fallback-corp]]>
+                </description>
+              </item>
+            </rss>
+          `
+        });
+      vi.stubGlobal('fetch', mockFetch);
+
+      const boards = await monitorIndeedForJobs(['engineering'], {});
+      expect(boards).toEqual([
+        { company: 'Fallback-corp', ats: 'greenhouse', token: 'fallback-corp', source: 'rss' }
+      ]);
+      expect(mockFetch).toHaveBeenCalledTimes(2);
     });
   });
 });

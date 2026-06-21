@@ -12,6 +12,12 @@ export async function monitorIndeedForJobs(
   env: any
 ): Promise<FeedBoard[]> {
   const boards: FeedBoard[] = [];
+  const regexes = [
+    /https?:\/\/[^\s"'<>]*greenhouse[^\s"'<>]*/g,
+    /https?:\/\/[^\s"'<>]*lever[^\s"'<>]*/g,
+    /https?:\/\/[^\s"'<>]*ashby[^\s"'<>]*/g,
+    /https?:\/\/[^\s"'<>]*workable[^\s"'<>]*/g,
+  ];
 
   for (const keyword of keywords) {
     try {
@@ -30,25 +36,20 @@ export async function monitorIndeedForJobs(
 
       // Extract company names + job posting links
       // Heuristic: look for patterns like "careers.acme.com", "acme.jobs.greenhouse.io", etc.
-      const regexes = [
-        /https?:\/\/[^\s"'<>]*greenhouse[^\s"'<>]*/g,
-        /https?:\/\/[^\s"'<>]*lever[^\s"'<>]*/g,
-        /https?:\/\/[^\s"'<>]*ashby[^\s"'<>]*/g,
-        /https?:\/\/[^\s"'<>]*workable[^\s"'<>]*/g,
-      ];
 
       for (const regex of regexes) {
         const matches = html.match(regex) ?? [];
         for (const url of matches) {
-          const ats = url.includes('greenhouse')
+          const cleanedUrl = url.replace(/[\]\)\>'".,;:]+$/, '');
+          const ats = cleanedUrl.includes('greenhouse')
             ? 'greenhouse'
-            : url.includes('lever')
+            : cleanedUrl.includes('lever')
               ? 'lever'
-              : url.includes('ashby')
+              : cleanedUrl.includes('ashby')
                 ? 'ashby'
                 : 'workable';
           
-          const token = extractTokenFromUrl(url, ats);
+          const token = extractTokenFromUrl(cleanedUrl, ats);
           if (token && !boards.some(b => b.token === token && b.ats === ats)) {
             boards.push({
               company: token.charAt(0).toUpperCase() + token.slice(1),
@@ -60,9 +61,47 @@ export async function monitorIndeedForJobs(
         }
       }
     } catch (e) {
-      console.error(`[feeds] Indeed crawl for "${keyword}" failed, using fallback mock:`, e);
-      // fallback mock boards
-      return getMockFeedBoards();
+      console.warn(`[feeds] Indeed crawl for "${keyword}" failed (${(e as Error).message}). Trying fallback Hacker News jobs feed...`);
+      try {
+        const fallbackResponse = await fetch(
+          `https://hnrss.org/jobs?q=${encodeURIComponent(keyword)}`,
+          {
+            headers: {
+              'User-Agent': 'Caliber-Bot/1.0 (+https://caliber.rcormier.dev)'
+            }
+          }
+        );
+        if (fallbackResponse.ok) {
+          const xml = await fallbackResponse.text();
+          for (const regex of regexes) {
+            const matches = xml.match(regex) ?? [];
+            for (const url of matches) {
+              const cleanedUrl = url.replace(/[\]\)\>'".,;:]+$/, '');
+              const ats = cleanedUrl.includes('greenhouse')
+                ? 'greenhouse'
+                : cleanedUrl.includes('lever')
+                  ? 'lever'
+                  : cleanedUrl.includes('ashby')
+                    ? 'ashby'
+                    : 'workable';
+              
+              const token = extractTokenFromUrl(cleanedUrl, ats);
+              if (token && !boards.some(b => b.token === token && b.ats === ats)) {
+                boards.push({
+                  company: token.charAt(0).toUpperCase() + token.slice(1),
+                  ats,
+                  token,
+                  source: 'rss',
+                });
+              }
+            }
+          }
+        } else {
+          console.warn(`[feeds] Fallback Hacker News jobs feed returned HTTP ${fallbackResponse.status}`);
+        }
+      } catch (fallbackError) {
+        console.error(`[feeds] Fallback Hacker News jobs feed crawl also failed:`, fallbackError);
+      }
     }
   }
 
