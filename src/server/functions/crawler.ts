@@ -11,7 +11,7 @@ async function requireAdmin(ctx?: any) {
 }
 
 export const getCrawlerStats = createServerFn({ method: "GET" })
-  .validator((d: { limit?: number; offset?: number } | undefined) => d || {})
+  .inputValidator((d: { limit?: number; offset?: number } | undefined) => d || {})
   .handler(async (ctx: any) => {
     await requireAdmin(ctx);
     
