@@ -7,6 +7,8 @@ import { googleDorkSearch, serpApiSearch } from './search';
 import { monitorIndeedForJobs } from './feeds';
 import { logAudit } from '../db/queries';
 
+const SLUG_PROBE_BATCH = 20;
+
 export async function processDiscoveryQueue(
   batch: any,
   env: any
@@ -31,6 +33,9 @@ export async function handleDiscoveryMessage(
   let boards: DiscoveredBoard[] = [];
 
   switch (message.phase) {
+    case 'slug_probe':
+      await probeSlugCandidates(env);
+      return;
     case 'company_lists':
       boards = await discoverFromCompanyLists(env);
       break;
@@ -53,11 +58,99 @@ export async function handleDiscoveryMessage(
   console.log(`[Discovery] Phase ${message.phase}: found & validated ${validated.length} boards`);
 }
 
+// ─── Slug Probe Phase ────────────────────────────────────────────────────────
+// Drains pending rows from potential_companies, probes each slug against all
+// ATS APIs, and promotes confirmed hits directly into the boards table.
+
+function generateSlugVariations(slug: string): string[] {
+  const base = slug.toLowerCase().replace(/[^a-z0-9-]/g, '')
+  const noHyphens = base.replace(/-/g, '')
+  const underscored = base.replace(/-/g, '_')
+  return [...new Set([base, noHyphens, underscored].filter(Boolean))]
+}
+
+async function probeSlugCandidates(env: any): Promise<void> {
+  if (!env.DB) return
+
+  const { results: pending } = await env.DB.prepare(`
+    SELECT id, slug FROM potential_companies
+    WHERE status = 'pending' OR status IS NULL
+    ORDER BY added_at ASC
+    LIMIT ${SLUG_PROBE_BATCH}
+  `).all() as { results: Array<{ id: string; slug: string }> }
+
+  if (!pending || pending.length === 0) {
+    console.log('[Discovery:slug_probe] No pending slugs to probe')
+    return
+  }
+
+  console.log(`[Discovery:slug_probe] Probing ${pending.length} slug candidates`)
+
+  const atsEndpoints: Array<{ ats: string; url: (slug: string) => string }> = [
+    { ats: 'greenhouse', url: s => `https://boards-api.greenhouse.io/v1/boards/${s}/jobs?content=false` },
+    { ats: 'lever',      url: s => `https://api.lever.co/v0/postings/${s}?mode=json` },
+    { ats: 'ashby',      url: s => `https://api.ashbyhq.com/posting-api/job-board/${s}` },
+    { ats: 'workable',   url: s => `https://apply.workable.com/api/v1/widget/accounts/${s}` },
+  ]
+
+  for (const row of pending) {
+    const variations = generateSlugVariations(row.slug)
+    let found = false
+
+    outer: for (const slug of variations) {
+      for (const { ats, url } of atsEndpoints) {
+        try {
+          const res = await fetch(url(slug), {
+            headers: { 'User-Agent': 'Caliber-Bot/1.0 (+https://caliber.rcormier.dev)' },
+            signal: AbortSignal.timeout(8000),
+          })
+          if (res.ok) {
+            const now = new Date().toISOString()
+            await env.DB.prepare(`
+              INSERT INTO boards (id, ats, token, company_name, crawl_frequency_tier, is_active, discovered_at, created_at, discovery_phase, discovery_confidence, validated)
+              VALUES (?, ?, ?, ?, 'tier2', 1, ?, ?, 'slug_probe', 0.9, 1)
+              ON CONFLICT(ats, token) DO UPDATE SET
+                last_discovered_at = excluded.discovered_at,
+                discovery_confidence = MAX(discovery_confidence, excluded.discovery_confidence),
+                validated = 1
+            `).bind(crypto.randomUUID(), ats, slug, row.slug, now, now).run()
+
+            console.log(`[Discovery:slug_probe] ✓ ${row.slug} → ${ats}/${slug}`)
+
+            try {
+              await logAudit(env, {
+                eventType: 'board_discovered',
+                ats,
+                boardToken: slug,
+                details: { company: row.slug, confidence: 0.9, phase: 'slug_probe' },
+                actor: 'discovery_worker',
+              })
+            } catch {}
+
+            found = true
+            break outer
+          }
+        } catch {
+          // timeout or network error — skip this variation
+        }
+      }
+    }
+
+    await env.DB.prepare(`
+      UPDATE potential_companies
+      SET status = ?, last_checked_at = unixepoch(), check_count = check_count + 1
+      WHERE id = ?
+    `).bind(found ? 'discovered' : 'not_found', row.id).run()
+  }
+
+  console.log(`[Discovery:slug_probe] Done probing ${pending.length} candidates`)
+}
+
 async function discoverFromCompanyLists(env: any): Promise<DiscoveredBoard[]> {
   console.log('[Discovery:company_lists] Fetching seed company lists...');
   const [fortune500, ycList, cbList] = await Promise.all([
     fetchFortuneList(),
-    fetchYCBatch(''), // Pull all YC companies to broaden the discovery seed pool
+    fetchYCBatch(''),
     fetchCrunchbaseCompanies(),
   ]);
 
@@ -65,22 +158,38 @@ async function discoverFromCompanyLists(env: any): Promise<DiscoveredBoard[]> {
   const merged = await mergeCompanySources([fortune500, ycList, cbList]);
   console.log(`[Discovery:company_lists] Merged into ${merged.length} unique companies`);
 
-  const results: DiscoveredBoard[] = [];
+  // Seed all merged companies into potential_companies as pending slugs.
+  // slug_probe phase will drain and validate these against ATS APIs each tick.
+  if (env.DB) {
+    let seeded = 0
+    for (const company of merged) {
+      const slug = company.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
+      if (!slug) continue
+      try {
+        await env.DB.prepare(`
+          INSERT INTO potential_companies (id, slug, status, check_count)
+          VALUES (?, ?, 'pending', 0)
+          ON CONFLICT(slug) DO NOTHING
+        `).bind(crypto.randomUUID(), slug).run()
+        seeded++
+      } catch {}
+    }
+    console.log(`[Discovery:company_lists] Seeded ${seeded} slugs into potential_companies`)
+  }
 
-  // Shuffle the merged companies list to probe a different random set on every pipeline execution
+  // Also probe a small random slice of career pages for direct board discovery
+  // (keeps the high-confidence aggregator path alive)
+  const results: DiscoveredBoard[] = [];
   const shuffled = [...merged].sort(() => Math.random() - 0.5);
-  const probeSlice = shuffled.slice(0, 15);
-  console.log(`[Discovery:company_lists] Probing careers pages for a randomized slice of 15 companies: ${probeSlice.map(c => c.name).join(', ')}`);
+  const probeSlice = shuffled.slice(0, 10);
+  console.log(`[Discovery:company_lists] Probing career pages for ${probeSlice.length} companies`);
 
   for (const company of probeSlice) {
     const domain = company.domain || `${company.name.toLowerCase().replace(/[^a-z0-9]/g, '')}.com`;
-    console.log(`[Discovery:company_lists] Probing ${company.name} at domain: ${domain}...`);
     const pages = await probeCareerPages(company.name, domain);
-    console.log(`[Discovery:company_lists] Probing ${company.name} finished. Found ${pages.length} match indicators`);
     for (const page of pages) {
       if (page.ats) {
         const token = extractTokenFromUrl(page.url, page.ats);
-        console.log(`[Discovery:company_lists] Found potential token: ${token} for ATS: ${page.ats} from URL: ${page.url}`);
         if (token) {
           results.push({
             company: company.name,

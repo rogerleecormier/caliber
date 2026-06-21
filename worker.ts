@@ -25,32 +25,57 @@ export default {
 
   async scheduled(_event: ScheduledEvent, env: CloudflareEnv, _ctx: ExecutionContext) {
     const db = getDb(env.DB)
+    const now = new Date()
+    const hour = now.getUTCHours()
+    // minuteOfDay in 30-min resolution: 0, 30, 60, 90, ... 1410
+    const minuteOfDay = hour * 60 + (now.getUTCMinutes() >= 30 ? 30 : 0)
+
+    // Every tick: agent poller + board crawler
     await runAgentPoller(env)
     await runGreenhouseSyncCron(db)
     try {
       await runBoardCrawlerCron(env as any)
     } catch (e) {
-      console.error('Failed to run board crawler cron:', e)
+      console.error('[ticker] board-crawler failed:', e)
     }
-    if (new Date().getUTCHours() % 6 === 0) {
-      await aggregateAnalytics(env)
+
+    const dq = (env as any).DISCOVERY_QUEUE
+    if (!dq) {
+      console.warn('[ticker] DISCOVERY_QUEUE not bound, skipping discovery dispatch')
+      return
     }
-    if (new Date().getUTCHours() % 12 === 0 && (env as any).DISCOVERY_QUEUE) {
+
+    const enqueue = async (phase: string) => {
       try {
-        const discoveryPhases = [
-          { phase: 'company_lists', priority: 1 },
-          { phase: 'llm_inference', priority: 2 },
-          { phase: 'aggregators', priority: 3 },
-          { phase: 'search_engine', priority: 4 },
-          { phase: 'job_feeds', priority: 5 }
-        ];
-        for (const item of discoveryPhases) {
-          await (env as any).DISCOVERY_QUEUE.send({ phase: item.phase, priority: item.priority });
-        }
-        console.log('[scheduled-cron] Successfully enqueued discovery phases');
+        await dq.send({ phase })
       } catch (e) {
-        console.error('[scheduled-cron] Failed to enqueue discovery phases:', e);
+        console.error(`[ticker] Failed to enqueue ${phase}:`, e)
       }
+    }
+
+    // Every tick (30 min): drain potentialCompanies → boards
+    await enqueue('slug_probe')
+
+    // Every 2 hrs (minuteOfDay % 120 === 0): seed potentialCompanies + aggregators
+    if (minuteOfDay % 120 === 0) {
+      await enqueue('company_lists')
+      await enqueue('aggregators')
+    }
+
+    // Every 6 hrs: job feeds + analytics rollup
+    if (minuteOfDay % 360 === 0) {
+      await enqueue('job_feeds')
+      try { await aggregateAnalytics(env) } catch (e) { console.error('[ticker] analytics failed:', e) }
+    }
+
+    // Every 12 hrs: search engine dorks (rate-limited / paid API)
+    if (minuteOfDay % 720 === 0) {
+      await enqueue('search_engine')
+    }
+
+    // Once a day at 02:00 UTC: LLM inference (Workers AI, most expensive)
+    if (hour === 2 && now.getUTCMinutes() < 30) {
+      await enqueue('llm_inference')
     }
   },
 

@@ -13,18 +13,9 @@ import { determineCategoryId } from './job-sources'
 import { decodeHtmlEntities } from './html-utils'
 import { enqueueJobIngestion, type AtsJobMessage, type JobIngestionMessage } from './job-ingestion-queue'
 
-// Import company lists
-import greenhouseCompanies from './job-sources/greenhouse-companies.json'
-import leverCompanies from './job-sources/lever-companies.json'
-import workableCompanies from './job-sources/workable-companies.json'
-
 // ============================================
 // Types
 // ============================================
-
-interface CompanyDatabase {
-  categories: { [key: string]: { companies: string[] } }
-}
 
 export interface SyncResult {
   success: boolean
@@ -47,46 +38,6 @@ export interface LogEntry {
 // ============================================
 // Utility Functions
 // ============================================
-
-function getGreenhouseCompanies(): string[] {
-  const data = greenhouseCompanies as CompanyDatabase
-  const all: string[] = []
-  Object.values(data.categories).forEach(cat => all.push(...cat.companies))
-  return [...new Set(all)]
-}
-
-function getLeverCompanies(): string[] {
-  const data = leverCompanies as CompanyDatabase
-  const all: string[] = []
-  Object.values(data.categories).forEach(cat => all.push(...cat.companies))
-  return [...new Set(all)]
-}
-
-function getWorkableCompanies(): string[] {
-  const data = workableCompanies as CompanyDatabase
-  const all: string[] = []
-  Object.values(data.categories).forEach(cat => all.push(...cat.companies))
-  return [...new Set(all)]
-}
-
-// ATS source rotation order
-const ATS_SOURCES = ['greenhouse', 'lever', 'workable'] as const
-type AtsSource = typeof ATS_SOURCES[number]
-
-function getNextAtsSource(lastSource: AtsSource): AtsSource {
-  const currentIndex = ATS_SOURCES.indexOf(lastSource)
-  const nextIndex = (currentIndex + 1) % ATS_SOURCES.length
-  return ATS_SOURCES[nextIndex]
-}
-
-function getCompaniesForSource(source: AtsSource): string[] {
-  switch (source) {
-    case 'greenhouse': return getGreenhouseCompanies()
-    case 'lever': return getLeverCompanies()
-    case 'workable': return getWorkableCompanies()
-  }
-}
-
 
 function createLog(type: LogEntry['type'], message: string): LogEntry {
   return {
@@ -135,8 +86,24 @@ export async function markSyncFailed(
 }
 
 // ============================================
-// ATS Sync Logic (Greenhouse/Lever)
+// Legacy ATS Sync Logic (used by ats-sync.ts worker only)
+// The main worker.ts pipeline now uses board-crawler + DISCOVERY_QUEUE instead.
 // ============================================
+
+type AtsSource = 'greenhouse' | 'lever' | 'workable'
+
+function getNextAtsSource(lastSource: AtsSource): AtsSource {
+  const sources: AtsSource[] = ['greenhouse', 'lever', 'workable']
+  return sources[(sources.indexOf(lastSource) + 1) % sources.length]
+}
+
+async function getCompaniesForSource(db: DrizzleD1Database, source: AtsSource): Promise<string[]> {
+  const rows = await db
+    .select({ token: schema.discoveredCompanies.slug })
+    .from(schema.discoveredCompanies)
+    .where(eq(schema.discoveredCompanies.source, source === 'greenhouse' ? 'Greenhouse' : source === 'lever' ? 'Lever' : 'Workable'))
+  return rows.map(r => r.token)
+}
 
 export async function syncAtsCompany(
   db: DrizzleD1Database,
@@ -195,7 +162,7 @@ export async function syncAtsCompany(
       }
     }
 
-    const companies = getCompaniesForSource(source)
+    const companies = await getCompaniesForSource(db, source)
 
     // Get next company
     if (atsIndex >= companies.length) {
