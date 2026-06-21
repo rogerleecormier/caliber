@@ -160,11 +160,11 @@ function MenuLinkRow({
   tone?: MenuTone;
 }) {
   return (
-    <span className="flex items-center gap-3 rounded-xl px-3 py-2.5">
+    <span className="flex items-center gap-3 rounded-xl px-3 py-2.5 overflow-hidden">
       <MenuIconBadge tone={tone}>
         <Icon size={14} className={toneClasses[tone].icon} />
       </MenuIconBadge>
-      <span className="min-w-0">
+      <span className="min-w-0 flex-1">
         <span className="block truncate text-sm font-semibold leading-tight text-slate-900">
           {label}
         </span>
@@ -186,11 +186,11 @@ function MenuDisabledRow({
   icon?: MenuDisabledItem["icon"];
 }) {
   return (
-    <span className="flex items-center gap-3 rounded-xl">
+    <span className="flex items-center gap-3 rounded-xl overflow-hidden">
       <MenuIconBadge tone="neutral">
         <Icon size={14} className="text-slate-400" />
       </MenuIconBadge>
-      <span className="text-sm text-slate-400">{label}</span>
+      <span className="text-sm text-slate-400 truncate">{label}</span>
     </span>
   );
 }
@@ -205,11 +205,11 @@ function MenuSimpleRow({
   tone?: MenuTone;
 }) {
   return (
-    <span className="flex items-center gap-3 rounded-xl px-3 py-2.5">
+    <span className="flex items-center gap-3 rounded-xl px-3 py-2.5 overflow-hidden">
       <MenuIconBadge tone={tone}>
         <Icon size={14} className={toneClasses[tone].icon} />
       </MenuIconBadge>
-      <span className="text-sm font-medium text-slate-900">{label}</span>
+      <span className="text-sm font-medium text-slate-900 truncate">{label}</span>
     </span>
   );
 }
