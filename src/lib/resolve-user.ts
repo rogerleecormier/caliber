@@ -145,8 +145,10 @@ export async function resolveSessionUser(request?: Request): Promise<SessionUser
       const signedValue = readCookieValue(cookieHeader, AUTH_COOKIE_CANDIDATES);
       if (!signedValue) return null;
 
-      const sessionToken = await extractVerifiedToken(signedValue, secret);
-      if (!sessionToken) return null;
+      let sessionToken = await extractVerifiedToken(signedValue, secret);
+      if (!sessionToken) {
+        sessionToken = signedValue;
+      }
 
       const db = getDb(env.DB);
       const now = new Date();

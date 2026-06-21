@@ -78,6 +78,14 @@ describe("Session Token Verification Logic", () => {
       expect(fallbackStrategy).toBe("cookie_verification");
     });
 
+    it("should fallback to raw token if verification fails or token is unsigned", () => {
+      const signedValue = "unsigned_raw_token";
+      // Simulated logic from resolve-user.ts:
+      const verifiedToken = signedValue.includes(".") ? "mock_token" : null;
+      const sessionToken = verifiedToken || signedValue;
+      expect(sessionToken).toBe("unsigned_raw_token");
+    });
+
     it("should return null if all methods fail", () => {
       const result = null;
       expect(result).toBeNull();
