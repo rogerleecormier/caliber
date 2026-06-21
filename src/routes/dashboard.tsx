@@ -158,14 +158,15 @@ function DashboardHeader() {
 }
 
 // Slow content section — streams in via Suspense
-async function DashboardContent({
+// Uses React.use() to unwrap the deferred promise (sync component, not async)
+function DashboardContent({
   analyticsDataPromise,
   setDrillDown,
 }: {
   analyticsDataPromise: Promise<AnalyticsSummaryData>;
   setDrillDown: (v: { title: string; jobs: any[] } | null) => void;
-}): Promise<React.ReactElement> {
-  const initialData: AnalyticsSummaryData = await analyticsDataPromise;
+}) {
+  const initialData: AnalyticsSummaryData = React.use(analyticsDataPromise);
   const [selectedPeriod, setSelectedPeriod] = useState<string>("all_time");
 
   // Real-time data fetching (Query is invalidated when actions occur elsewhere)
@@ -176,7 +177,7 @@ async function DashboardContent({
       return result;
     },
     initialData: initialData,
-    refetchInterval: 15000, // Refresh every 15 seconds
+    refetchInterval: 15000,
   });
 
   // Dynamically compile lists of months from allJobs for period dropdown selection
