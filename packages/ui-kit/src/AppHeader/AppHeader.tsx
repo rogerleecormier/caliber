@@ -313,11 +313,9 @@ function SharedDropdownMenu({
       <DropdownMenuContent
         align={align}
         sideOffset={8}
-        className={["spx-menu-panel", panelClass].join(" ")}
+        className={["spx-menu-panel", panelClass, "pr-4"].join(" ")}
       >
-        <div className="px-1">
-          {entries}
-        </div>
+        {entries}
       </DropdownMenuContent>
     </DropdownMenu>
   );
@@ -609,17 +607,15 @@ export function AppHeader({
               <DropdownMenuContent
                 align="end"
                 sideOffset={8}
-                className={`spx-menu-panel ${styles.menuPanelUser}`}
+                className={`spx-menu-panel ${styles.menuPanelUser} pr-4`}
               >
-                <div className="px-1">
-                  {renderMenuEntries(userMenuEntries)}
-                  <DropdownMenuSeparator className="spx-menu-separator" />
-                  <SharedActionMenu
-                    label="Sign Out"
-                    icon={LogOut}
-                    onSelect={handleSharedLogout}
-                  />
-                </div>
+                {renderMenuEntries(userMenuEntries)}
+                <DropdownMenuSeparator className="spx-menu-separator" />
+                <SharedActionMenu
+                  label="Sign Out"
+                  icon={LogOut}
+                  onSelect={handleSharedLogout}
+                />
               </DropdownMenuContent>
             </DropdownMenu>
           </>
@@ -699,11 +695,9 @@ export function AppHeader({
                   <DropdownMenuContent
                     align="end"
                     sideOffset={8}
-                    className={`spx-menu-panel ${styles.menuPanelUser}`}
+                    className={`spx-menu-panel ${styles.menuPanelUser} pr-4`}
                   >
-                    <div className="px-1">
-                      {renderMenuEntries(userMenuEntries)}
-                    </div>
+                    {renderMenuEntries(userMenuEntries)}
                   </DropdownMenuContent>
                 </DropdownMenu>
               ) : (
