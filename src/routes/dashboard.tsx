@@ -22,9 +22,10 @@ import {
   Calendar,
 } from "lucide-react";
 import type { ReactNode } from "react";
-import { useMemo, useState, Suspense } from "react";
+import { useMemo, useState } from "react";
 import { requireLoginRedirect } from "@/lib/auth-redirect";
 import { PageHero } from "@caliber/ui-kit";
+import { StatCardGrid, CompactStatTile } from "@/components/ui/compact-stat-card";
 import {
   BarChart,
   Bar,
@@ -88,9 +89,7 @@ function DashboardPage() {
   return (
     <div className="spx-page space-y-8 pb-16">
       <DashboardHeader />
-      <Suspense fallback={<DashboardContentSkeleton />}>
-        <DashboardContent analyticsDataPromise={analyticsData} />
-      </Suspense>
+      <DashboardContent initialData={analyticsData} />
     </div>
   );
 }
@@ -120,13 +119,12 @@ function DashboardHeader() {
   );
 }
 
-// Slow content section — streams in via Suspense
-async function DashboardContent({
-  analyticsDataPromise,
+// Dashboard content — synchronous component, initialData from loader
+function DashboardContent({
+  initialData,
 }: {
-  analyticsDataPromise: Promise<AnalyticsSummaryData>;
-}): Promise<React.ReactElement> {
-  const initialData: AnalyticsSummaryData = await analyticsDataPromise;
+  initialData: AnalyticsSummaryData;
+}) {
   const [selectedPeriod, setSelectedPeriod] = useState<string>("all_time");
 
   // Selected drill-down state
@@ -135,7 +133,7 @@ async function DashboardContent({
     jobs: any[];
   } | null>(null);
 
-  // Real-time data fetching (Query is invalidated when actions occur elsewhere)
+  // Real-time data fetching — uses loader result as initialData, polls every 15s
   const { data } = useQuery({
     queryKey: ["analytics", selectedPeriod],
     queryFn: async () => {
@@ -143,7 +141,7 @@ async function DashboardContent({
       return result;
     },
     initialData: initialData,
-    refetchInterval: 15000, // Refresh every 15 seconds
+    refetchInterval: 15000,
   });
 
   // Dynamically compile lists of months from allJobs for period dropdown selection
@@ -339,48 +337,44 @@ async function DashboardContent({
         </div>
       </div>
 
-      {/* KPI Cards Grid */}
-      <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <MetricCard
-          icon={<Gauge className="h-5 w-5 text-indigo-600" />}
-          label="Average Match"
-          value={`${data.averageMatchScore.toFixed(1)}%`}
-          note={derived.matchLabel}
-          accent="bg-indigo-50 border-indigo-100"
-          color={derived.matchColor}
-          progress={data.averageMatchScore}
-        />
-        <MetricCard
-          icon={<Sparkles className="h-5 w-5 text-amber-600" />}
-          label="Unicorn Matches"
-          value={String(data.unicornCount)}
-          note="High-fit transferable skills"
-          accent="bg-amber-50 border-amber-100"
-          color="#d97706"
-          isGlowing
-        />
-        <MetricCard
-          icon={<FileText className="h-5 w-5 text-emerald-600" />}
-          label="Tailored Resumes"
-          value={String(data.totalResumesGenerated)}
-          note={`${derived.resumeCoverage}% resume coverage`}
-          accent="bg-emerald-50 border-emerald-100"
-          color="#10b981"
-        />
-        <MetricCard
-          icon={<Award className="h-5 w-5 text-pink-600" />}
-          label="Active Pipeline"
-          value={String(data.totalJobsDiscovered)}
-          note={`${data.totalApplied} applied · ${data.totalPursued} pursued`}
-          accent="bg-pink-50 border-pink-100"
-          color="#db2777"
-        />
+      {/* KPI Stats — single card, 4 clickable tiles */}
+      <section>
+        <StatCardGrid cols={4}>
+          <CompactStatTile
+            icon={<Gauge className="h-4 w-4" />}
+            label="Average Match"
+            value={`${data.averageMatchScore.toFixed(1)}%`}
+            note={derived.matchLabel}
+            onClick={() => setDrillDown({ title: "All Analyzed Jobs", jobs: data.allJobs.filter((j) => j.matchScore != null) })}
+          />
+          <CompactStatTile
+            icon={<Sparkles className="h-4 w-4" />}
+            label="Unicorn Matches"
+            value={String(data.unicornCount)}
+            note="High-fit transferable skills"
+            onClick={() => setDrillDown({ title: "Unicorn Matches", jobs: data.allJobs.filter((j) => (j as any).isUnicorn) })}
+            accentClass="text-amber-600"
+          />
+          <CompactStatTile
+            icon={<FileText className="h-4 w-4" />}
+            label="Tailored Resumes"
+            value={String(data.totalResumesGenerated)}
+            note={`${derived.resumeCoverage}% coverage`}
+          />
+          <CompactStatTile
+            icon={<Award className="h-4 w-4" />}
+            label="Active Pipeline"
+            value={String(data.totalJobsDiscovered)}
+            note={`${data.totalApplied} applied · ${data.totalPursued} pursued`}
+            onClick={() => setDrillDown({ title: "Full Pipeline", jobs: data.allJobs })}
+          />
+        </StatCardGrid>
       </section>
 
       {/* Primary Insights Charts */}
       <section className="grid gap-6 md:grid-cols-2">
         {/* Pipeline Funnel */}
-        <div className="rounded-2xl border border-slate-200/80 bg-white/70 backdrop-blur-md p-6 shadow-sm flex flex-col h-[380px]">
+        <div className="rounded-lg border border-slate-200 bg-white/80 p-5 shadow-sm flex flex-col h-[360px]">
           <div>
             <h3 className="font-bold text-slate-800 text-base leading-none">Application Funnel</h3>
             <p className="text-xs text-slate-500 mt-1">
@@ -401,7 +395,7 @@ async function DashboardContent({
                 <Bar
                   dataKey="count"
                   name="Jobs"
-                  fill="var(--color-indigo-500)"
+                  fill="var(--color-primary-600)"
                   radius={[0, 6, 6, 0]}
                   onClick={handleFunnelClick}
                   cursor="pointer"
@@ -412,7 +406,7 @@ async function DashboardContent({
         </div>
 
         {/* Match Score Distribution */}
-        <div className="rounded-2xl border border-slate-200/80 bg-white/70 backdrop-blur-md p-6 shadow-sm flex flex-col h-[380px]">
+        <div className="rounded-lg border border-slate-200 bg-white/80 p-5 shadow-sm flex flex-col h-[360px]">
           <div>
             <h3 className="font-bold text-slate-800 text-base leading-none">Match Score Distribution</h3>
             <p className="text-xs text-slate-500 mt-1">
@@ -429,9 +423,9 @@ async function DashboardContent({
                 <Bar dataKey="count" name="Jobs" radius={[6, 6, 0, 0]} onClick={handleScoreClick} cursor="pointer">
                   {data.matchScoreDistribution.map((_entry, idx) => {
                     const fills = [
-                      "var(--color-success-500)", // Strong
-                      "var(--color-warning-500)", // Moderate
-                      "var(--color-error-500)",   // Weak
+                      "#0d9488", // Strong  → teal
+                      "#f59e0b", // Moderate → amber
+                      "#ef4444", // Weak    → red (semantic)
                     ];
                     return <Cell key={`cell-${idx}`} fill={fills[idx % fills.length]} />;
                   })}
@@ -442,7 +436,7 @@ async function DashboardContent({
         </div>
 
         {/* Workplace Type Preference */}
-        <div className="rounded-2xl border border-slate-200/80 bg-white/70 backdrop-blur-md p-6 shadow-sm flex flex-col h-[380px]">
+        <div className="rounded-lg border border-slate-200 bg-white/80 p-5 shadow-sm flex flex-col h-[360px]">
           <div>
             <h3 className="font-bold text-slate-800 text-base leading-none">Workplace Arrangement</h3>
             <p className="text-xs text-slate-500 mt-1">
@@ -466,7 +460,7 @@ async function DashboardContent({
                   label={({ type, percent }: any) => `${type} (${Math.round((percent ?? 0) * 100)}%)`}
                 >
                   {data.workplaceTypeDistribution.map((_entry, idx) => {
-                    const colors = ["#6366f1", "#10b981", "#ef4444", "#f59e0b"];
+                    const colors = ["#6366f1", "#0d9488", "#ea580c", "#f59e0b"];
                     return <Cell key={`cell-${idx}`} fill={colors[idx % colors.length]} />;
                   })}
                 </Pie>
@@ -481,7 +475,7 @@ async function DashboardContent({
         </div>
 
         {/* Ingestion Sources */}
-        <div className="rounded-2xl border border-slate-200/80 bg-white/70 backdrop-blur-md p-6 shadow-sm flex flex-col h-[380px]">
+        <div className="rounded-lg border border-slate-200 bg-white/80 p-5 shadow-sm flex flex-col h-[360px]">
           <div>
             <h3 className="font-bold text-slate-800 text-base leading-none">Ingestion Sources</h3>
             <p className="text-xs text-slate-500 mt-1">
@@ -501,7 +495,7 @@ async function DashboardContent({
                 <RechartsTooltip content={<ChartTooltip />} cursor={{ fill: "rgba(148, 163, 184, 0.06)" }} />
                 <Bar dataKey="count" name="Jobs" fill="#8b5cf6" radius={[0, 6, 6, 0]} onClick={handleSourceClick} cursor="pointer">
                   {data.sourceDistribution.map((_entry, idx) => {
-                    const colors = ["#0284c7", "#10b981", "#4f46e5", "#8b5cf6", "#f43f5e"];
+                    const colors = ["#0284c7", "#0d9488", "#4f46e5", "#ea580c", "#8b5cf6"];
                     return <Cell key={`cell-${idx}`} fill={colors[idx % colors.length]} />;
                   })}
                 </Bar>
@@ -514,7 +508,7 @@ async function DashboardContent({
       {/* Target Sectors & Categories */}
       <section className="grid gap-6 md:grid-cols-2">
         {/* Top Titles */}
-        <div className="rounded-2xl border border-slate-200/80 bg-white/70 backdrop-blur-md p-6 shadow-sm">
+        <div className="rounded-lg border border-slate-200 bg-white/80 p-5 shadow-sm">
           <div className="flex items-center justify-between border-b border-slate-100 pb-3 mb-4">
             <div>
               <h3 className="font-bold text-slate-800 text-base leading-none">Top Target Job Titles</h3>
@@ -554,7 +548,7 @@ async function DashboardContent({
         </div>
 
         {/* Top Industries */}
-        <div className="rounded-2xl border border-slate-200/80 bg-white/70 backdrop-blur-md p-6 shadow-sm">
+        <div className="rounded-lg border border-slate-200 bg-white/80 p-5 shadow-sm">
           <div className="flex items-center justify-between border-b border-slate-100 pb-3 mb-4">
             <div>
               <h3 className="font-bold text-slate-800 text-base leading-none">Top Target Industries</h3>
@@ -615,7 +609,7 @@ async function DashboardContent({
       </section>
 
       {/* Recent Analyses TanStack Table */}
-      <section className="rounded-2xl border border-slate-200/80 bg-white/70 backdrop-blur-md p-6 shadow-sm">
+      <section className="rounded-lg border border-slate-200 bg-white/80 p-5 shadow-sm">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-slate-100 pb-4 mb-5 gap-3">
           <div>
             <h3 className="font-bold text-slate-800 text-base leading-none">Recent Job Analyses</h3>
@@ -720,7 +714,7 @@ function KeywordBubbleCard({
   onKeywordClick: (keyword: string) => void;
 }) {
   return (
-    <div className="rounded-2xl border border-slate-200/80 bg-white/70 backdrop-blur-md p-6 shadow-sm">
+    <div className="rounded-lg border border-slate-200 bg-white/80 p-5 shadow-sm">
       <div className="flex items-center justify-between border-b border-slate-100 pb-3 mb-4 text-slate-800">
         <div className="flex items-center gap-2">
           <div className="p-1.5 rounded-lg bg-slate-50 border border-slate-150 shadow-sm">{icon}</div>
@@ -852,7 +846,7 @@ function RecentAnalysesTable({ jobs }: { jobs: any[] }) {
                 href={row.sourceUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-amber-600 hover:bg-amber-700 text-white transition shadow-sm"
+                className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-orange-600 hover:bg-orange-700 text-white transition shadow-sm"
               >
                 <ExternalLink className="h-3.5 w-3.5" />
               </a>
@@ -1027,7 +1021,7 @@ function DrillDownModal({
                 href={row.sourceUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-amber-600 hover:bg-amber-700 text-white transition shadow-sm"
+                className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-orange-600 hover:bg-orange-700 text-white transition shadow-sm"
               >
                 <ExternalLink className="h-3.5 w-3.5" />
               </a>
