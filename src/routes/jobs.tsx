@@ -625,17 +625,20 @@ function JobsListContentWrapper({
         lastCheckRef.current = checkTime;
 
         if (res.crawlerJobsCount > 0 && res.agentJobsCount > 0) {
-          toast(`${res.crawlerJobsCount} new crawler job${res.crawlerJobsCount === 1 ? "" : "s"} and ${res.agentJobsCount} new agent job${res.agentJobsCount === 1 ? "" : "s"} added to database.`, {
-            duration: 5000,
-          });
+          toast.success(
+            `${res.crawlerJobsCount} crawler job${res.crawlerJobsCount === 1 ? "" : "s"} + ${res.agentJobsCount} agent job${res.agentJobsCount === 1 ? "" : "s"} added to All Jobs`,
+            { duration: 6000 }
+          );
         } else if (res.crawlerJobsCount > 0) {
-          toast(`${res.crawlerJobsCount} new job${res.crawlerJobsCount === 1 ? "" : "s"} added to catalog by background crawler.`, {
-            duration: 5000,
-          });
+          toast.success(
+            `${res.crawlerJobsCount} new job${res.crawlerJobsCount === 1 ? "" : "s"} added to All Jobs by background crawler`,
+            { duration: 6000 }
+          );
         } else if (res.agentJobsCount > 0) {
-          toast(`${res.agentJobsCount} new job${res.agentJobsCount === 1 ? "" : "s"} added by your search agents.`, {
-            duration: 5000,
-          });
+          toast.success(
+            `${res.agentJobsCount} new job${res.agentJobsCount === 1 ? "" : "s"} added to All Jobs by your search agents`,
+            { duration: 6000 }
+          );
         }
       } catch (error) {
         // ignore polling errors

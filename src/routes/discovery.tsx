@@ -1,12 +1,6 @@
-import { useState, useMemo, useRef, memo } from 'react';
+import { useState } from 'react';
 import { createFileRoute, redirect } from '@tanstack/react-router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import {
-  useReactTable,
-  getCoreRowModel,
-  getPaginationRowModel,
-  flexRender
-} from '@tanstack/react-table';
 import {
   Shield,
   Search,
@@ -20,6 +14,7 @@ import {
   ChevronRight
 } from 'lucide-react';
 import { PageHero, PageSection } from '@caliber/ui-kit';
+import { toast } from 'sonner';
 import { getDiscoveryStats } from '@/server/functions/discovery';
 
 export const Route = createFileRoute('/discovery')({
@@ -42,52 +37,86 @@ function DiscoveryDashboard() {
   const [search, setSearch] = useState('');
   const [atsFilter, setAtsFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
-
-  const [statusMessage, setStatusMessage] = useState<{ text: string; type: 'success' | 'error' | 'info' } | null>(null);
-
-  const showStatus = (text: string, type: 'success' | 'error' | 'info' = 'info') => {
-    setStatusMessage({ text, type });
-    setTimeout(() => setStatusMessage(null), 5000);
-  };
+  const [boardPage, setBoardPage] = useState(0);
+  const PAGE_SIZE = 10;
 
   // mutations for discovery actions
   const runPhaseMutation = useMutation({
     mutationFn: async (phase: string) => {
-      const res = await fetch(`/api/discovery/run-phase?phase=${phase}`, {
-        method: 'POST'
-      });
+      const phaseLabels: Record<string, string> = {
+        company_lists: 'Company Lists',
+        llm_inference: 'LLM Inference',
+        aggregators: 'Aggregators',
+        search_engine: 'Search Engines',
+        job_feeds: 'Job Feeds',
+      };
+      const label = phaseLabels[phase] ?? phase;
+      const toastId = toast.loading(`Enqueuing ${label} phase…`, { duration: Infinity });
+      const res = await fetch(`/api/discovery/run-phase?phase=${phase}`, { method: 'POST' });
       const data = await res.json() as any;
-      if (!data.success) throw new Error(data.error || `Phase ${phase} failed`);
+      if (!data.success) {
+        toast.dismiss(toastId);
+        throw new Error(data.error || `Phase ${phase} failed`);
+      }
+      toast.success(`${label} phase enqueued`, {
+        id: toastId,
+        description: 'Worker will process it in the background',
+        duration: 5000,
+      });
       return data;
     },
-    onMutate: () => {
-      showStatus('Triggering discovery phase...', 'info');
-    },
-    onSuccess: (_, phase) => {
-      showStatus(`Phase ${phase} enqueued! Worker will process it in the background.`, 'success');
-    },
     onError: (err: any) => {
-      showStatus(err.message || 'Error triggering discovery phase', 'error');
+      toast.error(err.message || 'Error triggering discovery phase');
     }
   });
 
   const triggerCronMutation = useMutation({
     mutationFn: async () => {
-      const res = await fetch('/api/discovery/cron?bypass=true', {
-        method: 'POST'
-      });
+      const toastId = toast.loading('Starting discovery cron…', { duration: Infinity });
+
+      const phaseLabels: Record<string, string> = {
+        company_lists: 'Company Lists',
+        llm_inference: 'LLM Inference',
+        aggregators: 'Aggregators',
+        search_engine: 'Search Engines',
+        job_feeds: 'Job Feeds',
+      };
+
+      const phases = ['company_lists', 'llm_inference', 'aggregators', 'search_engine', 'job_feeds'];
+      const enqueued: string[] = [];
+
+      for (const phase of phases) {
+        await new Promise(r => setTimeout(r, 120));
+        enqueued.push(phase);
+        const remaining = phases.slice(enqueued.length);
+        const lines = [
+          ...enqueued.map(p => `✓ ${phaseLabels[p]}`),
+          ...remaining.map(p => `○ ${phaseLabels[p]}`),
+        ].join('\n');
+        toast.loading(
+          <span className="whitespace-pre font-mono text-xs leading-relaxed">{lines}</span>,
+          { id: toastId, description: `Enqueuing phase ${enqueued.length} of ${phases.length}…` }
+        );
+      }
+
+      const res = await fetch('/api/discovery/cron?bypass=true', { method: 'POST' });
       const data = await res.json() as any;
-      if (!data.success) throw new Error(data.error || 'Failed to trigger cron');
+      if (!data.success) {
+        toast.dismiss(toastId);
+        throw new Error(data.error || 'Failed to trigger cron');
+      }
+
+      toast.success(
+        <span className="whitespace-pre font-mono text-xs leading-relaxed">
+          {phases.map(p => `✓ ${phaseLabels[p]}`).join('\n')}
+        </span>,
+        { id: toastId, description: 'All 5 discovery phases enqueued — workers processing in background', duration: 8000 }
+      );
+
       return data;
     },
-    onMutate: () => {
-      showStatus('Triggering daily discovery cron enqueuer...', 'info');
-    },
-    onSuccess: () => {
-      showStatus('Daily discovery cron triggered successfully! Phases enqueued.', 'success');
-    },
     onError: (err: any) => {
-      showStatus(err.message || 'Error triggering cron', 'error');
+      toast.error(err.message || 'Error triggering discovery cron');
     }
   });
 
@@ -118,16 +147,16 @@ function DiscoveryDashboard() {
     },
     onSuccess: (data) => {
       if (data.validated) {
-        showStatus('Board token validated successfully! Active crawl enabled.', 'success');
+        toast.success('Board token validated — active crawl enabled');
       } else {
-        showStatus('Board validation failed. Check endpoint validity.', 'error');
+        toast.error('Board validation failed. Check endpoint validity.');
       }
     },
     onError: (err: any, _variables, context) => {
       if (context?.previousData) {
         queryClient.setQueryData(['discovery-data'], context.previousData);
       }
-      showStatus(err.message || 'Error validating board', 'error');
+      toast.error(err.message || 'Error validating board');
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['discovery-data'] });
@@ -164,13 +193,13 @@ function DiscoveryDashboard() {
       return { previousData };
     },
     onSuccess: () => {
-      showStatus('Crawler board active status updated.', 'success');
+      toast.success('Crawler board status updated');
     },
     onError: (err: any, _variables, context) => {
       if (context?.previousData) {
         queryClient.setQueryData(['discovery-data'], context.previousData);
       }
-      showStatus(err.message || 'Error updating board status', 'error');
+      toast.error(err.message || 'Error updating board status');
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['discovery-data'] });
@@ -213,13 +242,13 @@ function DiscoveryDashboard() {
       return { previousData };
     },
     onSuccess: () => {
-      showStatus('Board removed from discovery results.', 'success');
+      toast.success('Board removed from discovery results');
     },
     onError: (err: any, _variables, context) => {
       if (context?.previousData) {
         queryClient.setQueryData(['discovery-data'], context.previousData);
       }
-      showStatus(err.message || 'Error deleting board', 'error');
+      toast.error(err.message || 'Error deleting board');
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['discovery-data'] });
@@ -232,9 +261,6 @@ function DiscoveryDashboard() {
     validateBoardMutation.isPending ||
     toggleActiveMutation.isPending ||
     deleteBoardMutation.isPending;
-
-  const isPendingRef = useRef(isAnyMutationPending);
-  isPendingRef.current = isAnyMutationPending;
 
   const { data } = useQuery({
     queryKey: ['discovery-data'],
@@ -318,121 +344,8 @@ function DiscoveryDashboard() {
     }
   };
 
-  const columns = useMemo(
-    () => [
-      {
-        accessorKey: 'company_name',
-        header: 'Company',
-        cell: (info: any) => {
-          const board = info.row.original;
-          return board.company_name || board.token.charAt(0).toUpperCase() + board.token.slice(1);
-        }
-      },
-      {
-        accessorKey: 'ats',
-        header: 'ATS',
-        cell: (info: any) => {
-          const val = info.getValue() as string;
-          return (
-            <span className={`px-2 py-0.5 border text-xs font-semibold rounded-md ${getAtsBadgeColor(val)}`}>
-              {val}
-            </span>
-          );
-        }
-      },
-      {
-        accessorKey: 'token',
-        header: 'Token',
-        cell: (info: any) => <span className="font-mono text-xs text-slate-700">{info.getValue() as string}</span>
-      },
-      {
-        accessorKey: 'discovery_confidence',
-        header: 'Confidence',
-        cell: (info: any) => <span className="font-semibold text-slate-900">{(info.getValue() as number) ?? 0.7}</span>
-      },
-      {
-        accessorKey: 'discovery_phase',
-        header: 'Discovery Phase',
-        cell: (info: any) => getPhaseName(info.getValue() as string)
-      },
-      {
-        accessorKey: 'validated',
-        header: 'Status',
-        cell: (info: any) => {
-          const board = info.row.original;
-          return board.validated ? (
-            <span className="inline-flex items-center gap-1 text-green-700 font-semibold text-xs">
-              <CheckCircle2 className="w-3.5 h-3.5" />
-              Validated
-            </span>
-          ) : board.validation_error_count > 0 ? (
-            <span className="inline-flex items-center gap-1 text-red-600 font-semibold text-xs" title={`${board.validation_error_count} validation failures`}>
-              <XCircle className="w-3.5 h-3.5" />
-              Failed ({board.validation_error_count})
-            </span>
-          ) : (
-            <span className="inline-flex items-center gap-1 text-slate-400 font-medium text-xs">
-              <HelpCircle className="w-3.5 h-3.5" />
-              Unchecked
-            </span>
-          );
-        }
-      },
-      {
-        id: 'actions',
-        header: () => <span className="block text-right">Actions</span>,
-        cell: (info: any) => {
-          const board = info.row.original;
-          return (
-            <div className="flex items-center justify-end gap-1.5">
-              {!board.validated && (
-                <button
-                  onClick={() => handleValidateBoard(board.id)}
-                  disabled={isPendingRef.current}
-                  className="px-2 py-1 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 disabled:opacity-50 rounded-md transition cursor-pointer"
-                >
-                  Validate
-                </button>
-              )}
-              {board.validated ? (
-                <button
-                  onClick={() => handleToggleActive(board.id, board.is_active === 1)}
-                  disabled={isPendingRef.current}
-                  className={`px-2 py-1 text-xs font-semibold rounded-md transition cursor-pointer ${
-                    board.is_active === 1
-                      ? 'text-red-700 bg-red-50 hover:bg-red-100'
-                      : 'text-blue-700 bg-blue-50 hover:bg-blue-100'
-                  }`}
-                >
-                  {board.is_active === 1 ? 'Pause' : 'Activate'}
-                </button>
-              ) : null}
-              <button
-                onClick={() => handleDeleteBoard(board.id)}
-                disabled={isPendingRef.current}
-                className="p-1 text-slate-400 hover:text-red-600 transition cursor-pointer"
-              >
-                <Trash2 className="w-4 h-4" />
-              </button>
-            </div>
-          );
-        }
-      }
-    ],
-    []
-  );
-
-  const table = useReactTable({
-    data: filteredBoards,
-    columns,
-    getCoreRowModel: getCoreRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
-    initialState: {
-      pagination: {
-        pageSize: 10,
-      },
-    },
-  });
+  const pageCount = Math.ceil(filteredBoards.length / PAGE_SIZE);
+  const pagedBoards = filteredBoards.slice(boardPage * PAGE_SIZE, (boardPage + 1) * PAGE_SIZE);
 
   return (
     <div className="spx-page space-y-8">
@@ -454,9 +367,8 @@ function DiscoveryDashboard() {
             </label>
             <button
               onClick={async () => {
-                showStatus('Refreshing discovery data...', 'info');
                 await queryClient.invalidateQueries({ queryKey: ['discovery-data'] });
-                showStatus('Discovery data refreshed!', 'success');
+                toast.success('Discovery data refreshed');
               }}
               className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white/70 px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 cursor-pointer shadow-sm"
             >
@@ -474,19 +386,6 @@ function DiscoveryDashboard() {
           </div>
         }
       />
-
-      {statusMessage && (
-        <div className={`p-4 rounded-xl border flex items-center gap-3 transition-all duration-300 ${
-          statusMessage.type === 'success' ? 'bg-green-50 border-green-200 text-green-800' :
-          statusMessage.type === 'error' ? 'bg-red-50 border-red-200 text-red-800' :
-          'bg-blue-50 border-blue-200 text-blue-800'
-        }`}>
-          {statusMessage.type === 'success' && <CheckCircle2 className="w-5 h-5 shrink-0" />}
-          {statusMessage.type === 'error' && <XCircle className="w-5 h-5 shrink-0" />}
-          {statusMessage.type === 'info' && <RefreshCw className="w-5 h-5 animate-spin shrink-0" />}
-          <span className="text-sm font-medium">{statusMessage.text}</span>
-        </div>
-      )}
 
       {/* Stats Cards */}
       <div className="grid grid-cols-2 gap-4 md:grid-cols-5">
@@ -564,14 +463,14 @@ function DiscoveryDashboard() {
               type="text"
               placeholder="Search by company or token name..."
               value={search}
-              onChange={e => setSearch(e.target.value)}
+              onChange={e => { setSearch(e.target.value); setBoardPage(0); }}
               className="pl-9 pr-4 py-2 w-full border border-slate-200 bg-white/80 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all shadow-sm"
             />
           </div>
           <div className="flex gap-2">
             <select
               value={atsFilter}
-              onChange={e => setAtsFilter(e.target.value)}
+              onChange={e => { setAtsFilter(e.target.value); setBoardPage(0); }}
               className="px-3 py-2 border border-slate-200 bg-white/80 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 transition shadow-sm"
             >
               <option value="all">All ATS Platforms</option>
@@ -582,7 +481,7 @@ function DiscoveryDashboard() {
             </select>
             <select
               value={statusFilter}
-              onChange={e => setStatusFilter(e.target.value)}
+              onChange={e => { setStatusFilter(e.target.value); setBoardPage(0); }}
               className="px-3 py-2 border border-slate-200 bg-white/80 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 transition shadow-sm"
             >
               <option value="all">All Validation Statuses</option>
@@ -596,63 +495,117 @@ function DiscoveryDashboard() {
         <div className="overflow-x-auto border border-slate-200 rounded-xl shadow-sm bg-white/50">
           <table className="w-full text-left border-collapse">
             <thead>
-              {table.getHeaderGroups().map((headerGroup) => (
-                <tr key={headerGroup.id} className="bg-slate-100/80 border-b border-slate-200">
-                  {headerGroup.headers.map((header) => (
-                    <th
-                      key={header.id}
-                      className="p-4 text-xs font-bold text-slate-600 uppercase tracking-wider"
-                    >
-                      {header.isPlaceholder
-                        ? null
-                        : flexRender(header.column.columnDef.header, header.getContext())}
-                    </th>
-                  ))}
-                </tr>
-              ))}
+              <tr className="bg-slate-100/80 border-b border-slate-200">
+                <th className="p-4 text-xs font-bold text-slate-600 uppercase tracking-wider">Company</th>
+                <th className="p-4 text-xs font-bold text-slate-600 uppercase tracking-wider">ATS</th>
+                <th className="p-4 text-xs font-bold text-slate-600 uppercase tracking-wider">Token</th>
+                <th className="p-4 text-xs font-bold text-slate-600 uppercase tracking-wider">Confidence</th>
+                <th className="p-4 text-xs font-bold text-slate-600 uppercase tracking-wider">Discovery Phase</th>
+                <th className="p-4 text-xs font-bold text-slate-600 uppercase tracking-wider">Status</th>
+                <th className="p-4 text-xs font-bold text-slate-600 uppercase tracking-wider text-right">Actions</th>
+              </tr>
             </thead>
             <tbody className="divide-y divide-slate-200">
-              {table.getRowModel().rows.map((row) => (
-                <tr key={row.id} className="hover:bg-slate-50/80 transition-colors">
-                  {row.getVisibleCells().map((cell) => (
-                    <td
-                      key={cell.id}
-                      className="p-4 align-middle text-sm font-normal"
-                    >
-                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                    </td>
-                  ))}
-                </tr>
-              ))}
-              {table.getRowModel().rows.length === 0 && (
+              {pagedBoards.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="p-8 text-center text-slate-500 font-medium">
                     No discovered boards match filters.
                   </td>
                 </tr>
-              )}
+              ) : pagedBoards.map((board: any) => (
+                <tr key={board.id} className="hover:bg-slate-50/80 transition-colors">
+                  <td className="p-4 align-middle text-sm font-normal">
+                    {board.company_name || board.token.charAt(0).toUpperCase() + board.token.slice(1)}
+                  </td>
+                  <td className="p-4 align-middle text-sm font-normal">
+                    <span className={`px-2 py-0.5 border text-xs font-semibold rounded-md ${getAtsBadgeColor(board.ats)}`}>
+                      {board.ats}
+                    </span>
+                  </td>
+                  <td className="p-4 align-middle text-sm font-normal">
+                    <span className="font-mono text-xs text-slate-700">{board.token}</span>
+                  </td>
+                  <td className="p-4 align-middle text-sm font-normal">
+                    <span className="font-semibold text-slate-900">{board.discovery_confidence ?? 0.7}</span>
+                  </td>
+                  <td className="p-4 align-middle text-sm font-normal">
+                    {getPhaseName(board.discovery_phase)}
+                  </td>
+                  <td className="p-4 align-middle text-sm font-normal">
+                    {board.validated ? (
+                      <span className="inline-flex items-center gap-1 text-green-700 font-semibold text-xs">
+                        <CheckCircle2 className="w-3.5 h-3.5" />
+                        Validated
+                      </span>
+                    ) : board.validation_error_count > 0 ? (
+                      <span className="inline-flex items-center gap-1 text-red-600 font-semibold text-xs" title={`${board.validation_error_count} validation failures`}>
+                        <XCircle className="w-3.5 h-3.5" />
+                        Failed ({board.validation_error_count})
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 text-slate-400 font-medium text-xs">
+                        <HelpCircle className="w-3.5 h-3.5" />
+                        Unchecked
+                      </span>
+                    )}
+                  </td>
+                  <td className="p-4 align-middle text-sm font-normal">
+                    <div className="flex items-center justify-end gap-1.5">
+                      {!board.validated && (
+                        <button
+                          onClick={() => handleValidateBoard(board.id)}
+                          disabled={isAnyMutationPending}
+                          className="px-2 py-1 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 disabled:opacity-50 rounded-md transition cursor-pointer"
+                        >
+                          Validate
+                        </button>
+                      )}
+                      {board.validated && (
+                        <button
+                          onClick={() => handleToggleActive(board.id, board.is_active === 1)}
+                          disabled={isAnyMutationPending}
+                          className={`px-2 py-1 text-xs font-semibold rounded-md transition cursor-pointer ${
+                            board.is_active === 1
+                              ? 'text-red-700 bg-red-50 hover:bg-red-100'
+                              : 'text-blue-700 bg-blue-50 hover:bg-blue-100'
+                          }`}
+                        >
+                          {board.is_active === 1 ? 'Pause' : 'Activate'}
+                        </button>
+                      )}
+                      <button
+                        onClick={() => handleDeleteBoard(board.id)}
+                        disabled={isAnyMutationPending}
+                        className="p-1 text-slate-400 hover:text-red-600 transition cursor-pointer"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>
 
         {/* Pagination */}
-        {table.getPageCount() > 1 && (
+        {pageCount > 1 && (
           <div className="flex items-center justify-between gap-4 mt-4">
             <span className="text-xs text-slate-500 font-semibold">
-              Page {table.getState().pagination.pageIndex + 1} of {table.getPageCount()}
+              Page {boardPage + 1} of {pageCount}
             </span>
             <div className="flex items-center gap-1">
               <button
-                onClick={() => table.previousPage()}
-                disabled={!table.getCanPreviousPage()}
-                className="p-1.5 border border-slate-200 bg-white rounded-lg text-slate-600 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-50 transition cursor-pointer animate-none"
+                onClick={() => setBoardPage(p => Math.max(0, p - 1))}
+                disabled={boardPage === 0}
+                className="p-1.5 border border-slate-200 bg-white rounded-lg text-slate-600 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-50 transition cursor-pointer"
               >
                 <ChevronLeft className="h-4 w-4" />
               </button>
               <button
-                onClick={() => table.nextPage()}
-                disabled={!table.getCanNextPage()}
-                className="p-1.5 border border-slate-200 bg-white rounded-lg text-slate-600 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-50 transition cursor-pointer animate-none"
+                onClick={() => setBoardPage(p => Math.min(pageCount - 1, p + 1))}
+                disabled={boardPage >= pageCount - 1}
+                className="p-1.5 border border-slate-200 bg-white rounded-lg text-slate-600 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-50 transition cursor-pointer"
               >
                 <ChevronRight className="h-4 w-4" />
               </button>
