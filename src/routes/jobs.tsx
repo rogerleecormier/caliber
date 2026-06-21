@@ -58,6 +58,7 @@ import {
 import { useJobsQuery } from "@/hooks/useJobsQuery";
 import { useCatalogQuery } from "@/hooks/useCatalogQuery";
 import type { CatalogFilters } from "@/hooks/useCatalogQuery";
+import { useQueryClient } from "@tanstack/react-query";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -516,6 +517,7 @@ function JobsListContentWrapper({
 }): React.ReactElement {
   const { page, query, remote, sortBy, status: activeStatus, analyzedOnly, analyze, url: searchUrl, view } = Route.useSearch();
   const navigate = Route.useNavigate();
+  const queryClient = useQueryClient();
 
   const rows = jobHistoryPromise.rows;
   const total = jobHistoryPromise.total;
@@ -655,18 +657,66 @@ function JobsListContentWrapper({
     });
   }
 
+  async function handleToggleFavorite(id: number, isFavorited: boolean) {
+    jobsQuery.updateJobsOptimistically((data) => {
+      if (!data) return data;
+      const targetedJob = data.rows.find((j) => j.id === id);
+      const isFavoritedStage = targetedJob?.status === "Favorited";
+      
+      const filteredRows = data.rows
+        .map((job) => {
+          if (job.id === id) {
+            const nextStatus = isFavorited ? "Favorited" as const : job.status;
+            return { ...job, isFavorited, status: nextStatus };
+          }
+          return job;
+        })
+        .filter((job) => {
+          if (job.id === id && !isFavorited && job.status === "Favorited") {
+            return false;
+          }
+          return true;
+        });
+
+      const nextTotal = Math.max(0, data.total - ( (!isFavorited && isFavoritedStage) ? 1 : 0 ));
+
+      return {
+        ...data,
+        rows: filteredRows,
+        total: nextTotal,
+      };
+    });
+    try {
+      await togglePipelineJobFavorite({ data: { id, isFavorited } });
+      await jobsQuery.invalidateJobs();
+      void queryClient.invalidateQueries({ queryKey: ["catalog"] });
+    } catch (error) {
+      jobsQuery.invalidateJobs();
+      alert(error instanceof Error ? error.message : "Unable to update favorite status.");
+    }
+  }
+
   async function handleStatusChange(id: number, status: JobStatus) {
     setPendingStatusId(id);
     jobsQuery.updateJobsOptimistically((data) => {
       if (!data) return data;
+      if (status === "Archived") {
+        const filtered = data.rows.filter((job) => job.id !== id);
+        return {
+          ...data,
+          rows: filtered,
+          total: Math.max(0, data.total - 1),
+        };
+      }
       return {
         ...data,
-        rows: data.rows.map((job) => (job.id === id ? { ...job, status } : job)),
+        rows: data.rows.map((job) => (job.id === id ? { ...job, status, isFavorited: status === "Favorited" ? true : job.isFavorited } : job)),
       };
     });
     try {
       await setPipelineJobStatus({ data: { id, status } });
       await jobsQuery.invalidateJobs();
+      void queryClient.invalidateQueries({ queryKey: ["catalog"] });
     } catch (error) {
       jobsQuery.invalidateJobs();
       alert(error instanceof Error ? error.message : "Unable to update job status.");
@@ -681,15 +731,19 @@ function JobsListContentWrapper({
     setPendingBulkAction("archive");
     jobsQuery.updateJobsOptimistically((data) => {
       if (!data) return data;
+      const filtered = data.rows.filter((job) => job.id && !selectedIds.has(job.id));
+      const archivedCount = data.rows.length - filtered.length;
       return {
         ...data,
-        rows: data.rows.map((job) => (selectedIds.has(job.id) ? { ...job, status: "Archived" as const } : job)),
+        rows: filtered,
+        total: Math.max(0, data.total - archivedCount),
       };
     });
     try {
       await archivePipelineJobs({ data: { ids } });
       setSelectedIds(new Set());
       await jobsQuery.invalidateJobs();
+      void queryClient.invalidateQueries({ queryKey: ["catalog"] });
     } catch (error) {
       jobsQuery.invalidateJobs();
       alert(error instanceof Error ? error.message : "Unable to archive selected jobs.");
@@ -1105,6 +1159,8 @@ function JobsListContentWrapper({
                   statusPending={job.id ? pendingStatusId === job.id : false}
                   isAnalyzed={!!job.analyzedAt}
                   onAnalyzeClick={job.id ? () => openAnalysisModal(job) : undefined}
+                  isFavorited={job.isFavorited === true || job.isFavorited === 1}
+                  onToggleFavorite={job.id ? () => handleToggleFavorite(job.id!, !(job.isFavorited === true || job.isFavorited === 1)) : undefined}
                 />
               ))}
             </div>

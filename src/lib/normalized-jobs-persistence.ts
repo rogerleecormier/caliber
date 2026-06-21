@@ -405,6 +405,7 @@ export async function listNormalizedJobs(args: {
   const q = args.query?.trim();
   const baseWhereClause = and(
     ownerClause,
+    ne(normalizedJobs.currentStage, 'Archived'),
     q ? or(like(normalizedJobs.jobTitle, `%${q}%`), like(normalizedJobs.employerName, `%${q}%`)) : undefined,
     args.remote
       ? or(
@@ -600,13 +601,24 @@ export async function setNormalizedJobStage(args: {
   const [existing] = await db.select({ id: normalizedJobs.id }).from(normalizedJobs).where(whereClause).limit(1);
   if (!existing) throw new Error('Job not found');
 
+  const stageUpdate: Record<string, unknown> = {
+    currentStage: args.currentStage,
+    finalResolution: args.finalResolution ?? null,
+    updatedAt: new Date().toISOString(),
+  };
+
+  // Archiving → clear the star so it disappears from both My Jobs and All Jobs
+  if (args.currentStage === 'Archived') {
+    stageUpdate.isFavorited = false;
+  }
+  // Setting to Favorited stage → star it (keeps is_favorited=1 OR stage!='Favorited' rule consistent)
+  if (args.currentStage === 'Favorited') {
+    stageUpdate.isFavorited = true;
+  }
+
   await db
     .update(normalizedJobs)
-    .set({
-      currentStage: args.currentStage,
-      finalResolution: args.finalResolution ?? null,
-      updatedAt: new Date().toISOString(),
-    })
+    .set(stageUpdate as any)
     .where(whereClause);
 
   return { id: args.id, currentStage: args.currentStage };

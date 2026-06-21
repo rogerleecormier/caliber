@@ -377,9 +377,14 @@ export const togglePipelineJobFavorite = createServerFn({ method: "POST" })
     const env = await getCloudflareEnvAsync();
     if (!env.DB) throw new Error("Database unavailable");
     const db = getDb(env.DB);
+    const update: Record<string, unknown> = { isFavorited: data.isFavorited };
+    // Starring ON → reset stage to 'Favorited'; unstarring doesn't change the stage
+    if (data.isFavorited) {
+      update.currentStage = 'Favorited';
+    }
     await db
       .update(normalizedJobs)
-      .set({ isFavorited: data.isFavorited })
+      .set(update as any)
       .where(and(eq(normalizedJobs.id, data.id), eq(normalizedJobs.userId, user.id)));
     return { success: true, id: data.id, isFavorited: data.isFavorited };
   });
@@ -437,7 +442,18 @@ export const getCatalogJobs = createServerFn({ method: "GET" })
       .select({ total: count() })
       .from(canonicalJobs)
       .leftJoin(jobSources, eq(jobSources.canonicalId, canonicalJobs.id))
-      .where(and(...conditions, atsFilter ? eq(jobSources.ats, atsFilter) : undefined));
+      .leftJoin(normalizedJobs, and(
+        eq(normalizedJobs.canonicalJobId, canonicalJobs.id),
+        eq(normalizedJobs.userId, user.id)
+      ))
+      .where(and(
+        ...conditions,
+        atsFilter ? eq(jobSources.ats, atsFilter) : undefined,
+        or(
+          isNull(normalizedJobs.currentStage),
+          ne(normalizedJobs.currentStage, 'Archived')
+        )
+      ));
     const total = Number(countRows[0]?.total ?? 0);
 
     // Fetch page
@@ -458,32 +474,31 @@ export const getCatalogJobs = createServerFn({ method: "GET" })
         ats: jobSources.ats,
         sourceUrl: jobSources.sourceUrl,
         applyUrl: jobSources.applyUrl,
+        isFavorited: normalizedJobs.isFavorited,
+        currentStage: normalizedJobs.currentStage,
       })
       .from(canonicalJobs)
       .leftJoin(jobSources, eq(jobSources.canonicalId, canonicalJobs.id))
-      .where(and(...conditions, atsFilter ? eq(jobSources.ats, atsFilter) : undefined))
+      .leftJoin(normalizedJobs, and(
+        eq(normalizedJobs.canonicalJobId, canonicalJobs.id),
+        eq(normalizedJobs.userId, user.id)
+      ))
+      .where(and(
+        ...conditions,
+        atsFilter ? eq(jobSources.ats, atsFilter) : undefined,
+        or(
+          isNull(normalizedJobs.currentStage),
+          ne(normalizedJobs.currentStage, 'Archived')
+        )
+      ))
       .orderBy(desc(canonicalJobs.lastSeenAt))
       .limit(pageSize)
       .offset(offset);
 
-    // Check which canonical jobs the user has already saved
-    const canonicalIds = rows.map((r) => r.id).filter(Boolean);
-    const savedRows = canonicalIds.length > 0
-      ? await db
-          .select({ canonicalJobId: normalizedJobs.canonicalJobId, isFavorited: normalizedJobs.isFavorited })
-          .from(normalizedJobs)
-          .where(and(
-            eq(normalizedJobs.userId, user.id),
-            inArray(normalizedJobs.canonicalJobId, canonicalIds),
-          ))
-      : [];
-
-    const savedMap = new Map(savedRows.map((r) => [r.canonicalJobId, r.isFavorited]));
-
     const jobs = rows.map((r) => ({
       ...r,
-      isSaved: savedMap.has(r.id),
-      isFavorited: savedMap.get(r.id) === true || savedMap.get(r.id) === 1,
+      isSaved: r.currentStage !== null && r.currentStage !== undefined,
+      isFavorited: r.isFavorited === true || r.isFavorited === 1,
     }));
 
     return { jobs, total, page, pageSize };
