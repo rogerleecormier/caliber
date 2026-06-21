@@ -544,7 +544,7 @@ export function AppHeader({
   const searchBoxElement = (
     <button
       onClick={() => setSearchModalOpen(true)}
-      className="hidden md:flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50/50 hover:bg-slate-100 px-3 py-2 text-sm text-slate-600 transition max-w-2xl"
+      className="hidden md:flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50/50 hover:bg-slate-100 px-3 py-2 text-sm text-slate-600 transition min-w-0 w-1/2"
     >
       <Search size={14} className="text-slate-400 shrink-0" />
       <span className="text-slate-500">Search jobs...</span>
