@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState, useEffect } from "react";
 import type { ComponentType, ReactNode } from "react";
 import {
   BarChart3,
@@ -330,6 +330,27 @@ export function AppHeader({
   user,
   onLogout,
 }: AppHeaderProps) {
+  const [searchModalOpen, setSearchModalOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+
+  // Handle keyboard shortcut for search
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
+        e.preventDefault();
+        setSearchModalOpen(true);
+      }
+      if (e.key === "Escape") {
+        setSearchModalOpen(false);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
+
   const sharedOrigin =
     typeof window === "undefined"
       ? getSharedAuthOrigin()
@@ -523,7 +544,7 @@ export function AppHeader({
   return (
     <>
       <Header logo={logo}>
-        <div className="hidden md:flex items-center gap-1">
+        <div className="hidden md:flex items-center gap-3 flex-1 max-w-xs">
           {navEntries.map((entry) => {
             if (entry.type !== "link") return null;
             const Icon = entry.icon;
@@ -553,6 +574,15 @@ export function AppHeader({
               </div>
             );
           })}
+
+          <button
+            onClick={() => setSearchModalOpen(true)}
+            className="hidden md:flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50/50 hover:bg-slate-100 px-3 py-2 text-sm text-slate-600 transition flex-1 max-w-xs ml-2"
+          >
+            <Search size={14} className="text-slate-400" />
+            <span className="text-slate-500">Search jobs...</span>
+            <span className="text-[10px] font-semibold text-slate-400 ml-auto">⌘K</span>
+          </button>
         </div>
 
         {resolvedUser ? (
@@ -682,6 +712,50 @@ export function AppHeader({
             </div>
           </div>
         </div>
+      )}
+
+      {searchModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-start justify-center pt-20 px-4">
+          <div className="w-full max-w-2xl rounded-xl border border-slate-200 bg-white shadow-xl">
+            <div className="border-b border-slate-200 p-4">
+              <input
+                type="text"
+                placeholder="Search jobs by title, company, location..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                autoFocus
+                className="w-full text-lg outline-none placeholder:text-slate-400"
+              />
+            </div>
+            <div className="max-h-96 overflow-y-auto p-4">
+              {searchQuery.trim() === "" ? (
+                <div className="text-center py-12">
+                  <Search className="h-12 w-12 text-slate-300 mx-auto mb-3" />
+                  <p className="text-slate-600">Enter keywords to search jobs</p>
+                </div>
+              ) : (
+                <div className="text-center py-12">
+                  <p className="text-slate-600">No results found for "{searchQuery}"</p>
+                  <p className="text-sm text-slate-500 mt-2">Try different keywords</p>
+                </div>
+              )}
+            </div>
+            <div className="border-t border-slate-200 bg-slate-50 px-4 py-3 flex justify-between items-center text-xs text-slate-500">
+              <span>Press <kbd className="font-semibold">ESC</kbd> to close</span>
+              <span>Navigate with <kbd className="font-semibold">↑↓</kbd> and enter to select</span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {searchModalOpen && (
+        <div
+          className="fixed inset-0 z-40"
+          onClick={() => {
+            setSearchModalOpen(false);
+            setSearchQuery("");
+          }}
+        />
       )}
     </>
   );
