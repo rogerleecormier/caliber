@@ -544,7 +544,16 @@ export function AppHeader({
   return (
     <>
       <Header logo={logo}>
-        <div className="hidden md:flex items-center gap-3 flex-1 max-w-xs">
+        <div className="hidden md:flex items-center gap-3 flex-1">
+          <button
+            onClick={() => setSearchModalOpen(true)}
+            className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50/50 hover:bg-slate-100 px-3 py-2 text-sm text-slate-600 transition flex-1 max-w-md"
+          >
+            <Search size={14} className="text-slate-400 shrink-0" />
+            <span className="text-slate-500">Search jobs...</span>
+            <span className="text-[10px] font-semibold text-slate-400 ml-auto shrink-0">⌘K</span>
+          </button>
+
           {navEntries.map((entry) => {
             if (entry.type !== "link") return null;
             const Icon = entry.icon;
@@ -574,15 +583,6 @@ export function AppHeader({
               </div>
             );
           })}
-
-          <button
-            onClick={() => setSearchModalOpen(true)}
-            className="hidden md:flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50/50 hover:bg-slate-100 px-3 py-2 text-sm text-slate-600 transition flex-1 max-w-xs ml-2"
-          >
-            <Search size={14} className="text-slate-400" />
-            <span className="text-slate-500">Search jobs...</span>
-            <span className="text-[10px] font-semibold text-slate-400 ml-auto">⌘K</span>
-          </button>
         </div>
 
         {resolvedUser ? (
