@@ -451,7 +451,7 @@ function CrawlerDashboard() {
                                 {job.remote === 1 && <span className="ml-1 text-emerald-700 text-[10px] bg-emerald-50 px-1 rounded font-bold uppercase border border-emerald-200">Remote</span>}
                               </td>
                               <td className="px-5 py-3 text-slate-500 font-semibold">{job.sources?.length || 0} sources</td>
-                              <td className="px-5 py-3 text-slate-400">{new Date(job.last_seen_at).toLocaleString()}</td>
+                              <td suppressHydrationWarning className="px-5 py-3 text-slate-400">{new Date(job.last_seen_at).toLocaleString()}</td>
                             </tr>
                             
                             {isExpanded && (
@@ -510,7 +510,7 @@ function CrawlerDashboard() {
                                                   </span>
                                                   <p className="text-[10.5px] text-slate-500 mt-1 font-mono">{log.details}</p>
                                                 </div>
-                                                <span className="text-[9.5px] text-slate-400 shrink-0 font-mono">
+                                                <span suppressHydrationWarning className="text-[9.5px] text-slate-400 shrink-0 font-mono">
                                                   {new Date(log.created_at).toLocaleString()}
                                                 </span>
                                               </div>
@@ -721,7 +721,7 @@ function CrawlerDashboard() {
                               <td className="px-5 py-3">
                                 {isExpanded ? <ChevronUp className="h-4 w-4 text-slate-400" /> : <ChevronDown className="h-4 w-4 text-slate-400" />}
                               </td>
-                              <td className="px-5 py-3 text-slate-400 text-[10px]">
+                              <td suppressHydrationWarning className="px-5 py-3 text-slate-400 text-[10px]">
                                 {new Date(log.created_at).toLocaleString()}
                               </td>
                               <td className="px-5 py-3">

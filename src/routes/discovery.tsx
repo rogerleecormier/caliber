@@ -669,7 +669,7 @@ function DiscoveryDashboard() {
               return (
                 <div key={log.id} className="py-2.5 flex items-start justify-between gap-4">
                   <div>
-                    <span className="text-slate-500 font-medium">[{new Date(log.created_at).toLocaleTimeString()}]</span>{' '}
+                    <span suppressHydrationWarning className="text-slate-500 font-medium">[{new Date(log.created_at).toLocaleTimeString()}]</span>{' '}
                     <span className={`${isSuccess ? 'text-green-400' : 'text-red-400'} font-semibold`}>
                       {log.ats}:{log.board_token}
                     </span>{' '}
