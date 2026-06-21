@@ -11,12 +11,18 @@ export interface DedupDecision {
 
 export async function dedupPipeline(
   env: Env,
-  normalized: NormalizedJob
+  normalized: NormalizedJob,
+  candidates?: Array<{ id: string; dedup_key: string; title_norm: string; location_norm: string | null }>
 ): Promise<DedupDecision> {
   // Stage 1: Deterministic check (Exact match on dedupKey)
-  const existing = await env.DB.prepare(
-    'SELECT id FROM canonical_jobs WHERE dedup_key = ?'
-  ).bind(normalized.dedupKey).first<{ id: string }>();
+  let existing;
+  if (candidates) {
+    existing = candidates.find(c => c.dedup_key === normalized.dedupKey);
+  } else {
+    existing = await env.DB.prepare(
+      'SELECT id FROM canonical_jobs WHERE dedup_key = ?'
+    ).bind(normalized.dedupKey).first<{ id: string }>();
+  }
 
   if (existing) {
     return {
@@ -28,7 +34,7 @@ export async function dedupPipeline(
   }
 
   // Stage 2: Fuzzy title check (Jaro-Winkler)
-  const fuzzyResult = await findFuzzyMatch(env, normalized);
+  const fuzzyResult = await findFuzzyMatch(env, normalized, 0.87, candidates);
   if (fuzzyResult.match) {
     return {
       action: 'merge_with',

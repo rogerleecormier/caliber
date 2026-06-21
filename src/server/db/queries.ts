@@ -63,7 +63,15 @@ export async function insertCanonicalJob(
   id: string,
   normalized: NormalizedJob
 ): Promise<void> {
-  await env.DB.prepare(`
+  await prepareInsertCanonicalJob(env, id, normalized).run();
+}
+
+export function prepareInsertCanonicalJob(
+  env: Env,
+  id: string,
+  normalized: NormalizedJob
+): any {
+  return env.DB.prepare(`
     INSERT INTO canonical_jobs (
       id, company_display, company_norm, title_display, title_norm,
       location_display, location_norm, remote, employment_type, experience_level,
@@ -95,7 +103,7 @@ export async function insertCanonicalJob(
     new Date().toISOString(),
     new Date().toISOString(),
     new Date().toISOString()
-  ).run();
+  );
 }
 
 export async function linkJobSource(
@@ -111,7 +119,24 @@ export async function linkJobSource(
   }
 ): Promise<string> {
   const id = crypto.randomUUID();
-  await env.DB.prepare(`
+  await prepareLinkJobSource(env, canonicalId, id, source).run();
+  return id;
+}
+
+export function prepareLinkJobSource(
+  env: Env,
+  canonicalId: string,
+  id: string,
+  source: {
+    ats: string;
+    boardToken: string;
+    sourceJobId: string;
+    sourceUrl: string;
+    applyUrl: string;
+    rawHash: string;
+  }
+): any {
+  return env.DB.prepare(`
     INSERT INTO job_sources (
       id, canonical_id, ats, board_token, source_job_id, source_url, apply_url,
       raw_hash, first_seen_at, last_seen_at, created_at, updated_at
@@ -132,9 +157,7 @@ export async function linkJobSource(
     new Date().toISOString(),
     new Date().toISOString(),
     new Date().toISOString()
-  ).run();
-  
-  return id;
+  );
 }
 
 export async function logAudit(
@@ -150,7 +173,23 @@ export async function logAudit(
   }
 ): Promise<void> {
   const id = crypto.randomUUID();
-  await env.DB.prepare(
+  await prepareLogAudit(env, id, event).run();
+}
+
+export function prepareLogAudit(
+  env: Env,
+  id: string,
+  event: {
+    eventType: string;
+    ats?: string | null;
+    boardToken?: string | null;
+    canonicalId?: string | null;
+    sourceId?: string | null;
+    details: Record<string, any>;
+    actor?: string;
+  }
+): any {
+  return env.DB.prepare(
     `INSERT INTO audit_log (id, event_type, ats, board_token, canonical_id, source_id, details, actor, created_at)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
   ).bind(
@@ -163,5 +202,5 @@ export async function logAudit(
     JSON.stringify(event.details),
     event.actor ?? 'system',
     new Date().toISOString()
-  ).run();
+  );
 }

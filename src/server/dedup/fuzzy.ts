@@ -76,14 +76,19 @@ export function jaroWinkler(s1: string, s2: string): number {
 export async function findFuzzyMatch(
   env: Env,
   normalized: NormalizedJob,
-  threshold = 0.87
+  threshold = 0.87,
+  candidates?: Array<{ id: string; title_norm: string; location_norm: string | null }>
 ): Promise<{ match: boolean; canonicalId?: string; score?: number }> {
-  // Query all canonical jobs from the same company
-  const { results: candidates } = await env.DB.prepare(
-    'SELECT id, title_norm, location_norm FROM canonical_jobs WHERE company_norm = ?'
-  ).bind(normalized.companyNorm).all<{ id: string; title_norm: string; location_norm: string | null }>();
+  // Query all canonical jobs from the same company if not pre-loaded
+  let candidateList = candidates;
+  if (!candidateList) {
+    const { results } = await env.DB.prepare(
+      'SELECT id, title_norm, location_norm FROM canonical_jobs WHERE company_norm = ?'
+    ).bind(normalized.companyNorm).all<{ id: string; title_norm: string; location_norm: string | null }>();
+    candidateList = results;
+  }
 
-  if (!candidates || candidates.length === 0) {
+  if (!candidateList || candidateList.length === 0) {
     return { match: false };
   }
 

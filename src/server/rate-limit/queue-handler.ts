@@ -2,7 +2,14 @@ import { fetchGreenhouseJobs } from '../ats/parsers/greenhouse';
 import { fetchLeverJobs } from '../ats/parsers/lever';
 import { fetchAshbyJobs } from '../ats/parsers/ashby';
 import { fetchWorkableJobs } from '../ats/parsers/workable';
-import { insertCanonicalJob, linkJobSource, logAudit } from '../db/queries';
+import { 
+  insertCanonicalJob, 
+  linkJobSource, 
+  logAudit,
+  prepareInsertCanonicalJob,
+  prepareLinkJobSource,
+  prepareLogAudit
+} from '../db/queries';
 import { normalizeJob } from '@/lib/normalization';
 import { dedupPipeline } from '../dedup/deterministic';
 
@@ -82,18 +89,46 @@ export async function processCrawlJobsQueue(
       let insertedCount = 0;
       let mergedCount = 0;
 
+      // Pre-load candidates for this company to avoid sequential DB queries per job
+      let companyNorm = '';
+      if (rawJobs.length > 0) {
+        const firstNormalized = normalizeJob(rawJobs[0]);
+        companyNorm = firstNormalized.companyNorm;
+      }
+
+      const candidates: Array<{ id: string; company_norm: string; title_norm: string; location_norm: string | null; dedup_key: string }> = [];
+      if (companyNorm) {
+        const { results } = await env.DB.prepare(
+          'SELECT id, company_norm, title_norm, location_norm, dedup_key FROM canonical_jobs WHERE company_norm = ?'
+        ).bind(companyNorm).all<{ id: string; company_norm: string; title_norm: string; location_norm: string | null; dedup_key: string }>();
+        if (results) {
+          candidates.push(...results);
+        }
+      }
+
+      const statements: any[] = [];
+
       for (const rawJob of rawJobs) {
         const normalized = normalizeJob(rawJob);
         
-        // Run deduplication pipeline
-        const decision = await dedupPipeline(env, normalized);
+        // Run deduplication pipeline with pre-loaded candidates
+        const decision = await dedupPipeline(env, normalized, candidates);
         
         let canonicalId = decision.canonicalId;
         const isNew = decision.action === 'insert_new' || !canonicalId;
 
         if (isNew) {
           canonicalId = crypto.randomUUID();
-          await insertCanonicalJob(env, canonicalId, normalized);
+          statements.push(prepareInsertCanonicalJob(env, canonicalId, normalized));
+          
+          // Add newly inserted job to the in-memory candidates list for subsequent jobs matching
+          candidates.push({
+            id: canonicalId,
+            company_norm: normalized.companyNorm,
+            title_norm: normalized.titleNorm,
+            location_norm: normalized.locationNorm ?? null,
+            dedup_key: normalized.dedupKey
+          });
           
           // Generate and upsert embedding to Vectorize index
           try {
@@ -110,17 +145,18 @@ export async function processCrawlJobsQueue(
         }
 
         // Link job source
-        const sourceId = await linkJobSource(env, canonicalId!, {
+        const sourceId = crypto.randomUUID();
+        statements.push(prepareLinkJobSource(env, canonicalId!, sourceId, {
           ats,
           boardToken: token,
           sourceJobId: rawJob.id,
           sourceUrl: rawJob.absoluteUrl || rawJob.applyUrl || '',
           applyUrl: rawJob.applyUrl || rawJob.absoluteUrl || '',
           rawHash: normalized.rawHash,
-        });
+        }));
 
         // Log audit event
-        await logAudit(env, {
+        statements.push(prepareLogAudit(env, crypto.randomUUID(), {
           eventType: isNew ? 'vector_insert' : 'dedup_merge',
           ats,
           boardToken: token,
@@ -132,14 +168,24 @@ export async function processCrawlJobsQueue(
             method: isNew ? 'insert' : (decision.stage === 1 ? 'deterministic' : (decision.stage === 2 ? 'fuzzy' : (decision.stage === 3 ? 'vector' : 'llm'))),
             dedupKey: normalized.dedupKey
           },
-        });
+        }));
+      }
+
+      // Execute batch statements in chunks
+      if (statements.length > 0) {
+        console.log(`[queue-handler] Executing batch of ${statements.length} D1 statements...`);
+        const chunkSize = 100;
+        for (let i = 0; i < statements.length; i += chunkSize) {
+          const chunk = statements.slice(i, i + chunkSize);
+          await env.DB.batch(chunk);
+        }
       }
 
       // 4. Update boards table
       const nowString = new Date().toISOString();
       await env.DB.prepare(`
         UPDATE boards 
-        SET last_crawled_at = ?, crawl_error_count = 0, crawl_error_last_at = NULL
+        SET last_crawled_at = ?, crawl_error_count = 0, crawl_error_last_at = null
         WHERE id = ?
       `).bind(nowString, boardId).run();
 
