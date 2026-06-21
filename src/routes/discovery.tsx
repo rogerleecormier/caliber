@@ -341,7 +341,7 @@ function DiscoveryDashboard() {
       <PageHero
         eyebrow="Automation"
         icon={<Shield className="h-3.5 w-3.5" />}
-        title="Board Discovery"
+        title="Discovery Agent"
         description="Auto-discover, validate, and index Greenhouse, Lever, Ashby, and Workable ATS boards dynamically."
         actions={
           <div className="flex items-center gap-2">
