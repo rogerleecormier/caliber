@@ -1,7 +1,6 @@
 import { createFileRoute, Link, defer } from "@tanstack/react-router";
 import { getAnalytics, type AnalyticsSummaryData } from "@/server/functions/get-analytics";
 import { useQuery } from "@tanstack/react-query";
-import React, { useMemo, useState, Suspense } from "react";
 import {
   BarChart3,
   Briefcase,
@@ -10,19 +9,22 @@ import {
   Sparkles,
   TrendingUp,
   ChevronRight,
+  X,
   Award,
   Globe,
+  MapPin,
   ExternalLink,
+  Search,
+  ArrowUpDown,
+  ChevronLeft,
+  ChevronRight as ChevronRightIcon,
+  Building2,
   Calendar,
 } from "lucide-react";
+import type { ReactNode } from "react";
+import { useMemo, useState, Suspense } from "react";
 import { requireLoginRedirect } from "@/lib/auth-redirect";
 import { PageHero } from "@caliber/ui-kit";
-import { StatCardGrid, CompactStatTile } from "@/components/ui/compact-stat-card";
-
-// DrillDownDialog uses Radix Dialog which calls document APIs — lazy-load client-only
-const DrillDownDialog = React.lazy(() =>
-  import("@/components/ui/drill-down-dialog").then((m) => ({ default: m.DrillDownDialog }))
-);
 import {
   BarChart,
   Bar,
@@ -38,6 +40,9 @@ import {
 import {
   useReactTable,
   getCoreRowModel,
+  getSortedRowModel,
+  getFilteredRowModel,
+  getPaginationRowModel,
   flexRender,
 } from "@tanstack/react-table";
 
@@ -79,63 +84,13 @@ const ChartTooltip = ({ active, payload, label }: any) => {
 // Main Dashboard Page
 function DashboardPage() {
   const { analyticsData } = Route.useLoaderData() as any;
-  const [drillDown, setDrillDown] = useState<{ title: string; jobs: any[] } | null>(null);
 
   return (
     <div className="spx-page space-y-8 pb-16">
       <DashboardHeader />
       <Suspense fallback={<DashboardContentSkeleton />}>
-        <DashboardContent analyticsDataPromise={analyticsData} setDrillDown={setDrillDown} />
+        <DashboardContent analyticsDataPromise={analyticsData} />
       </Suspense>
-
-      {/* DrillDownDialog is lazy-loaded (client-only) — Radix Dialog uses document APIs unsafe for CF Workers SSR */}
-      {typeof window !== "undefined" && (
-        <Suspense fallback={null}>
-          <DrillDownDialog
-            open={!!drillDown}
-            onClose={() => setDrillDown(null)}
-            title={drillDown?.title ?? ""}
-            description={drillDown ? `${drillDown.jobs.length} job${drillDown.jobs.length === 1 ? "" : "s"}` : undefined}
-          >
-            {drillDown && (
-              <div className="space-y-1">
-                {drillDown.jobs.length === 0 ? (
-                  <p className="text-sm text-slate-400 py-6 text-center">No jobs match this filter.</p>
-                ) : (
-                  <>
-                    {drillDown.jobs.slice(0, 50).map((job: any) => (
-                      <div key={job.id ?? job.sourceUrl} className="flex items-center justify-between py-2 border-b border-slate-100 last:border-0">
-                        <div className="min-w-0">
-                          <p className="text-sm font-semibold text-slate-800 truncate">{job.title}</p>
-                          <p className="text-xs text-slate-500 truncate">{job.company}</p>
-                        </div>
-                        {job.matchScore != null && (
-                          <span className="text-xs font-bold text-teal-700 bg-teal-50 border border-teal-200 rounded px-1.5 py-0.5 shrink-0 ml-3">
-                            {job.matchScore}%
-                          </span>
-                        )}
-                      </div>
-                    ))}
-                    {drillDown.jobs.length > 50 && (
-                      <p className="text-xs text-slate-400 pt-2 text-center">Showing first 50 of {drillDown.jobs.length} jobs</p>
-                    )}
-                    <div className="pt-3 text-center">
-                      <Link
-                        to="/jobs"
-                        search={{ view: "all-jobs", page: 1, query: "", remote: false, sortBy: "posted-date", status: "", analyzedOnly: false }}
-                        onClick={() => setDrillDown(null)}
-                        className="text-sm font-semibold text-orange-600 hover:text-orange-700"
-                      >
-                        View all jobs →
-                      </Link>
-                    </div>
-                  </>
-                )}
-              </div>
-            )}
-          </DrillDownDialog>
-        </Suspense>
-      )}
     </div>
   );
 }
@@ -168,13 +123,17 @@ function DashboardHeader() {
 // Slow content section — streams in via Suspense
 async function DashboardContent({
   analyticsDataPromise,
-  setDrillDown,
 }: {
   analyticsDataPromise: Promise<AnalyticsSummaryData>;
-  setDrillDown: (v: { title: string; jobs: any[] } | null) => void;
 }): Promise<React.ReactElement> {
   const initialData: AnalyticsSummaryData = await analyticsDataPromise;
   const [selectedPeriod, setSelectedPeriod] = useState<string>("all_time");
+
+  // Selected drill-down state
+  const [drillDown, setDrillDown] = useState<{
+    title: string;
+    jobs: any[];
+  } | null>(null);
 
   // Real-time data fetching (Query is invalidated when actions occur elsewhere)
   const { data } = useQuery({
@@ -184,7 +143,7 @@ async function DashboardContent({
       return result;
     },
     initialData: initialData,
-    refetchInterval: 15000,
+    refetchInterval: 15000, // Refresh every 15 seconds
   });
 
   // Dynamically compile lists of months from allJobs for period dropdown selection
@@ -380,44 +339,48 @@ async function DashboardContent({
         </div>
       </div>
 
-      {/* KPI Stats — single card, 4 clickable tiles */}
-      <section>
-        <StatCardGrid cols={4}>
-          <CompactStatTile
-            icon={<Gauge className="h-4 w-4" />}
-            label="Average Match"
-            value={`${data.averageMatchScore.toFixed(1)}%`}
-            note={derived.matchLabel}
-            onClick={() => setDrillDown({ title: "All Analyzed Jobs", jobs: data.allJobs.filter((j) => j.matchScore != null) })}
-          />
-          <CompactStatTile
-            icon={<Sparkles className="h-4 w-4" />}
-            label="Unicorn Matches"
-            value={String(data.unicornCount)}
-            note="High-fit transferable skills"
-            onClick={() => setDrillDown({ title: "Unicorn Matches", jobs: data.allJobs.filter((j) => (j as any).isUnicorn) })}
-            accentClass="text-amber-600"
-          />
-          <CompactStatTile
-            icon={<FileText className="h-4 w-4" />}
-            label="Tailored Resumes"
-            value={String(data.totalResumesGenerated)}
-            note={`${derived.resumeCoverage}% coverage`}
-          />
-          <CompactStatTile
-            icon={<Award className="h-4 w-4" />}
-            label="Active Pipeline"
-            value={String(data.totalJobsDiscovered)}
-            note={`${data.totalApplied} applied · ${data.totalPursued} pursued`}
-            onClick={() => setDrillDown({ title: "Full Pipeline", jobs: data.allJobs })}
-          />
-        </StatCardGrid>
+      {/* KPI Cards Grid */}
+      <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <MetricCard
+          icon={<Gauge className="h-5 w-5 text-indigo-600" />}
+          label="Average Match"
+          value={`${data.averageMatchScore.toFixed(1)}%`}
+          note={derived.matchLabel}
+          accent="bg-indigo-50 border-indigo-100"
+          color={derived.matchColor}
+          progress={data.averageMatchScore}
+        />
+        <MetricCard
+          icon={<Sparkles className="h-5 w-5 text-amber-600" />}
+          label="Unicorn Matches"
+          value={String(data.unicornCount)}
+          note="High-fit transferable skills"
+          accent="bg-amber-50 border-amber-100"
+          color="#d97706"
+          isGlowing
+        />
+        <MetricCard
+          icon={<FileText className="h-5 w-5 text-emerald-600" />}
+          label="Tailored Resumes"
+          value={String(data.totalResumesGenerated)}
+          note={`${derived.resumeCoverage}% resume coverage`}
+          accent="bg-emerald-50 border-emerald-100"
+          color="#10b981"
+        />
+        <MetricCard
+          icon={<Award className="h-5 w-5 text-pink-600" />}
+          label="Active Pipeline"
+          value={String(data.totalJobsDiscovered)}
+          note={`${data.totalApplied} applied · ${data.totalPursued} pursued`}
+          accent="bg-pink-50 border-pink-100"
+          color="#db2777"
+        />
       </section>
 
       {/* Primary Insights Charts */}
       <section className="grid gap-6 md:grid-cols-2">
         {/* Pipeline Funnel */}
-        <div className="rounded-lg border border-slate-200 bg-white/80 p-5 shadow-sm flex flex-col h-[360px]">
+        <div className="rounded-2xl border border-slate-200/80 bg-white/70 backdrop-blur-md p-6 shadow-sm flex flex-col h-[380px]">
           <div>
             <h3 className="font-bold text-slate-800 text-base leading-none">Application Funnel</h3>
             <p className="text-xs text-slate-500 mt-1">
@@ -438,7 +401,7 @@ async function DashboardContent({
                 <Bar
                   dataKey="count"
                   name="Jobs"
-                  fill="var(--color-primary-600)"
+                  fill="var(--color-indigo-500)"
                   radius={[0, 6, 6, 0]}
                   onClick={handleFunnelClick}
                   cursor="pointer"
@@ -449,7 +412,7 @@ async function DashboardContent({
         </div>
 
         {/* Match Score Distribution */}
-        <div className="rounded-lg border border-slate-200 bg-white/80 p-5 shadow-sm flex flex-col h-[360px]">
+        <div className="rounded-2xl border border-slate-200/80 bg-white/70 backdrop-blur-md p-6 shadow-sm flex flex-col h-[380px]">
           <div>
             <h3 className="font-bold text-slate-800 text-base leading-none">Match Score Distribution</h3>
             <p className="text-xs text-slate-500 mt-1">
@@ -466,9 +429,9 @@ async function DashboardContent({
                 <Bar dataKey="count" name="Jobs" radius={[6, 6, 0, 0]} onClick={handleScoreClick} cursor="pointer">
                   {data.matchScoreDistribution.map((_entry, idx) => {
                     const fills = [
-                      "#0d9488", // Strong  → teal
-                      "#f59e0b", // Moderate → amber
-                      "#ef4444", // Weak    → red (semantic: error/low)
+                      "var(--color-success-500)", // Strong
+                      "var(--color-warning-500)", // Moderate
+                      "var(--color-error-500)",   // Weak
                     ];
                     return <Cell key={`cell-${idx}`} fill={fills[idx % fills.length]} />;
                   })}
@@ -479,7 +442,7 @@ async function DashboardContent({
         </div>
 
         {/* Workplace Type Preference */}
-        <div className="rounded-lg border border-slate-200 bg-white/80 p-5 shadow-sm flex flex-col h-[360px]">
+        <div className="rounded-2xl border border-slate-200/80 bg-white/70 backdrop-blur-md p-6 shadow-sm flex flex-col h-[380px]">
           <div>
             <h3 className="font-bold text-slate-800 text-base leading-none">Workplace Arrangement</h3>
             <p className="text-xs text-slate-500 mt-1">
@@ -503,7 +466,7 @@ async function DashboardContent({
                   label={({ type, percent }: any) => `${type} (${Math.round((percent ?? 0) * 100)}%)`}
                 >
                   {data.workplaceTypeDistribution.map((_entry, idx) => {
-                    const colors = ["#6366f1", "#0d9488", "#ea580c", "#f59e0b"];
+                    const colors = ["#6366f1", "#10b981", "#ef4444", "#f59e0b"];
                     return <Cell key={`cell-${idx}`} fill={colors[idx % colors.length]} />;
                   })}
                 </Pie>
@@ -518,7 +481,7 @@ async function DashboardContent({
         </div>
 
         {/* Ingestion Sources */}
-        <div className="rounded-lg border border-slate-200 bg-white/80 p-5 shadow-sm flex flex-col h-[360px]">
+        <div className="rounded-2xl border border-slate-200/80 bg-white/70 backdrop-blur-md p-6 shadow-sm flex flex-col h-[380px]">
           <div>
             <h3 className="font-bold text-slate-800 text-base leading-none">Ingestion Sources</h3>
             <p className="text-xs text-slate-500 mt-1">
@@ -538,7 +501,7 @@ async function DashboardContent({
                 <RechartsTooltip content={<ChartTooltip />} cursor={{ fill: "rgba(148, 163, 184, 0.06)" }} />
                 <Bar dataKey="count" name="Jobs" fill="#8b5cf6" radius={[0, 6, 6, 0]} onClick={handleSourceClick} cursor="pointer">
                   {data.sourceDistribution.map((_entry, idx) => {
-                    const colors = ["#0284c7", "#0d9488", "#4f46e5", "#ea580c", "#8b5cf6"];
+                    const colors = ["#0284c7", "#10b981", "#4f46e5", "#8b5cf6", "#f43f5e"];
                     return <Cell key={`cell-${idx}`} fill={colors[idx % colors.length]} />;
                   })}
                 </Bar>
@@ -551,7 +514,7 @@ async function DashboardContent({
       {/* Target Sectors & Categories */}
       <section className="grid gap-6 md:grid-cols-2">
         {/* Top Titles */}
-        <div className="rounded-lg border border-slate-200 bg-white/80 p-5 shadow-sm">
+        <div className="rounded-2xl border border-slate-200/80 bg-white/70 backdrop-blur-md p-6 shadow-sm">
           <div className="flex items-center justify-between border-b border-slate-100 pb-3 mb-4">
             <div>
               <h3 className="font-bold text-slate-800 text-base leading-none">Top Target Job Titles</h3>
@@ -591,13 +554,13 @@ async function DashboardContent({
         </div>
 
         {/* Top Industries */}
-        <div className="rounded-lg border border-slate-200 bg-white/80 p-5 shadow-sm">
+        <div className="rounded-2xl border border-slate-200/80 bg-white/70 backdrop-blur-md p-6 shadow-sm">
           <div className="flex items-center justify-between border-b border-slate-100 pb-3 mb-4">
             <div>
               <h3 className="font-bold text-slate-800 text-base leading-none">Top Target Industries</h3>
               <p className="text-xs text-slate-500 mt-1">Analyzed positions aggregated by sector</p>
             </div>
-            <span className="text-[10px] font-bold text-teal-600 bg-teal-50 border border-teal-100 px-2 py-0.5 rounded">
+            <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 border border-emerald-100 px-2 py-0.5 rounded">
               Hiring Density
             </span>
           </div>
@@ -652,7 +615,7 @@ async function DashboardContent({
       </section>
 
       {/* Recent Analyses TanStack Table */}
-      <section className="rounded-lg border border-slate-200 bg-white/80 p-5 shadow-sm">
+      <section className="rounded-2xl border border-slate-200/80 bg-white/70 backdrop-blur-md p-6 shadow-sm">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-slate-100 pb-4 mb-5 gap-3">
           <div>
             <h3 className="font-bold text-slate-800 text-base leading-none">Recent Job Analyses</h3>
@@ -665,12 +628,82 @@ async function DashboardContent({
         <RecentAnalysesTable jobs={data.recentAnalyses} />
       </section>
 
+      {/* Drill-down Modal */}
+      {drillDown && (
+        <DrillDownModal
+          title={drillDown.title}
+          jobs={drillDown.jobs}
+          onClose={() => setDrillDown(null)}
+        />
+      )}
     </div>
   );
 }
 
+// KPI Metric Card Component
+function MetricCard({
+  icon,
+  label,
+  value,
+  note,
+  accent,
+  color,
+  progress,
+  isGlowing = false,
+}: {
+  icon: ReactNode;
+  label: string;
+  value: string;
+  note: string;
+  accent: string;
+  color?: string;
+  progress?: number;
+  isGlowing?: boolean;
+}) {
+  return (
+    <div
+      className={`rounded-2xl p-5 border relative overflow-hidden transition hover:-translate-y-0.5 duration-300 ${
+        isGlowing
+          ? "border-amber-200/80 bg-gradient-to-br from-amber-50/40 via-white/80 to-amber-100/10 shadow-[0_4px_20px_rgba(245,158,11,0.08)] hover:shadow-[0_6px_24px_rgba(245,158,11,0.15)]"
+          : "border-slate-200/70 bg-white/80 backdrop-blur-md shadow-sm hover:shadow-md"
+      }`}
+    >
+      {isGlowing && (
+        <div className="absolute right-0 top-0 h-24 w-24 -mr-5 -mt-5 bg-gradient-to-br from-amber-300/10 to-amber-500/10 rounded-full blur-xl pointer-events-none" />
+      )}
+      <div className="flex items-start justify-between">
+        <div>
+          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">{label}</p>
+          <p className="mt-2 text-3xl font-extrabold tracking-tight text-slate-900 leading-none">{value}</p>
+        </div>
+        <div className={`flex h-9 w-9 items-center justify-center rounded-xl border ${accent} shrink-0`}>
+          {icon}
+        </div>
+      </div>
 
-// Keyword bubble tag cloud
+      <div className="mt-4 flex items-center justify-between gap-2">
+        <p className="text-[11px] font-semibold text-slate-500 truncate leading-snug">{note}</p>
+        {progress !== undefined && (
+          <div className="flex items-center gap-1.5 text-[10px] font-bold text-slate-600">
+            <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: color }} />
+            <span>Score</span>
+          </div>
+        )}
+      </div>
+
+      {progress !== undefined && (
+        <div className="h-1.5 w-full bg-slate-100 rounded-full mt-3 overflow-hidden">
+          <div
+            className="h-full rounded-full transition-all duration-500"
+            style={{ width: `${progress}%`, backgroundColor: color }}
+          />
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Keyword Bubble Card Component
 function KeywordBubbleCard({
   title,
   subtitle,
@@ -681,22 +714,26 @@ function KeywordBubbleCard({
 }: {
   title: string;
   subtitle: string;
-  icon: React.ReactNode;
+  icon: ReactNode;
   items: Array<{ keyword: string; count: number }>;
   themeClass: string;
   onKeywordClick: (keyword: string) => void;
 }) {
   return (
-    <div className="rounded-lg border border-slate-200 bg-white/80 p-5 shadow-sm">
+    <div className="rounded-2xl border border-slate-200/80 bg-white/70 backdrop-blur-md p-6 shadow-sm">
       <div className="flex items-center justify-between border-b border-slate-100 pb-3 mb-4 text-slate-800">
         <div className="flex items-center gap-2">
-          <div className="p-1.5 rounded-lg bg-slate-50 border border-slate-100 shadow-sm">{icon}</div>
+          <div className="p-1.5 rounded-lg bg-slate-50 border border-slate-150 shadow-sm">{icon}</div>
           <div>
             <h3 className="font-bold text-sm leading-none">{title}</h3>
             <p className="text-[11px] text-slate-500 mt-1">{subtitle}</p>
           </div>
         </div>
+        <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">
+          Interactive
+        </span>
       </div>
+
       {items.length === 0 ? (
         <p className="text-xs text-slate-400 py-6 text-center">Analyze jobs to aggregate keywords.</p>
       ) : (
@@ -704,12 +741,11 @@ function KeywordBubbleCard({
           {items.slice(0, 20).map((item) => (
             <button
               key={item.keyword}
-              type="button"
               onClick={() => onKeywordClick(item.keyword)}
-              className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold cursor-pointer shadow-sm transition active:scale-95 ${themeClass}`}
+              className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold cursor-pointer shadow-sm transition active:scale-95 duration-150 ${themeClass}`}
             >
               <span>{item.keyword}</span>
-              <span className="opacity-60 text-[10px] font-bold">×{item.count}</span>
+              <span className="opacity-60 text-[10px] font-bold">x{item.count}</span>
             </button>
           ))}
         </div>
@@ -718,7 +754,7 @@ function KeywordBubbleCard({
   );
 }
 
-// Recent analyses table using TanStack Table
+// TanStack Table for Recent Analyses
 function RecentAnalysesTable({ jobs }: { jobs: any[] }) {
   const columns = useMemo(
     () => [
@@ -729,41 +765,248 @@ function RecentAnalysesTable({ jobs }: { jobs: any[] }) {
           const row = info.row.original;
           return (
             <div className="max-w-[220px]">
-              <div className="font-semibold text-slate-900 truncate leading-snug" title={row.title}>{row.title}</div>
-              <div className="text-xs text-slate-500 mt-0.5 truncate">{row.company}</div>
+              <div className="font-semibold text-slate-900 truncate leading-snug" title={row.title}>
+                {row.title}
+              </div>
+              <div className="flex items-center gap-1.5 text-xs text-slate-500 mt-1 font-medium">
+                <Building2 className="h-3 w-3 shrink-0" />
+                <span className="truncate">{row.company}</span>
+              </div>
             </div>
           );
         },
       },
       {
         accessorKey: "matchScore",
-        header: "Score",
+        header: "Match Score",
         cell: (info: any) => {
           const score = info.getValue();
-          if (score == null) return <span className="text-slate-400 font-medium">—</span>;
-          const color = score >= 80 ? "text-teal-700 bg-teal-50 border-teal-100"
-            : score >= 60 ? "text-amber-700 bg-amber-50 border-amber-100"
-            : "text-red-700 bg-red-50 border-red-100";
-          return <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-bold border ${color}`}>{score}%</span>;
+          if (score === null || score === undefined) return <span className="text-slate-400 font-medium">—</span>;
+          const color =
+            score >= 80
+              ? "text-emerald-700 bg-emerald-50 border-emerald-100"
+              : score >= 60
+                ? "text-amber-700 bg-amber-50 border-amber-100"
+                : "text-red-700 bg-red-50 border-red-100";
+          return (
+            <span
+              className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-bold border ${color}`}
+            >
+              {score}%
+            </span>
+          );
+        },
+      },
+      {
+        accessorKey: "location",
+        header: "Location",
+        cell: (info: any) => {
+          const loc = info.getValue() || "Remote";
+          return (
+            <div className="flex items-center gap-1 text-slate-600 text-xs font-semibold">
+              <MapPin className="h-3 w-3 text-slate-400 shrink-0" />
+              <span className="truncate max-w-[120px]">{loc}</span>
+            </div>
+          );
+        },
+      },
+      {
+        accessorKey: "sourceName",
+        header: "Channel",
+        cell: (info: any) => {
+          const val = info.getValue();
+          return (
+            <span className="text-xs font-semibold text-slate-500 bg-slate-50 border border-slate-100 px-2 py-0.5 rounded">
+              {val}
+            </span>
+          );
         },
       },
       {
         accessorKey: "status",
         header: "Status",
-        cell: (info: any) => (
-          <span className="inline-flex items-center rounded-full bg-indigo-50 border border-indigo-100 px-2 py-0.5 text-xs font-bold text-indigo-700">
-            {info.getValue()}
-          </span>
+        cell: (info: any) => {
+          const val = info.getValue();
+          return (
+            <span className="inline-flex items-center rounded-full bg-indigo-50 border border-indigo-100 px-2 py-0.5 text-xs font-bold text-indigo-700">
+              {val}
+            </span>
+          );
+        },
+      },
+      {
+        id: "actions",
+        header: "Action",
+        cell: (info: any) => {
+          const row = info.row.original;
+          return (
+            <div className="flex items-center gap-2 justify-end">
+              <Link
+                to="/jobs"
+                search={(prev: any) => ({ ...prev, query: row.title, status: row.status })}
+                className="inline-flex h-7 items-center justify-center gap-1 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 px-2 text-xs font-bold text-slate-700 transition"
+              >
+                Track
+              </Link>
+              <a
+                href={row.sourceUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-amber-600 hover:bg-amber-700 text-white transition shadow-sm"
+              >
+                <ExternalLink className="h-3.5 w-3.5" />
+              </a>
+            </div>
+          );
+        },
+      },
+    ],
+    []
+  );
+
+  const table = useReactTable({
+    data: jobs,
+    columns,
+    getCoreRowModel: getCoreRowModel(),
+  });
+
+  return (
+    <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white/50 shadow-sm">
+      <table className="w-full">
+        <thead>
+          {table.getHeaderGroups().map((headerGroup) => (
+            <tr key={headerGroup.id} className="border-b border-slate-200 bg-slate-50/90">
+              {headerGroup.headers.map((header) => (
+                <th
+                  key={header.id}
+                  className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-slate-600"
+                >
+                  {header.isPlaceholder
+                    ? null
+                    : flexRender(header.column.columnDef.header, header.getContext())}
+                </th>
+              ))}
+            </tr>
+          ))}
+        </thead>
+        <tbody className="divide-y divide-slate-100">
+          {table.getRowModel().rows.map((row) => (
+            <tr key={row.id} className="transition hover:bg-white/90">
+              {row.getVisibleCells().map((cell) => (
+                <th
+                  key={cell.id}
+                  className="px-4 py-3.5 text-left font-normal align-middle"
+                >
+                  {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                </th>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+// Drill Down Modal containing searchable/sortable TanStack Table
+function DrillDownModal({
+  title,
+  jobs,
+  onClose,
+}: {
+  title: string;
+  jobs: any[];
+  onClose: () => void;
+}) {
+  const [globalFilter, setGlobalFilter] = useState("");
+  const [sorting, setSorting] = useState<any[]>([]);
+
+  const columns = useMemo(
+    () => [
+      {
+        accessorKey: "title",
+        header: ({ column }: any) => (
+          <button
+            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+            className="flex items-center gap-1 hover:text-slate-800 transition font-bold"
+          >
+            Position
+            <ArrowUpDown className="h-3.5 w-3.5" />
+          </button>
         ),
+        cell: (info: any) => {
+          const row = info.row.original;
+          return (
+            <div>
+              <div className="font-semibold text-slate-900 leading-snug">{row.title}</div>
+              <div className="flex items-center gap-1 text-xs text-slate-500 mt-0.5">
+                <Building2 className="h-3 w-3" />
+                <span>{row.company}</span>
+              </div>
+            </div>
+          );
+        },
+      },
+      {
+        accessorKey: "matchScore",
+        header: ({ column }: any) => (
+          <button
+            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+            className="flex items-center gap-1 hover:text-slate-800 transition font-bold"
+          >
+            Score
+            <ArrowUpDown className="h-3.5 w-3.5" />
+          </button>
+        ),
+        cell: (info: any) => {
+          const score = info.getValue();
+          if (score === null || score === undefined) return <span className="text-slate-400 font-medium">—</span>;
+          const color =
+            score >= 80
+              ? "text-emerald-700 bg-emerald-50 border-emerald-100"
+              : score >= 60
+                ? "text-amber-700 bg-amber-50 border-amber-100"
+                : "text-red-700 bg-red-50 border-red-100";
+          return (
+            <span
+              className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-bold border ${color}`}
+            >
+              {score}%
+            </span>
+          );
+        },
+      },
+      {
+        accessorKey: "workplaceType",
+        header: "Workplace",
+        cell: (info: any) => {
+          let type = info.getValue() || "Remote";
+          if (type.toLowerCase() === "fully_remote") type = "Remote";
+          if (type.toLowerCase() === "on_site") type = "On-site";
+          const norm = type.charAt(0).toUpperCase() + type.slice(1).toLowerCase();
+          return <span className="text-xs text-slate-600 font-semibold">{norm}</span>;
+        },
       },
       {
         accessorKey: "sourceName",
         header: "Source",
         cell: (info: any) => (
-          <span className="text-xs text-slate-500 bg-slate-50 border border-slate-100 px-2 py-0.5 rounded">
+          <span className="text-xs font-semibold text-slate-500 bg-slate-50 border border-slate-100 px-2 py-0.5 rounded">
             {info.getValue()}
           </span>
         ),
+      },
+      {
+        accessorKey: "status",
+        header: "Status",
+        cell: (info: any) => {
+          const val = info.getValue();
+          return (
+            <span className="inline-flex items-center rounded-full bg-indigo-50 border border-indigo-100 px-2 py-0.5 text-[10px] font-bold text-indigo-700">
+              {val}
+            </span>
+          );
+        },
       },
       {
         id: "actions",
@@ -775,66 +1018,146 @@ function RecentAnalysesTable({ jobs }: { jobs: any[] }) {
               <Link
                 to="/jobs"
                 search={(prev: any) => ({ ...prev, query: row.title, status: row.status })}
-                className="inline-flex h-7 items-center gap-1 rounded border border-slate-200 bg-white hover:bg-slate-50 px-2 text-xs font-semibold text-slate-700 transition"
+                onClick={onClose}
+                className="inline-flex h-7 items-center justify-center rounded-lg border border-slate-200 bg-white hover:bg-slate-50 px-2.5 text-xs font-bold text-slate-700 transition"
               >
                 Track
               </Link>
-              {row.sourceUrl && (
-                <a
-                  href={row.sourceUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex h-7 w-7 items-center justify-center rounded bg-orange-600 hover:bg-orange-700 text-white transition"
-                >
-                  <ExternalLink className="h-3.5 w-3.5" />
-                </a>
-              )}
+              <a
+                href={row.sourceUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-amber-600 hover:bg-amber-700 text-white transition shadow-sm"
+              >
+                <ExternalLink className="h-3.5 w-3.5" />
+              </a>
             </div>
           );
         },
       },
     ],
-    [],
+    [onClose]
   );
 
   const table = useReactTable({
     data: jobs,
     columns,
+    state: {
+      globalFilter,
+      sorting,
+    },
+    onGlobalFilterChange: setGlobalFilter,
+    onSortingChange: setSorting,
     getCoreRowModel: getCoreRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+    getFilteredRowModel: getFilteredRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
   });
 
   return (
-    <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white/50 shadow-sm">
-      <table className="w-full text-sm">
-        <thead className="bg-slate-50">
-          {table.getHeaderGroups().map((hg) => (
-            <tr key={hg.id} className="border-b border-slate-200">
-              {hg.headers.map((h) => (
-                <th key={h.id} className="px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
-                  {flexRender(h.column.columnDef.header, h.getContext())}
-                </th>
-              ))}
-            </tr>
-          ))}
-        </thead>
-        <tbody className="divide-y divide-slate-100">
-          {table.getRowModel().rows.length ? (
-            table.getRowModel().rows.map((row) => (
-              <tr key={row.id} className="hover:bg-slate-50/60 transition h-10">
-                {row.getVisibleCells().map((cell) => (
-                  <td key={cell.id} className="px-3 py-2 text-sm">
-                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                  </td>
-                ))}
-              </tr>
-            ))
-          ) : (
-            <tr>
-              <td colSpan={5} className="py-8 text-center text-xs text-slate-400">No recent analyses yet.</td>
-            </tr>
-          )}
-        </tbody>
-      </table>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
+      <div className="relative w-full max-w-4xl max-h-[85vh] rounded-2xl bg-white shadow-2xl overflow-hidden border border-slate-100 flex flex-col">
+        {/* Header */}
+        <div className="sticky top-0 border-b border-slate-200/80 bg-slate-50 px-6 py-4 flex items-center justify-between z-10">
+          <div>
+            <h2 className="text-base font-bold text-slate-900 leading-none">{title}</h2>
+            <p className="text-xs text-slate-500 mt-1">Detailed list of jobs matching this category</p>
+          </div>
+          <button
+            onClick={onClose}
+            className="p-1 hover:bg-slate-200 rounded-lg text-slate-400 hover:text-slate-600 transition"
+            aria-label="Close modal"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        {/* Search controls */}
+        <div className="px-6 py-3 border-b border-slate-100 bg-white flex items-center gap-2">
+          <Search className="h-4 w-4 text-slate-400 shrink-0" />
+          <input
+            type="text"
+            value={globalFilter}
+            onChange={(e) => setGlobalFilter(e.target.value)}
+            placeholder="Search matching positions or companies..."
+            className="w-full border-0 p-0 text-sm focus:outline-none focus:ring-0 placeholder:text-slate-400 text-slate-800"
+          />
+        </div>
+
+        {/* Content */}
+        <div className="overflow-y-auto flex-1 min-h-0">
+          <div className="p-6">
+            <div className="overflow-x-auto rounded-xl border border-slate-200/80">
+              <table className="w-full border-collapse">
+                <thead>
+                  {table.getHeaderGroups().map((headerGroup) => (
+                    <tr key={headerGroup.id} className="border-b border-slate-250 bg-slate-50/80">
+                      {headerGroup.headers.map((header) => (
+                        <th
+                          key={header.id}
+                          className="px-4 py-2.5 text-left text-xs font-bold uppercase tracking-wider text-slate-500"
+                        >
+                          {header.isPlaceholder
+                            ? null
+                            : flexRender(header.column.columnDef.header, header.getContext())}
+                        </th>
+                      ))}
+                    </tr>
+                  ))}
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {table.getRowModel().rows.map((row) => (
+                    <tr key={row.id} className="hover:bg-slate-50 transition">
+                      {row.getVisibleCells().map((cell) => (
+                        <td key={cell.id} className="px-4 py-3 text-sm text-slate-800 font-medium">
+                          {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                  {table.getRowModel().rows.length === 0 && (
+                    <tr>
+                      <td colSpan={6} className="text-center py-8 text-xs text-slate-400 font-semibold">
+                        No matching jobs found.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Pagination */}
+            {table.getPageCount() > 1 && (
+              <div className="flex items-center justify-between gap-4 mt-4">
+                <span className="text-xs text-slate-500 font-semibold">
+                  Page {table.getState().pagination.pageIndex + 1} of {table.getPageCount()}
+                </span>
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => table.previousPage()}
+                    disabled={!table.getCanPreviousPage()}
+                    className="p-1.5 border border-slate-200 bg-white rounded-lg text-slate-600 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-50 transition"
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </button>
+                  <button
+                    onClick={() => table.nextPage()}
+                    disabled={!table.getCanNextPage()}
+                    className="p-1.5 border border-slate-200 bg-white rounded-lg text-slate-600 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-50 transition"
+                  >
+                    <ChevronRightIcon className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="border-t border-slate-200 bg-slate-50 px-6 py-3.5 text-xs text-slate-500 text-center font-semibold">
+          Showing {table.getFilteredRowModel().rows.length} of {jobs.length} items
+        </div>
+      </div>
     </div>
   );
 }
