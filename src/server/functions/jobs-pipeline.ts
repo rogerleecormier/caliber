@@ -377,8 +377,21 @@ export const togglePipelineJobFavorite = createServerFn({ method: "POST" })
     const env = await getCloudflareEnvAsync();
     if (!env.DB) throw new Error("Database unavailable");
     const db = getDb(env.DB);
+
+    const [existing] = await db
+      .select({ currentStage: normalizedJobs.currentStage })
+      .from(normalizedJobs)
+      .where(and(eq(normalizedJobs.id, data.id), eq(normalizedJobs.userId, user.id)))
+      .limit(1);
+
+    if (!data.isFavorited && existing && existing.currentStage === 'Favorited') {
+      await db
+        .delete(normalizedJobs)
+        .where(and(eq(normalizedJobs.id, data.id), eq(normalizedJobs.userId, user.id)));
+      return { success: true, id: data.id, isFavorited: false, deleted: true };
+    }
+
     const update: Record<string, unknown> = { isFavorited: data.isFavorited };
-    // Starring ON → reset stage to 'Favorited'; unstarring doesn't change the stage
     if (data.isFavorited) {
       update.currentStage = 'Favorited';
     }
@@ -578,4 +591,34 @@ export const starCatalogJob = createServerFn({ method: "POST" })
       .returning();
 
     return { success: true, id: inserted.id, isFavorited: data.star };
+  });
+
+export const checkNewJobsSince = createServerFn({ method: "GET" })
+  .inputValidator((data: { since: string }) => data)
+  .handler(async (ctx: any) => { const { data } = ctx;
+    const user = await resolveSessionUser((ctx as any)?.request);
+    if (!user) throw new Error("Not authenticated");
+    const env = await getCloudflareEnvAsync();
+    if (!env.DB) return { crawlerJobsCount: 0, agentJobsCount: 0 };
+    const db = getDb(env.DB);
+
+    // 1. Crawler jobs: canonicalJobs added since 'since'
+    const crawlerRows = await db
+      .select({ count: count() })
+      .from(canonicalJobs)
+      .where(gte(canonicalJobs.createdAt, data.since));
+    const crawlerJobsCount = Number(crawlerRows[0]?.count ?? 0);
+
+    // 2. User defined search agent jobs: normalizedJobs added since 'since' for this user
+    const agentRows = await db
+      .select({ count: count() })
+      .from(normalizedJobs)
+      .where(and(
+        eq(normalizedJobs.userId, user.id),
+        gte(normalizedJobs.createdAt, data.since),
+        sql`${normalizedJobs.savedSearchId} IS NOT NULL`
+      ));
+    const agentJobsCount = Number(agentRows[0]?.count ?? 0);
+
+    return { crawlerJobsCount, agentJobsCount };
   });

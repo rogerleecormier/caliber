@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import type { ChangeEvent } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { toast } from "sonner";
 import {
   Archive,
   BookMarked,
@@ -50,6 +51,7 @@ import {
   togglePipelineJobFavorite,
   getCatalogJobs,
   starCatalogJob,
+  checkNewJobsSince,
 } from "@/server/functions/jobs-pipeline";
 import {
   PIPELINE_STATUSES,
@@ -600,7 +602,36 @@ function JobsListContentWrapper({
     }
   }, [analyze, searchUrl, navigate]);
 
+  useEffect(() => {
+    const lastCheckRef = { current: new Date().toISOString() };
 
+    const interval = setInterval(async () => {
+      try {
+        const checkTime = new Date().toISOString();
+        const res = await checkNewJobsSince({ data: { since: lastCheckRef.current } });
+        
+        lastCheckRef.current = checkTime;
+
+        if (res.crawlerJobsCount > 0 && res.agentJobsCount > 0) {
+          toast(`${res.crawlerJobsCount} new crawler job${res.crawlerJobsCount === 1 ? "" : "s"} and ${res.agentJobsCount} new agent job${res.agentJobsCount === 1 ? "" : "s"} added to database.`, {
+            duration: 5000,
+          });
+        } else if (res.crawlerJobsCount > 0) {
+          toast(`${res.crawlerJobsCount} new job${res.crawlerJobsCount === 1 ? "" : "s"} added to catalog by background crawler.`, {
+            duration: 5000,
+          });
+        } else if (res.agentJobsCount > 0) {
+          toast(`${res.agentJobsCount} new job${res.agentJobsCount === 1 ? "" : "s"} added by your search agents.`, {
+            duration: 5000,
+          });
+        }
+      } catch (error) {
+        // ignore polling errors
+      }
+    }, 30_000);
+
+    return () => clearInterval(interval);
+  }, []);
 
   // ─── Handlers ─────────────────────────────────────────────────────────────
 
@@ -1102,8 +1133,8 @@ function JobsListContentWrapper({
                   statusPending={job.id ? pendingStatusId === job.id : false}
                   isAnalyzed={!!job.analyzedAt}
                   onAnalyzeClick={job.id ? () => openAnalysisModal(job) : undefined}
-                  isFavorited={job.isFavorited === true || job.isFavorited === 1}
-                  onToggleFavorite={job.id ? () => handleToggleFavorite(job.id!, !(job.isFavorited === true || job.isFavorited === 1)) : undefined}
+                  isFavorited={job.isFavorited === true || job.isFavorited === 1 || job.status === "Favorited"}
+                  onToggleFavorite={job.id ? () => handleToggleFavorite(job.id!, !(job.isFavorited === true || job.isFavorited === 1 || job.status === "Favorited")) : undefined}
                 />
               ))}
             </div>
