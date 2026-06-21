@@ -61,7 +61,6 @@ export const getDiscoveryStats = createServerFn({ method: "GET" }).handler(async
     SELECT * FROM boards 
     WHERE last_discovered_at IS NOT NULL OR discovery_phase IS NOT NULL OR validated = 1
     ORDER BY last_discovered_at DESC, discovered_at DESC 
-    LIMIT 100
   `).all<any>();
 
   // 5. Fetch audit logs (both discovery and validation failure events)
