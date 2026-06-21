@@ -27,6 +27,7 @@ export const Route = createFileRoute('/api/jobs/crawler-search')({
                    first_seen_at, last_seen_at, expires_at, created_at, updated_at
             FROM canonical_jobs
             WHERE is_listed = 1
+            AND id IN (SELECT DISTINCT canonical_id FROM job_sources)
           `;
           
           const params: any[] = [];

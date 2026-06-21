@@ -95,6 +95,8 @@ export function normalizeLocation(loc: string | undefined): { locationDisplay: s
   };
 }
 
+import { cleanJobDescription } from './html-utils';
+
 export function normalizeJob(job: AtsJobResponse): NormalizedJob {
   const companyDisplay = job.company || 'Unknown';
   const titleDisplay = job.title;
@@ -113,10 +115,10 @@ export function normalizeJob(job: AtsJobResponse): NormalizedJob {
   let descriptionHtml = '';
   if (job.description) {
     if (typeof job.description === 'string') {
-      descriptionPlain = job.description;
+      descriptionPlain = cleanJobDescription(job.description);
       descriptionHtml = job.description;
     } else {
-      descriptionPlain = job.description.plain || '';
+      descriptionPlain = cleanJobDescription(job.description.plain || '');
       descriptionHtml = job.description.html || '';
     }
   }

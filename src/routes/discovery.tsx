@@ -1,6 +1,12 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { createFileRoute, redirect } from '@tanstack/react-router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import {
+  useReactTable,
+  getCoreRowModel,
+  getPaginationRowModel,
+  flexRender
+} from '@tanstack/react-table';
 import {
   Shield,
   Search,
@@ -9,7 +15,9 @@ import {
   Trash2,
   CheckCircle2,
   XCircle,
-  HelpCircle
+  HelpCircle,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 import { PageHero, PageSection } from '@caliber/ui-kit';
 import { getDiscoveryStats } from '@/server/functions/discovery';
@@ -300,6 +308,122 @@ function DiscoveryDashboard() {
     }
   };
 
+  const columns = useMemo(
+    () => [
+      {
+        accessorKey: 'company_name',
+        header: 'Company',
+        cell: (info: any) => {
+          const board = info.row.original;
+          return board.company_name || board.token.charAt(0).toUpperCase() + board.token.slice(1);
+        }
+      },
+      {
+        accessorKey: 'ats',
+        header: 'ATS',
+        cell: (info: any) => {
+          const val = info.getValue() as string;
+          return (
+            <span className={`px-2 py-0.5 border text-xs font-semibold rounded-md ${getAtsBadgeColor(val)}`}>
+              {val}
+            </span>
+          );
+        }
+      },
+      {
+        accessorKey: 'token',
+        header: 'Token',
+        cell: (info: any) => <span className="font-mono text-xs text-slate-700">{info.getValue() as string}</span>
+      },
+      {
+        accessorKey: 'discovery_confidence',
+        header: 'Confidence',
+        cell: (info: any) => <span className="font-semibold text-slate-900">{(info.getValue() as number) ?? 0.7}</span>
+      },
+      {
+        accessorKey: 'discovery_phase',
+        header: 'Discovery Phase',
+        cell: (info: any) => getPhaseName(info.getValue() as string)
+      },
+      {
+        accessorKey: 'validated',
+        header: 'Status',
+        cell: (info: any) => {
+          const board = info.row.original;
+          return board.validated ? (
+            <span className="inline-flex items-center gap-1 text-green-700 font-semibold text-xs">
+              <CheckCircle2 className="w-3.5 h-3.5" />
+              Validated
+            </span>
+          ) : board.validation_error_count > 0 ? (
+            <span className="inline-flex items-center gap-1 text-red-600 font-semibold text-xs" title={`${board.validation_error_count} validation failures`}>
+              <XCircle className="w-3.5 h-3.5" />
+              Failed ({board.validation_error_count})
+            </span>
+          ) : (
+            <span className="inline-flex items-center gap-1 text-slate-400 font-medium text-xs">
+              <HelpCircle className="w-3.5 h-3.5" />
+              Unchecked
+            </span>
+          );
+        }
+      },
+      {
+        id: 'actions',
+        header: () => <span className="block text-right">Actions</span>,
+        cell: (info: any) => {
+          const board = info.row.original;
+          return (
+            <div className="flex items-center justify-end gap-1.5">
+              {!board.validated && (
+                <button
+                  onClick={() => handleValidateBoard(board.id)}
+                  disabled={isAnyMutationPending}
+                  className="px-2 py-1 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 disabled:opacity-50 rounded-md transition cursor-pointer"
+                >
+                  Validate
+                </button>
+              )}
+              {board.validated ? (
+                <button
+                  onClick={() => handleToggleActive(board.id, board.is_active === 1)}
+                  disabled={isAnyMutationPending}
+                  className={`px-2 py-1 text-xs font-semibold rounded-md transition cursor-pointer ${
+                    board.is_active === 1
+                      ? 'text-red-700 bg-red-50 hover:bg-red-100'
+                      : 'text-blue-700 bg-blue-50 hover:bg-blue-100'
+                  }`}
+                >
+                  {board.is_active === 1 ? 'Pause' : 'Activate'}
+                </button>
+              ) : null}
+              <button
+                onClick={() => handleDeleteBoard(board.id)}
+                disabled={isAnyMutationPending}
+                className="p-1 text-slate-400 hover:text-red-600 transition cursor-pointer"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+            </div>
+          );
+        }
+      }
+    ],
+    [isAnyMutationPending]
+  );
+
+  const table = useReactTable({
+    data: filteredBoards,
+    columns,
+    getCoreRowModel: getCoreRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
+    initialState: {
+      pagination: {
+        pageSize: 10,
+      },
+    },
+  });
+
   return (
     <div className="spx-page space-y-8">
       <PageHero
@@ -462,88 +586,35 @@ function DiscoveryDashboard() {
         <div className="overflow-x-auto border border-slate-200 rounded-xl shadow-sm bg-white/50 backdrop-blur-sm">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="bg-slate-100/80 border-b border-slate-200">
-                <th className="p-4 text-xs font-bold text-slate-600 uppercase tracking-wider">Company</th>
-                <th className="p-4 text-xs font-bold text-slate-600 uppercase tracking-wider">ATS</th>
-                <th className="p-4 text-xs font-bold text-slate-600 uppercase tracking-wider">Token</th>
-                <th className="p-4 text-xs font-bold text-slate-600 uppercase tracking-wider">Confidence</th>
-                <th className="p-4 text-xs font-bold text-slate-600 uppercase tracking-wider">Discovery Phase</th>
-                <th className="p-4 text-xs font-bold text-slate-600 uppercase tracking-wider">Status</th>
-                <th className="p-4 text-xs font-bold text-slate-600 uppercase tracking-wider text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-200">
-              {filteredBoards.map((board: any) => (
-                <tr key={board.id} className="hover:bg-slate-50/80 transition-colors">
-                  <td className="p-4 font-semibold text-slate-900 text-sm">
-                    {board.company_name || board.token.charAt(0).toUpperCase() + board.token.slice(1)}
-                  </td>
-                  <td className="p-4 text-sm">
-                    <span className={`px-2 py-0.5 border text-xs font-semibold rounded-md ${getAtsBadgeColor(board.ats)}`}>
-                      {board.ats}
-                    </span>
-                  </td>
-                  <td className="p-4 font-mono text-xs text-slate-700">{board.token}</td>
-                  <td className="p-4 text-sm">
-                    <span className="font-semibold text-slate-900">{board.discovery_confidence ?? 0.7}</span>
-                  </td>
-                  <td className="p-4 text-xs text-slate-500">
-                    {getPhaseName(board.discovery_phase)}
-                  </td>
-                  <td className="p-4 text-sm">
-                    {board.validated ? (
-                      <span className="inline-flex items-center gap-1 text-green-700 font-semibold text-xs">
-                        <CheckCircle2 className="w-3.5 h-3.5" />
-                        Validated
-                      </span>
-                    ) : board.validation_error_count > 0 ? (
-                      <span className="inline-flex items-center gap-1 text-red-600 font-semibold text-xs" title={`${board.validation_error_count} validation failures`}>
-                        <XCircle className="w-3.5 h-3.5" />
-                        Failed ({board.validation_error_count})
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center gap-1 text-slate-400 font-medium text-xs">
-                        <HelpCircle className="w-3.5 h-3.5" />
-                        Unchecked
-                      </span>
-                    )}
-                  </td>
-                  <td className="p-4 text-right">
-                    <div className="flex items-center justify-end gap-1.5">
-                      {!board.validated && (
-                        <button
-                          onClick={() => handleValidateBoard(board.id)}
-                          disabled={isAnyMutationPending}
-                          className="px-2 py-1 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 disabled:opacity-50 rounded-md transition cursor-pointer"
-                        >
-                          Validate
-                        </button>
-                      )}
-                      {board.validated ? (
-                        <button
-                          onClick={() => handleToggleActive(board.id, board.is_active === 1)}
-                          disabled={isAnyMutationPending}
-                          className={`px-2 py-1 text-xs font-semibold rounded-md transition cursor-pointer ${
-                            board.is_active === 1
-                              ? 'text-red-700 bg-red-50 hover:bg-red-100'
-                              : 'text-blue-700 bg-blue-50 hover:bg-blue-100'
-                          }`}
-                        >
-                          {board.is_active === 1 ? 'Pause' : 'Activate'}
-                        </button>
-                      ) : null}
-                      <button
-                        onClick={() => handleDeleteBoard(board.id)}
-                        disabled={isAnyMutationPending}
-                        className="p-1 text-slate-400 hover:text-red-600 transition cursor-pointer"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </td>
+              {table.getHeaderGroups().map((headerGroup) => (
+                <tr key={headerGroup.id} className="bg-slate-100/80 border-b border-slate-200">
+                  {headerGroup.headers.map((header) => (
+                    <th
+                      key={header.id}
+                      className="p-4 text-xs font-bold text-slate-600 uppercase tracking-wider"
+                    >
+                      {header.isPlaceholder
+                        ? null
+                        : flexRender(header.column.columnDef.header, header.getContext())}
+                    </th>
+                  ))}
                 </tr>
               ))}
-              {filteredBoards.length === 0 && (
+            </thead>
+            <tbody className="divide-y divide-slate-200">
+              {table.getRowModel().rows.map((row) => (
+                <tr key={row.id} className="hover:bg-slate-50/80 transition-colors">
+                  {row.getVisibleCells().map((cell) => (
+                    <td
+                      key={cell.id}
+                      className="p-4 align-middle text-sm font-normal"
+                    >
+                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+              {table.getRowModel().rows.length === 0 && (
                 <tr>
                   <td colSpan={7} className="p-8 text-center text-slate-500 font-medium">
                     No discovered boards match filters.
@@ -553,6 +624,31 @@ function DiscoveryDashboard() {
             </tbody>
           </table>
         </div>
+
+        {/* Pagination */}
+        {table.getPageCount() > 1 && (
+          <div className="flex items-center justify-between gap-4 mt-4">
+            <span className="text-xs text-slate-500 font-semibold">
+              Page {table.getState().pagination.pageIndex + 1} of {table.getPageCount()}
+            </span>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => table.previousPage()}
+                disabled={!table.getCanPreviousPage()}
+                className="p-1.5 border border-slate-200 bg-white rounded-lg text-slate-600 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-50 transition cursor-pointer animate-none"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </button>
+              <button
+                onClick={() => table.nextPage()}
+                disabled={!table.getCanNextPage()}
+                className="p-1.5 border border-slate-200 bg-white rounded-lg text-slate-600 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-50 transition cursor-pointer animate-none"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+        )}
       </PageSection>
 
       {/* Discovery Audit Trails */}

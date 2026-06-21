@@ -57,7 +57,11 @@ export function cleanJobDescription(description: string): string {
   cleaned = cleaned.replace(/[\u201C\u201D]/g, '"'); // Smart double quotes
   cleaned = cleaned.replace(/\u2026/g, '...'); // Ellipsis
 
-  // 5. Replace multiple whitespace/newlines with a single space
+  // 5. Strip leading and trailing ellipses (e.g. "...text..." or "…text…")
+  cleaned = cleaned.replace(/^(\s*[\.…]+\s*)+/, '');
+  cleaned = cleaned.replace(/(\s*[\.…]+\s*)+$/, '');
+
+  // 6. Replace multiple whitespace/newlines with a single space
   cleaned = cleaned.replace(/\s+/g, ' ').trim();
 
   return cleaned;

@@ -11,10 +11,15 @@ import {
   Play,
   CheckCircle2,
   Plus,
-  X
+  X,
+  ChevronDown,
+  ChevronUp,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 import { PageHero, PageSection } from '@caliber/ui-kit';
 import { getCrawlerStats } from '@/server/functions/crawler';
+import { cleanJobDescription } from '@/lib/html-utils';
 
 // Server loader runs queries directly on D1 via server function
 export const Route = createFileRoute('/crawler')({
@@ -24,7 +29,7 @@ export const Route = createFileRoute('/crawler')({
     if (ctx.user.role !== "admin") throw redirect({ to: "/" });
   },
   loader: async () => {
-    return getCrawlerStats();
+    return getCrawlerStats({ data: { limit: 15, offset: 0 } });
   },
   component: CrawlerDashboard
 });
@@ -44,6 +49,12 @@ function CrawlerDashboard() {
   const [newBoardToken, setNewBoardToken] = useState('');
   const [newBoardCompany, setNewBoardCompany] = useState('');
 
+  // Pagination and expandable rows
+  const [page, setPage] = useState(0);
+  const limit = 15;
+  const [expandedJobs, setExpandedJobs] = useState<Record<string, boolean>>({});
+  const [expandedLogs, setExpandedLogs] = useState<Record<string, boolean>>({});
+
   // Overriding search results list
   const [searchedJobs, setSearchedJobs] = useState<any[] | null>(null);
   const [statusMessage, setStatusMessage] = useState<{ text: string; type: 'success' | 'error' | 'info' } | null>(null);
@@ -51,15 +62,16 @@ function CrawlerDashboard() {
 
   // useQuery with initialData from route loader
   const { data } = useQuery({
-    queryKey: ['crawler-data'],
-    queryFn: () => getCrawlerStats(),
-    initialData: loaderData,
+    queryKey: ['crawler-data', page],
+    queryFn: () => getCrawlerStats({ data: { limit, offset: page * limit } }),
+    initialData: page === 0 ? loaderData : undefined,
     refetchInterval: autoRefresh ? 10000 : false,
   });
 
-  const { boards, jobs, auditLogs, stats } = data || {
+  const { boards, jobs, totalJobs, auditLogs, stats } = data || {
     boards: [],
     jobs: [],
+    totalJobs: 0,
     auditLogs: [],
     stats: { canonical_count: 0, source_count: 0, active_boards: 0, errors_24h: 0, llm_calls_24h: 0 }
   };
@@ -395,68 +407,212 @@ function CrawlerDashboard() {
               </button>
             </form>
 
-            {/* Jobs list */}
-            <div className="space-y-4">
-              {jobsToDisplay.length === 0 ? (
-                <div className="text-center py-12 border border-dashed border-slate-200 rounded-2xl text-slate-400 text-sm">
-                  No canonical jobs found matching search criteria.
-                </div>
-              ) : (
-                jobsToDisplay.map((job: any) => (
-                  <div key={job.id} className="bg-white/60 border border-slate-200 rounded-2xl p-5 hover:border-slate-300 transition shadow-sm space-y-4">
-                    <div className="flex justify-between items-start gap-4">
-                      <div>
-                        <span className="inline-block bg-primary-50 text-primary-700 text-[10px] font-extrabold uppercase px-2 py-0.5 rounded border border-primary-200 mb-2">
-                          {job.company_display}
-                        </span>
-                        <h3 className="text-base font-bold text-slate-900 leading-snug">{job.title_display}</h3>
-                        <p className="text-xs text-slate-500 mt-1 flex items-center gap-1.5 font-semibold">
-                          <Globe className="h-3 w-3 text-slate-400" />
-                          {job.location_display || 'Remote'}
-                          {job.remote === 1 && <span className="text-emerald-700 text-[10px] bg-emerald-50 px-1 rounded font-bold uppercase border border-emerald-200">Remote</span>}
-                        </p>
-                      </div>
-                      
-                      {/* Compensation */}
-                      {(job.compensation_min || job.compensation_max) && (
-                        <div className="text-right text-xs font-bold text-emerald-700 border border-emerald-200 bg-emerald-50 px-2.5 py-1 rounded-lg">
-                          {job.compensation_currency || '$'}{job.compensation_min?.toLocaleString()} 
-                          {job.compensation_max && ` - ${job.compensation_max?.toLocaleString()}`}
-                        </div>
-                      )}
-                    </div>
-
-                    {job.description_plain && (
-                      <p className="text-xs text-slate-650 leading-relaxed line-clamp-2 font-medium">
-                        {job.description_plain}
-                      </p>
-                    )}
-
-                    {/* Linked sources */}
-                    {job.sources && job.sources.length > 0 && (
-                      <div className="pt-3 border-t border-slate-200 space-y-2">
-                        <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Linked Sources ({job.sources.length})</p>
-                        <div className="flex flex-wrap gap-2">
-                          {job.sources.map((s: any) => (
-                            <a
-                              key={s.id}
-                              href={s.source_url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="inline-flex items-center gap-1 px-2.5 py-1 bg-white border border-slate-200 rounded-lg text-[10.5px] font-bold text-slate-600 hover:text-primary-600 hover:border-primary-300 transition capitalize"
+            {/* Jobs table list */}
+            <div className="bg-white/50 border border-slate-200 rounded-xl overflow-hidden shadow-sm">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse text-xs">
+                  <thead>
+                    <tr className="bg-slate-50 border-b border-slate-200 text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                      <th className="px-5 py-4 w-10"></th>
+                      <th className="px-5 py-4">Company</th>
+                      <th className="px-5 py-4">Title</th>
+                      <th className="px-5 py-4">Location</th>
+                      <th className="px-5 py-4">Sources</th>
+                      <th className="px-5 py-4">Last Seen</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-200">
+                    {jobsToDisplay.length === 0 ? (
+                      <tr>
+                        <td colSpan={6} className="px-5 py-12 text-center text-slate-400">
+                          No canonical jobs found matching search criteria.
+                        </td>
+                      </tr>
+                    ) : (
+                      jobsToDisplay.map((job: any) => {
+                        const isExpanded = !!expandedJobs[job.id];
+                        return (
+                          <React.Fragment key={job.id}>
+                            <tr 
+                              className="hover:bg-slate-50/50 transition cursor-pointer"
+                              onClick={() => setExpandedJobs(prev => ({ ...prev, [job.id]: !prev[job.id] }))}
                             >
-                              <Globe className="h-2.5 w-2.5 text-slate-400" />
-                              {s.ats} · {s.board_token}
-                              <ArrowRight className="h-2.5 w-2.5 text-slate-400" />
-                            </a>
-                          ))}
-                        </div>
-                      </div>
+                              <td className="px-5 py-3">
+                                {isExpanded ? <ChevronUp className="h-4 w-4 text-slate-400" /> : <ChevronDown className="h-4 w-4 text-slate-400" />}
+                              </td>
+                              <td className="px-5 py-3 font-semibold text-slate-700">
+                                <span className="inline-block bg-primary-50 text-primary-700 text-[10px] font-extrabold uppercase px-2 py-0.5 rounded border border-primary-200">
+                                  {job.company_display}
+                                </span>
+                              </td>
+                              <td className="px-5 py-3 font-bold text-slate-900">{job.title_display}</td>
+                              <td className="px-5 py-3 text-slate-600 font-medium">
+                                {job.location_display || 'Remote'}
+                                {job.remote === 1 && <span className="ml-1 text-emerald-700 text-[10px] bg-emerald-50 px-1 rounded font-bold uppercase border border-emerald-200">Remote</span>}
+                              </td>
+                              <td className="px-5 py-3 text-slate-500 font-semibold">{job.sources?.length || 0} sources</td>
+                              <td className="px-5 py-3 text-slate-400">{new Date(job.last_seen_at).toLocaleString()}</td>
+                            </tr>
+                            
+                            {isExpanded && (
+                              <tr className="bg-slate-50/30">
+                                <td colSpan={6} className="px-5 py-4 border-t border-slate-100">
+                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-xs text-slate-700 font-medium">
+                                    <div className="space-y-4">
+                                      {/* Plain text description */}
+                                      <div>
+                                        <h4 className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-2">Job Description</h4>
+                                        <div className="bg-white border border-slate-200 rounded-xl p-4 max-h-60 overflow-y-auto text-slate-600 font-medium leading-relaxed whitespace-pre-wrap">
+                                          {cleanJobDescription(job.description_plain || '')}
+                                        </div>
+                                      </div>
+
+                                      {/* Linked sources */}
+                                      <div>
+                                        <h4 className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-2">Linked Sources ({job.sources?.length || 0})</h4>
+                                        <div className="flex flex-wrap gap-2">
+                                          {job.sources?.map((s: any) => (
+                                            <a
+                                              key={s.id}
+                                              href={s.source_url}
+                                              target="_blank"
+                                              rel="noopener noreferrer"
+                                              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-[11px] font-bold text-slate-600 hover:text-primary-600 hover:border-primary-300 transition capitalize shadow-sm"
+                                            >
+                                              <Globe className="h-3 w-3 text-slate-400" />
+                                              {s.ats} · {s.board_token} (Job ID: {s.source_job_id})
+                                              <ArrowRight className="h-3 w-3 text-slate-400 animate-pulse" />
+                                            </a>
+                                          ))}
+                                        </div>
+                                      </div>
+                                    </div>
+
+                                    <div className="space-y-4">
+                                      {/* Audit Log / History for this job */}
+                                      <div>
+                                        <h4 className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-2">Ingestion History</h4>
+                                        {(!job.auditLogs || job.auditLogs.length === 0) ? (
+                                          <p className="text-slate-400 italic">No historical events found for this job.</p>
+                                        ) : (
+                                          <div className="space-y-2 max-h-40 overflow-y-auto">
+                                            {job.auditLogs.map((log: any) => (
+                                              <div key={log.id} className="bg-white border border-slate-200 rounded-lg p-2.5 flex justify-between items-start gap-4">
+                                                <div>
+                                                  <span className={`inline-block px-1.5 py-0.5 rounded text-[9px] font-extrabold uppercase border ${
+                                                    log.event_type === 'crawl_start' ? 'bg-blue-50 border-blue-200 text-blue-700' :
+                                                    log.event_type === 'crawl_complete' ? 'bg-green-50 border-green-200 text-green-700' :
+                                                    log.event_type === 'dedup_merge' ? 'bg-amber-50 border-amber-200 text-amber-700' :
+                                                    log.event_type === 'vector_insert' ? 'bg-purple-50 border-purple-200 text-purple-700' :
+                                                    'bg-red-50 border-red-200 text-red-700'
+                                                  }`}>
+                                                    {log.event_type}
+                                                  </span>
+                                                  <p className="text-[10.5px] text-slate-500 mt-1 font-mono">{log.details}</p>
+                                                </div>
+                                                <span className="text-[9.5px] text-slate-400 shrink-0 font-mono">
+                                                  {new Date(log.created_at).toLocaleString()}
+                                                </span>
+                                              </div>
+                                            ))}
+                                          </div>
+                                        )}
+                                      </div>
+
+                                      {/* JSON Data */}
+                                      <div>
+                                        <h4 className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-2">Raw Crawled Metadata (JSON)</h4>
+                                        <pre className="bg-slate-900 text-slate-200 font-mono text-[10.5px] p-4 rounded-xl overflow-x-auto max-h-48 leading-relaxed shadow-sm">
+                                          {JSON.stringify({
+                                            id: job.id,
+                                            company: job.company_display,
+                                            title: job.title_display,
+                                            location: job.location_display,
+                                            remote: job.remote === 1,
+                                            employmentType: job.employment_type,
+                                            experienceLevel: job.experience_level,
+                                            department: job.department,
+                                            team: job.team,
+                                            compensation: {
+                                              min: job.compensation_min,
+                                              max: job.compensation_max,
+                                              currency: job.compensation_currency
+                                            },
+                                            dedupKey: job.dedupKey,
+                                            firstSeen: job.first_seen_at,
+                                            lastSeen: job.last_seen_at
+                                          }, null, 2)}
+                                        </pre>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </td>
+                              </tr>
+                            )}
+                          </React.Fragment>
+                        );
+                      })
                     )}
-                  </div>
-                ))
-              )}
+                  </tbody>
+                </table>
+              </div>
             </div>
+
+            {/* Pagination Controls */}
+            {searchedJobs === null && totalJobs > limit && (
+              <div className="flex items-center justify-between border-t border-slate-200 bg-white/40 px-4 py-3 sm:px-6 rounded-2xl shadow-sm">
+                <div className="flex flex-1 justify-between sm:hidden">
+                  <button
+                    onClick={() => setPage(p => Math.max(0, p - 1))}
+                    disabled={page === 0}
+                    className="relative inline-flex items-center rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+                  >
+                    Previous
+                  </button>
+                  <button
+                    onClick={() => setPage(p => p + 1)}
+                    disabled={(page + 1) * limit >= totalJobs}
+                    className="relative ml-3 inline-flex items-center rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+                  >
+                    Next
+                  </button>
+                </div>
+                <div className="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
+                  <div>
+                    <p className="text-sm text-slate-750 font-medium">
+                      Showing <span className="font-bold text-slate-900">{page * limit + 1}</span> to{' '}
+                      <span className="font-bold text-slate-900">
+                        {Math.min((page + 1) * limit, totalJobs)}
+                      </span>{' '}
+                      of <span className="font-bold text-slate-900">{totalJobs}</span> results
+                    </p>
+                  </div>
+                  <div>
+                    <nav className="isolate inline-flex -space-x-px rounded-md shadow-sm" aria-label="Pagination">
+                      <button
+                        onClick={() => setPage(p => Math.max(0, p - 1))}
+                        disabled={page === 0}
+                        className="relative inline-flex items-center rounded-l-md px-2 py-2 text-slate-400 ring-1 ring-inset ring-slate-300 hover:bg-slate-50 focus:z-20 focus:outline-offset-0 disabled:opacity-50 cursor-pointer"
+                      >
+                        <span className="sr-only">Previous</span>
+                        <ChevronLeft className="h-5 w-5" aria-hidden="true" />
+                      </button>
+                      <span className="relative inline-flex items-center px-4 py-2 text-sm font-bold text-slate-900 ring-1 ring-inset ring-slate-300 focus:outline-offset-0">
+                        Page {page + 1} of {Math.ceil(totalJobs / limit)}
+                      </span>
+                      <button
+                        onClick={() => setPage(p => p + 1)}
+                        disabled={(page + 1) * limit >= totalJobs}
+                        className="relative inline-flex items-center rounded-r-md px-2 py-2 text-slate-400 ring-1 ring-inset ring-slate-300 hover:bg-slate-50 focus:z-20 focus:outline-offset-0 disabled:opacity-50 cursor-pointer"
+                      >
+                        <span className="sr-only">Next</span>
+                        <ChevronRight className="h-5 w-5" aria-hidden="true" />
+                      </button>
+                    </nav>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -522,7 +678,6 @@ function CrawlerDashboard() {
             </div>
           </PageSection>
         )}
-
         {/* Tab Panel: Logs */}
         {activeTab === 'logs' && (
           <PageSection title="Audit Logs" description="Webcrawler ingestion and deduplication logs.">
@@ -531,52 +686,75 @@ function CrawlerDashboard() {
                 <table className="w-full text-left border-collapse text-xs">
                   <thead>
                     <tr className="bg-slate-50 border-b border-slate-200 text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                      <th className="px-5 py-4 w-10"></th>
                       <th className="px-5 py-4">Time</th>
                       <th className="px-5 py-4">Event</th>
                       <th className="px-5 py-4">ATS/Token</th>
-                      <th className="px-5 py-4">Details</th>
+                      <th className="px-5 py-4">Summary</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-200 font-mono text-slate-600">
                     {auditLogs.length === 0 ? (
                       <tr>
-                        <td colSpan={4} className="px-5 py-12 text-center text-slate-400">
+                        <td colSpan={5} className="px-5 py-12 text-center text-slate-400">
                           No audit logs available.
                         </td>
                       </tr>
                     ) : (
                       auditLogs.map((log: any) => {
-                        let detailsText = '';
+                        const isExpanded = !!expandedLogs[log.id];
+                        let parsedDetails: any = null;
+                        let detailsSummary = '';
                         try {
-                          const parsed = JSON.parse(log.details);
-                          detailsText = JSON.stringify(parsed);
+                          parsedDetails = JSON.parse(log.details);
+                          detailsSummary = JSON.stringify(parsedDetails);
                         } catch {
-                          detailsText = log.details;
+                          detailsSummary = log.details;
                         }
 
                         return (
-                          <tr key={log.id} className="hover:bg-slate-50/50 transition">
-                            <td className="px-5 py-3 text-slate-400 text-[10px]">
-                              {new Date(log.created_at).toLocaleTimeString()}
-                            </td>
-                            <td className="px-5 py-3">
-                              <span className={`px-2 py-0.5 rounded text-[10px] font-extrabold uppercase border ${
-                                log.event_type === 'crawl_start' ? 'bg-blue-50 border-blue-200 text-blue-700' :
-                                log.event_type === 'crawl_complete' ? 'bg-green-50 border-green-200 text-green-700' :
-                                log.event_type === 'dedup_merge' ? 'bg-amber-50 border-amber-200 text-amber-700' :
-                                log.event_type === 'vector_insert' ? 'bg-purple-50 border-purple-200 text-purple-700' :
-                                'bg-red-50 border-red-200 text-red-700'
-                              }`}>
-                                {log.event_type}
-                              </span>
-                            </td>
-                            <td className="px-5 py-3 text-slate-800">
-                              {log.ats ? `${log.ats}/${log.board_token}` : '-'}
-                            </td>
-                            <td className="px-5 py-3 text-slate-500 max-w-xs truncate" title={detailsText}>
-                              {detailsText}
-                            </td>
-                          </tr>
+                          <React.Fragment key={log.id}>
+                            <tr 
+                              className="hover:bg-slate-50/50 transition cursor-pointer"
+                              onClick={() => setExpandedLogs(prev => ({ ...prev, [log.id]: !prev[log.id] }))}
+                            >
+                              <td className="px-5 py-3">
+                                {isExpanded ? <ChevronUp className="h-4 w-4 text-slate-400" /> : <ChevronDown className="h-4 w-4 text-slate-400" />}
+                              </td>
+                              <td className="px-5 py-3 text-slate-400 text-[10px]">
+                                {new Date(log.created_at).toLocaleString()}
+                              </td>
+                              <td className="px-5 py-3">
+                                <span className={`px-2 py-0.5 rounded text-[10px] font-extrabold uppercase border ${
+                                  log.event_type === 'crawl_start' ? 'bg-blue-50 border-blue-200 text-blue-700' :
+                                  log.event_type === 'crawl_complete' ? 'bg-green-50 border-green-200 text-green-700' :
+                                  log.event_type === 'dedup_merge' ? 'bg-amber-50 border-amber-200 text-amber-700' :
+                                  log.event_type === 'vector_insert' ? 'bg-purple-50 border-purple-200 text-purple-700' :
+                                  'bg-red-50 border-red-200 text-red-700'
+                                }`}>
+                                  {log.event_type}
+                                </span>
+                              </td>
+                              <td className="px-5 py-3 text-slate-800">
+                                {log.ats ? `${log.ats}/${log.board_token}` : '-'}
+                              </td>
+                              <td className="px-5 py-3 text-slate-500 max-w-xs truncate">
+                                {detailsSummary}
+                              </td>
+                            </tr>
+                            {isExpanded && (
+                              <tr className="bg-slate-50/30">
+                                <td colSpan={5} className="px-5 py-4 border-t border-slate-100">
+                                  <div>
+                                    <h4 className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-2">Event Details (JSON)</h4>
+                                    <pre className="bg-slate-900 text-slate-200 font-mono text-[10.5px] p-4 rounded-xl overflow-x-auto max-h-60 leading-relaxed shadow-sm">
+                                      {parsedDetails ? JSON.stringify(parsedDetails, null, 2) : log.details}
+                                    </pre>
+                                  </div>
+                                </td>
+                              </tr>
+                            )}
+                          </React.Fragment>
                         );
                       })
                     )}

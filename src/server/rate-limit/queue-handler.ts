@@ -142,6 +142,9 @@ export async function processCrawlJobsQueue(
           insertedCount++;
         } else {
           mergedCount++;
+          statements.push(env.DB.prepare(
+            'UPDATE canonical_jobs SET last_seen_at = ?, updated_at = ? WHERE id = ?'
+          ).bind(new Date().toISOString(), new Date().toISOString(), canonicalId));
         }
 
         // Link job source
