@@ -816,10 +816,9 @@ export async function setSearchConfigurationActive(id: number, userId: string, i
 // ─── Prune ─────────────────────────────────────────────────────────────────────
 
 /**
- * Unified pruning rule: delete unflagged rows older than 30 days. Global
- * (userId IS NULL) Favorited-stage rows additionally use the shorter
- * `linkedinRetentionDays` setting as a faster secondary pass to control
- * ATS-catalog churn.
+ * Unified archiving rule: archive unflagged rows older than 30 days instead of deleting.
+ * Global (userId IS NULL) Favorited-stage rows additionally use the shorter
+ * `linkedinRetentionDays` setting as a faster secondary pass to control ATS-catalog churn.
  */
 export async function pruneNormalizedJobs(): Promise<number> {
   const env = getCloudflareEnv();
@@ -828,13 +827,17 @@ export async function pruneNormalizedJobs(): Promise<number> {
   const settings = await getAgentSettings();
 
   const mainCutoff = new Date(Date.now() - PRUNE_RETENTION_DAYS * 24 * 60 * 60 * 1000).toISOString();
-  const idsToDelete = new Set<number>();
+  const idsToArchive = new Set<number>();
 
   const mainRows = await db
     .select({ id: normalizedJobs.id })
     .from(normalizedJobs)
-    .where(and(eq(normalizedJobs.isFlagged, false), lte(normalizedJobs.discoveryTimestamp, mainCutoff)));
-  mainRows.forEach((r) => idsToDelete.add(r.id));
+    .where(and(
+      eq(normalizedJobs.isFlagged, false),
+      ne(normalizedJobs.currentStage, 'Archived'),
+      lte(normalizedJobs.discoveryTimestamp, mainCutoff)
+    ));
+  mainRows.forEach((r) => idsToArchive.add(r.id));
 
   if (settings.linkedinAutoPrune) {
     const globalCutoff = new Date(Date.now() - settings.linkedinRetentionDays * 24 * 60 * 60 * 1000).toISOString();
@@ -844,21 +847,23 @@ export async function pruneNormalizedJobs(): Promise<number> {
       .where(
         and(
           sql`${normalizedJobs.userId} IS NULL`,
-          eq(normalizedJobs.currentStage, 'Favorited'),
+          ne(normalizedJobs.currentStage, 'Archived'),
           eq(normalizedJobs.isFlagged, false),
           lte(normalizedJobs.lastSeenAt, globalCutoff),
         ),
       );
-    globalRows.forEach((r) => idsToDelete.add(r.id));
+    globalRows.forEach((r) => idsToArchive.add(r.id));
   }
 
-  if (idsToDelete.size === 0) return 0;
+  if (idsToArchive.size === 0) return 0;
 
-  const ids = Array.from(idsToDelete);
+  const ids = Array.from(idsToArchive);
+  const now = new Date().toISOString();
   for (const batch of chunkValues(ids, SQLITE_DELETE_BATCH_SIZE)) {
-    await db.delete(generatedDocuments).where(inArray(generatedDocuments.pipelineJobId, batch));
-    await db.delete(normalizedJobs).where(inArray(normalizedJobs.id, batch));
-    await syncFtsDelete(db, batch);
+    await db
+      .update(normalizedJobs)
+      .set({ currentStage: 'Archived', updatedAt: now })
+      .where(inArray(normalizedJobs.id, batch));
   }
   return ids.length;
 }
