@@ -314,7 +314,7 @@ function DiscoveryDashboard() {
 
   const getAtsBadgeColor = (ats: string) => {
     switch (ats.toLowerCase()) {
-      case 'greenhouse': return 'bg-green-50 text-green-700 border-green-200';
+      case 'greenhouse': return 'bg-teal-50 text-teal-700 border-teal-200';
       case 'lever': return 'bg-blue-50 text-blue-700 border-blue-200';
       case 'ashby': return 'bg-purple-50 text-purple-700 border-purple-200';
       case 'workable': return 'bg-amber-50 text-amber-700 border-amber-200';
@@ -376,28 +376,20 @@ function DiscoveryDashboard() {
         }
       />
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-2 gap-4 md:grid-cols-5">
-        <div className="rounded-2xl border border-slate-200 bg-white/80 p-5 shadow-sm">
-          <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1">Total Discovered</div>
-          <div className="text-2xl font-bold text-slate-900">{stats.total_boards}</div>
-        </div>
-        <div className="rounded-2xl border border-slate-200 bg-white/80 p-5 shadow-sm">
-          <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1">Validated Boards</div>
-          <div className="text-2xl font-bold text-green-600">{stats.validated_boards}</div>
-        </div>
-        <div className="rounded-2xl border border-slate-200 bg-white/80 p-5 shadow-sm">
-          <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1">Active Crawlers</div>
-          <div className="text-2xl font-bold text-blue-600">{stats.active_boards}</div>
-        </div>
-        <div className="rounded-2xl border border-slate-200 bg-white/80 p-5 shadow-sm">
-          <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1">New This Week</div>
-          <div className="text-2xl font-bold text-indigo-600">+{stats.discovered_last_week}</div>
-        </div>
-        <div className="rounded-2xl border border-slate-200 bg-white/80 p-5 shadow-sm">
-          <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1">False Positives</div>
-          <div className="text-2xl font-bold text-amber-600">{(stats.false_positive_rate * 100).toFixed(1)}%</div>
-        </div>
+      {/* Stats — single card, 5 tiles */}
+      <div className="rounded-lg border border-slate-200 bg-white/80 shadow-sm overflow-hidden grid grid-cols-2 sm:grid-cols-5 divide-x divide-slate-100">
+        {[
+          { label: 'Total Discovered', value: stats.total_boards, color: 'text-slate-900' },
+          { label: 'Validated Boards', value: stats.validated_boards, color: 'text-teal-600' },
+          { label: 'Active Crawlers', value: stats.active_boards, color: 'text-indigo-600' },
+          { label: 'New This Week', value: `+${stats.discovered_last_week}`, color: 'text-orange-600' },
+          { label: 'False Positives', value: `${(stats.false_positive_rate * 100).toFixed(1)}%`, color: 'text-amber-600' },
+        ].map(m => (
+          <div key={m.label} className="p-4">
+            <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1">{m.label}</div>
+            <div className={`text-2xl font-bold ${m.color}`}>{m.value}</div>
+          </div>
+        ))}
       </div>
 
       {/* Discovery Phase Controllers */}
@@ -522,7 +514,7 @@ function DiscoveryDashboard() {
                   </td>
                   <td className="p-4 align-middle text-sm font-normal">
                     {board.validated ? (
-                      <span className="inline-flex items-center gap-1 text-green-700 font-semibold text-xs">
+                      <span className="inline-flex items-center gap-1 text-teal-700 font-semibold text-xs">
                         <CheckCircle2 className="w-3.5 h-3.5" />
                         Validated
                       </span>

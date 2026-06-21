@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import type { ChangeEvent } from "react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useState, type ChangeEvent } from "react";
+import { useDebouncedValue } from "@tanstack/react-pacer";
 import { toast } from "sonner";
 import {
   Archive,
@@ -61,6 +61,8 @@ import { useJobsQuery } from "@/hooks/useJobsQuery";
 import { useCatalogQuery } from "@/hooks/useCatalogQuery";
 import type { CatalogFilters } from "@/hooks/useCatalogQuery";
 import { useQueryClient } from "@tanstack/react-query";
+import { useVectorSearch } from "@/hooks/useVectorSearch";
+import { VectorSearchBar } from "@/components/ui/vector-search-bar";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -169,6 +171,9 @@ function JobsPage() {
     navigate({ search: (prev) => ({ ...prev, view: newTab, page: 1 }) });
   };
 
+  const [vectorSearchQuery, setVectorSearchQuery] = useState("");
+  const vectorSearch = useVectorSearch(vectorSearchQuery, activeTab === "quick-search");
+
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [aggregatedSearchOpen, setAggregatedSearchOpen] = useState(false);
   const [aggregatedResults, setAggregatedResults] = useState<any>(null);
@@ -268,42 +273,28 @@ function JobsPage() {
         }
       />
 
-      {/* Tab Navigation - Simple Implementation */}
+      {/* Tab Navigation — pill/capsule style */}
       <div className="px-4 md:px-6">
-        <div className="flex gap-2 border-b mb-6">
-          <button
-            onClick={() => setActiveTab("my-jobs")}
-            className={`flex items-center gap-2 px-4 py-3 font-medium text-sm border-b-2 transition ${
-              activeTab === "my-jobs"
-                ? "border-blue-600 text-blue-600"
-                : "border-transparent text-gray-600 hover:text-gray-900"
-            }`}
-          >
-            <BookMarked className="h-4 w-4" />
-            My Jobs
-          </button>
-          <button
-            onClick={() => setActiveTab("all-jobs")}
-            className={`flex items-center gap-2 px-4 py-3 font-medium text-sm border-b-2 transition ${
-              activeTab === "all-jobs"
-                ? "border-blue-600 text-blue-600"
-                : "border-transparent text-gray-600 hover:text-gray-900"
-            }`}
-          >
-            <Sparkles className="h-4 w-4" />
-            All Jobs
-          </button>
-          <button
-            onClick={() => setActiveTab("quick-search")}
-            className={`flex items-center gap-2 px-4 py-3 font-medium text-sm border-b-2 transition ${
-              activeTab === "quick-search"
-                ? "border-blue-600 text-blue-600"
-                : "border-transparent text-gray-600 hover:text-gray-900"
-            }`}
-          >
-            <Search className="h-4 w-4" />
-            Quick Search
-          </button>
+        <div className="mb-5 inline-flex items-center gap-1 rounded-lg bg-slate-100 p-1">
+          {([
+            { key: "my-jobs", label: "My Jobs", icon: <BookMarked className="h-3.5 w-3.5" /> },
+            { key: "all-jobs", label: "All Jobs", icon: <Sparkles className="h-3.5 w-3.5" /> },
+            { key: "quick-search", label: "Quick Search", icon: <Search className="h-3.5 w-3.5" /> },
+          ] as const).map((tab) => (
+            <button
+              key={tab.key}
+              type="button"
+              onClick={() => setActiveTab(tab.key)}
+              className={`inline-flex items-center gap-1.5 rounded-md px-4 py-1.5 text-sm font-medium transition-all ${
+                activeTab === tab.key
+                  ? "bg-orange-600 text-white shadow-sm"
+                  : "text-slate-600 hover:text-slate-900 hover:bg-white/60"
+              }`}
+            >
+              {tab.icon}
+              {tab.label}
+            </button>
+          ))}
         </div>
 
         {/* My Jobs Tab */}
@@ -350,11 +341,45 @@ function JobsPage() {
         {/* Quick Search Tab */}
         {activeTab === "quick-search" && (
           <div className="space-y-4">
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
-              <h3 className="font-semibold text-blue-900 mb-1">Quick Job Search</h3>
-              <p className="text-sm text-blue-800">
+            <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 mb-4">
+              <h3 className="font-semibold text-orange-900 mb-1">Quick Job Search</h3>
+              <p className="text-sm text-orange-800">
                 Search across Adzuna, Jooble, and Remotive simultaneously. Results are cached for 1 hour.
               </p>
+            </div>
+
+            {/* Vector semantic search — pre-populates All Jobs filters */}
+            <div className="rounded-lg border border-slate-200 bg-white/80 p-4 shadow-sm">
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-2">Semantic Search</p>
+              <VectorSearchBar
+                value={vectorSearchQuery}
+                onChange={setVectorSearchQuery}
+                placeholder="Describe what you're looking for, e.g. 'remote senior engineer fintech'…"
+                isLoading={vectorSearch.isFetching}
+              />
+              {vectorSearch.data?.parsedQuery && (
+                <div className="mt-3 flex flex-wrap items-center gap-2">
+                  <span className="text-xs text-slate-500">Filter All Jobs:</span>
+                  {vectorSearch.data.parsedQuery.title && (
+                    <button
+                      type="button"
+                      onClick={() => navigate({ search: (prev) => ({ ...prev, view: "all-jobs", query: vectorSearch.data!.parsedQuery!.title!, page: 1 }) })}
+                      className="inline-flex items-center gap-1 rounded-full bg-orange-50 border border-orange-200 px-2.5 py-1 text-xs font-semibold text-orange-700 hover:bg-orange-100 transition"
+                    >
+                      Title: {vectorSearch.data.parsedQuery.title}
+                    </button>
+                  )}
+                  {vectorSearch.data.parsedQuery.remote && (
+                    <button
+                      type="button"
+                      onClick={() => navigate({ search: (prev) => ({ ...prev, view: "all-jobs", remote: true, page: 1 }) })}
+                      className="inline-flex items-center gap-1 rounded-full bg-teal-50 border border-teal-200 px-2.5 py-1 text-xs font-semibold text-teal-700 hover:bg-teal-100 transition"
+                    >
+                      Remote
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
 
             {aggregatedResults ? (
@@ -530,10 +555,10 @@ function JobsListContentWrapper({
   const jobsQuery = useJobsQuery({ searchParams });
 
   const [inputValue, setInputValue] = useState(query);
+  const [debouncedQuery] = useDebouncedValue(inputValue, { wait: 350 });
   const [selectedIds, setSelectedIds] = useState<Set<number>>(() => new Set());
   const [pendingStatusId, setPendingStatusId] = useState<number | null>(null);
   const [pendingBulkAction, setPendingBulkAction] = useState<"archive" | "delete" | null>(null);
-  const didMount = useRef(false);
 
   const jobs = (jobsQuery.data?.rows ?? rows) as HubJob[];
   const localTotal = jobsQuery.data?.total ?? total;
@@ -576,17 +601,10 @@ function JobsListContentWrapper({
   }, [page, query, remote, sortBy, activeStatus, analyzedOnly]);
 
   useEffect(() => {
-    if (!didMount.current) {
-      didMount.current = true;
-      return;
+    if (debouncedQuery.trim() !== query) {
+      navigate({ search: (prev) => ({ ...prev, query: debouncedQuery.trim(), page: 1 }) });
     }
-    const timer = setTimeout(() => {
-      if (inputValue.trim() !== query) {
-        navigate({ search: (prev) => ({ ...prev, query: inputValue.trim(), page: 1 }) });
-      }
-    }, 350);
-    return () => clearTimeout(timer);
-  }, [inputValue, navigate, query]);
+  }, [debouncedQuery, navigate, query]);
 
   useEffect(() => {
     if (analyze || searchUrl) {
@@ -944,40 +962,28 @@ function JobsListContentWrapper({
             </div>
           }
         >
-          {/* Pipeline counts */}
-          <div className="mb-5 rounded-2xl border border-slate-200 bg-white/80 p-4 shadow-sm">
-            <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Pipeline</p>
-                <p className="text-sm text-slate-600">
-                  Click a status to filter the list below.
-                </p>
-              </div>
-              <div className="text-sm font-semibold text-slate-700">{localTotal} total</div>
-            </div>
-            <div className="grid gap-2 grid-cols-2 sm:grid-cols-4">
+          {/* Pipeline status tiles — one card, grid of clickable tiles */}
+          <div className="mb-4 rounded-lg border border-slate-200 bg-white/80 shadow-sm overflow-hidden">
+            <div className="grid grid-cols-2 sm:grid-cols-4 divide-x divide-slate-100">
               {pipeline.map(({ status, count, percent }) => (
                 <button
                   key={status}
                   type="button"
                   onClick={() => toggleStatusFilter(status)}
-                  className={`rounded-xl border p-3 text-left transition ${
-                    activeStatus === status
-                      ? "border-indigo-300 bg-indigo-50 ring-1 ring-indigo-300"
-                      : "border-slate-200 bg-slate-50 hover:border-slate-300 hover:bg-white"
+                  className={`p-3 text-left transition hover:bg-orange-50/40 focus:outline-none ${
+                    activeStatus === status ? "bg-orange-50 border-b-2 border-orange-500" : ""
                   }`}
                 >
-                  <div className="mb-2 flex items-center justify-between gap-2">
-                    <span className="truncate text-xs font-semibold text-slate-700">{status}</span>
-                    <span className="text-xs font-bold text-slate-900">{count}</span>
+                  <div className="flex items-center justify-between gap-1 mb-1">
+                    <span className="text-xs font-semibold text-slate-600 truncate">{status}</span>
+                    <span className="text-sm font-bold text-slate-900">{count}</span>
                   </div>
-                  <div className="h-2 overflow-hidden rounded-full bg-white">
+                  <div className="h-1.5 overflow-hidden rounded-full bg-slate-100">
                     <div
                       className={`h-full rounded-full ${STATUS_TONES[status].bar}`}
                       style={{ width: `${percent}%` }}
                     />
                   </div>
-                  <p className="mt-1 text-[11px] text-slate-500">{percent}%</p>
                 </button>
               ))}
             </div>

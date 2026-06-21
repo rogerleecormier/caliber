@@ -21,9 +21,21 @@ export * from "./ui/badge";
 export * from "./ui/button";
 export * from "./ui/card";
 export * from "./ui/checkbox";
+export * from "./ui/dialog";
 export * from "./ui/dropdown-menu";
+// Shadcn pagination primitives — exported individually to avoid conflict with Pagination wrapper
+export {
+  Pagination as ShadcnPagination,
+  PaginationContent,
+  PaginationEllipsis,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "./ui/pagination";
 export * from "./ui/select";
 export * from "./ui/sheet";
+export * from "./ui/table";
 export * from "./ui/tooltip";
 export * from "./ui/Toaster";
 export * from "./ui/sonner";

@@ -1,8 +1,27 @@
-import { ExternalLink, Sparkles } from "lucide-react";
+import { ExternalLink, Sparkles, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import type { JobResultCardJob, JobStatus } from "./job-result-card";
 import { getScoreBorderColor } from "@/lib/scoreUtils";
 import { FlagToggle } from "@/components/features/flag-toggle";
+import { WorkTypeBadge } from "@/components/ui/work-type-badge";
 import type { ChangeEvent } from "react";
+import { useState } from "react";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+  Checkbox,
+} from "@caliber/ui-kit";
+import {
+  type ColumnDef,
+  type SortingState,
+  flexRender,
+  getCoreRowModel,
+  getSortedRowModel,
+  useReactTable,
+} from "@tanstack/react-table";
 
 interface JobTableViewProps {
   jobs: JobResultCardJob[];
@@ -21,18 +40,10 @@ function formatScore(value: number | null | undefined): string {
   return `${value}%`;
 }
 
-function getScore(job: JobResultCardJob) {
+function getScoreObj(job: JobResultCardJob) {
   if (job.score) return job.score;
-  const hasAnyScore =
-    job.masterScore != null ||
-    job.atsScore != null ||
-    job.careerScore != null ||
-    job.outlookScore != null;
-
-  if (!hasAnyScore) {
-    return null;
-  }
-
+  const hasAnyScore = job.masterScore != null || job.atsScore != null || job.careerScore != null || job.outlookScore != null;
+  if (!hasAnyScore) return null;
   return {
     atsScore: job.atsScore,
     careerScore: job.careerScore,
@@ -55,179 +66,225 @@ export function JobTableView({
   onAnalyze,
   analyzedJobIds,
 }: JobTableViewProps) {
+  const [sorting, setSorting] = useState<SortingState>([]);
   const allSelected = jobs.length > 0 && jobs.every((job) => job.id && selectedIds.has(job.id));
 
-  return (
-    <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
-      <table className="w-full">
-        <thead>
-          <tr className="border-b border-slate-200 bg-slate-50">
-            <th className="w-10 px-4 py-3">
-              <input
-                type="checkbox"
-                checked={allSelected}
-                onChange={(e) => onSelectAll(e.target.checked)}
-                className="h-4 w-4 rounded border-slate-300 text-primary-600"
-                aria-label="Select all jobs"
-              />
-            </th>
-            <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600">
-              Position
-            </th>
-            <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600">
-              Company
-            </th>
-            <th className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wide text-slate-600">
-              Score
-            </th>
-            <th className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wide text-slate-600">
-              ATS
-            </th>
-            <th className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wide text-slate-600">
-              Career
-            </th>
-            <th className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wide text-slate-600">
-              Outlook
-            </th>
-            <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600">
-              Status
-            </th>
-            <th className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wide text-slate-600">
-              Actions
-            </th>
-            <th className="w-10 px-4 py-3" />
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-slate-100">
-          {jobs.map((job) => {
-            const score = getScore(job);
-            const isSelected = job.id ? selectedIds.has(job.id) : false;
-            const isAnalyzed = job.id ? analyzedJobIds.has(job.id) : false;
-
-            return (
-              <tr
-                key={job.id ?? job.sourceUrl}
-                className="transition hover:bg-slate-50"
+  const columns: ColumnDef<JobResultCardJob>[] = [
+    {
+      id: "select",
+      size: 40,
+      header: () => (
+        <Checkbox
+          checked={allSelected}
+          onCheckedChange={(checked) => onSelectAll(!!checked)}
+          aria-label="Select all jobs"
+        />
+      ),
+      cell: ({ row }) =>
+        row.original.id ? (
+          <Checkbox
+            checked={selectedIds.has(row.original.id)}
+            onCheckedChange={() => onSelect(row.original.id!)}
+            aria-label={`Select ${row.original.title}`}
+          />
+        ) : null,
+      enableSorting: false,
+    },
+    {
+      accessorKey: "title",
+      header: "Position",
+      cell: ({ row }) => {
+        const job = row.original;
+        const dateStr = job.postDateText && job.postDateText !== "Invalid Date"
+          ? (() => { const d = new Date(job.postDateText!); return !isNaN(d.getTime()) ? d.toLocaleDateString() : job.postDateText; })()
+          : null;
+        return (
+          <div>
+            <div className="font-semibold text-slate-900 leading-tight">{job.title}</div>
+            {dateStr && <div className="text-xs text-slate-400 mt-0.5">{dateStr}</div>}
+          </div>
+        );
+      },
+      enableSorting: true,
+    },
+    {
+      accessorKey: "company",
+      header: "Company",
+      cell: ({ row }) => {
+        const job = row.original;
+        const workType = job.location?.toLowerCase().includes("remote")
+          ? "remote"
+          : job.location?.toLowerCase().includes("hybrid")
+          ? "hybrid"
+          : undefined;
+        return (
+          <div>
+            <div className="font-medium text-slate-700 leading-tight">{job.company}</div>
+            <div className="flex items-center gap-1.5 mt-0.5">
+              {workType ? (
+                <WorkTypeBadge workType={workType} />
+              ) : job.location ? (
+                <span className="text-xs text-slate-400 truncate max-w-[160px]">{job.location}</span>
+              ) : null}
+            </div>
+          </div>
+        );
+      },
+      enableSorting: true,
+    },
+    {
+      id: "masterScore",
+      accessorFn: (row) => getScoreObj(row)?.masterScore ?? -1,
+      header: "Score",
+      size: 80,
+      cell: ({ row }) => {
+        const score = getScoreObj(row.original);
+        if (!score?.masterScore) return <span className="text-xs text-slate-300">—</span>;
+        return (
+          <div className={`inline-block rounded-md px-2.5 py-1 text-xs font-bold border ${getScoreBorderColor(score.masterScore)}`}>
+            {formatScore(score.masterScore)}
+          </div>
+        );
+      },
+      enableSorting: true,
+    },
+    {
+      id: "status",
+      header: "Status",
+      size: 140,
+      cell: ({ row }) => {
+        const job = row.original;
+        if (!job.id) return null;
+        return (
+          <select
+            value={(job.status ?? "Analyzed") as JobStatus}
+            onChange={(e: ChangeEvent<HTMLSelectElement>) => onStatusChange(job.id!, e.target.value as JobStatus)}
+            disabled={statusPending === job.id}
+            className="h-7 w-full rounded border border-slate-200 bg-white px-2 text-xs font-medium text-slate-700 disabled:opacity-60 focus:outline-none focus:ring-1 focus:ring-orange-400"
+            aria-label={`Status for ${job.title}`}
+          >
+            {statusOptions.map((s) => (
+              <option key={s} value={s}>{s}</option>
+            ))}
+          </select>
+        );
+      },
+      enableSorting: false,
+    },
+    {
+      id: "actions",
+      header: () => <span className="sr-only">Actions</span>,
+      size: 90,
+      cell: ({ row }) => {
+        const job = row.original;
+        const isAnalyzed = job.id ? analyzedJobIds.has(job.id) : false;
+        const hasUrl = !!(job.sourceUrl && job.sourceUrl !== "text-input");
+        return (
+          <div className="flex items-center justify-center gap-1.5">
+            <button
+              type="button"
+              onClick={() => onAnalyze(job.sourceUrl)}
+              className={`inline-flex h-7 w-7 items-center justify-center rounded-md border text-xs transition ${
+                isAnalyzed
+                  ? "border-indigo-200 bg-indigo-50 text-indigo-700 hover:bg-indigo-100"
+                  : "border-slate-200 bg-slate-50 text-slate-500 hover:bg-slate-100"
+              }`}
+              title={isAnalyzed ? "View analysis" : "Analyze job"}
+            >
+              <Sparkles className="h-3.5 w-3.5" />
+            </button>
+            {hasUrl ? (
+              <a
+                href={job.sourceUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex h-7 w-7 items-center justify-center rounded-md bg-orange-600 text-white text-xs transition hover:bg-orange-700"
+                title="Open job posting"
               >
-                <td className="px-4 py-3">
-                  {job.id && (
-                    <input
-                      type="checkbox"
-                      checked={isSelected}
-                      onChange={() => onSelect(job.id!)}
-                      className="h-4 w-4 rounded border-slate-300 text-primary-600"
-                      aria-label={`Select ${job.title}`}
-                    />
-                  )}
-                </td>
-                <td className="px-4 py-3">
-                  <div className="font-semibold text-slate-900">{job.title}</div>
-                  <div className="text-xs text-slate-500">
-                    {job.postDateText && job.postDateText !== "Invalid Date"
-                      ? (() => {
-                          const d = new Date(job.postDateText);
-                          return !isNaN(d.getTime()) ? d.toLocaleDateString() : job.postDateText;
-                        })()
-                      : ""}
-                  </div>
-                </td>
-                <td className="px-4 py-3">
-                  <div className="font-medium text-slate-700">{job.company}</div>
-                  {job.location && (
-                    <div className="text-xs text-slate-500">{job.location}</div>
-                  )}
-                </td>
-                <td className="px-4 py-3 text-center">
-                  <div
-                    className={`inline-block rounded-lg px-3 py-1.5 text-sm font-semibold ${getScoreBorderColor(score?.masterScore ?? 0)}`}
-                  >
-                    {formatScore(score?.masterScore)}
-                  </div>
-                </td>
-                <td className="px-4 py-3 text-center text-sm font-medium text-slate-700">
-                  {formatScore(score?.atsScore)}
-                </td>
-                <td className="px-4 py-3 text-center text-sm font-medium text-slate-700">
-                  {formatScore(score?.careerScore)}
-                </td>
-                <td className="px-4 py-3 text-center text-sm font-medium text-slate-700">
-                  {formatScore(score?.outlookScore)}
-                </td>
-                <td className="px-4 py-3">
-                  {job.id && (
-                    <select
-                      value={(job.status ?? "Analyzed") as JobStatus}
-                      onChange={(e: ChangeEvent<HTMLSelectElement>) =>
-                        onStatusChange(job.id!, e.target.value as JobStatus)
-                      }
-                      disabled={statusPending === job.id}
-                      className="h-8 rounded border border-slate-200 bg-white px-2 text-xs font-semibold text-slate-700 disabled:opacity-60"
-                      aria-label={`Status for ${job.title}`}
+                <ExternalLink className="h-3.5 w-3.5" />
+              </a>
+            ) : (
+              <button
+                type="button"
+                disabled
+                className="inline-flex h-7 w-7 items-center justify-center rounded-md bg-slate-100 text-slate-300 cursor-not-allowed"
+              >
+                <ExternalLink className="h-3.5 w-3.5" />
+              </button>
+            )}
+            {job.id != null && (
+              <FlagToggle jobId={job.id} initialFlagged={!!job.isFlagged} />
+            )}
+          </div>
+        );
+      },
+      enableSorting: false,
+    },
+  ];
+
+  const table = useReactTable({
+    data: jobs,
+    columns,
+    getCoreRowModel: getCoreRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+    onSortingChange: setSorting,
+    state: { sorting },
+  });
+
+  return (
+    <div className="rounded-lg border border-slate-200 bg-white shadow-sm overflow-hidden">
+      <Table>
+        <TableHeader className="bg-slate-50">
+          {table.getHeaderGroups().map((hg) => (
+            <TableRow key={hg.id} className="border-b border-slate-200 hover:bg-transparent">
+              {hg.headers.map((header) => (
+                <TableHead
+                  key={header.id}
+                  style={{ width: header.getSize() !== 150 ? header.getSize() : undefined }}
+                >
+                  {header.isPlaceholder ? null : header.column.getCanSort() ? (
+                    <button
+                      type="button"
+                      className="inline-flex items-center gap-1 hover:text-slate-800 transition-colors"
+                      onClick={header.column.getToggleSortingHandler()}
                     >
-                      {statusOptions.map((status) => (
-                        <option key={status} value={status}>
-                          {status}
-                        </option>
-                      ))}
-                    </select>
+                      {flexRender(header.column.columnDef.header, header.getContext())}
+                      {header.column.getIsSorted() === "asc" ? (
+                        <ArrowUp className="h-3 w-3" />
+                      ) : header.column.getIsSorted() === "desc" ? (
+                        <ArrowDown className="h-3 w-3" />
+                      ) : (
+                        <ArrowUpDown className="h-3 w-3 opacity-40" />
+                      )}
+                    </button>
+                  ) : (
+                    flexRender(header.column.columnDef.header, header.getContext())
                   )}
-                </td>
-                <td className="px-4 py-3">
-                  <div className="flex items-center justify-center gap-2">
-                    {isAnalyzed ? (
-                       <button
-                        type="button"
-                        onClick={() => onAnalyze(job.sourceUrl)}
-                        className="inline-flex h-8 items-center gap-1 rounded-lg border border-indigo-200 bg-indigo-50 px-2.5 text-xs font-semibold text-indigo-700 transition hover:bg-indigo-100"
-                        title="View saved analysis"
-                      >
-                        <Sparkles className="h-3.5 w-3.5" />
-                      </button>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => onAnalyze(job.sourceUrl)}
-                        className="inline-flex h-8 items-center gap-1 rounded-lg border border-amber-200 bg-amber-50 px-2.5 text-xs font-semibold text-amber-700 transition hover:bg-amber-100"
-                        title="Analyze this job"
-                      >
-                        <Sparkles className="h-3.5 w-3.5" />
-                      </button>
-                    )}
-                    {job.sourceUrl && job.sourceUrl !== "text-input" ? (
-                      <a
-                        href={job.sourceUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex h-8 items-center gap-1 rounded-lg bg-amber-600 px-2.5 text-xs font-semibold text-white transition hover:bg-amber-700"
-                      >
-                        <ExternalLink className="h-3.5 w-3.5" />
-                      </a>
-                    ) : (
-                      <button
-                        type="button"
-                        disabled
-                        className="inline-flex h-8 items-center gap-1 rounded-lg bg-slate-100 border border-slate-200 px-2.5 text-xs font-semibold text-slate-400 cursor-not-allowed"
-                      >
-                        <ExternalLink className="h-3.5 w-3.5" />
-                      </button>
-                    )}
-                  </div>
-                </td>
-                <td className="px-4 py-3 text-center">
-                  {job.id != null && (
-                    <FlagToggle jobId={job.id} initialFlagged={!!job.isFlagged} />
-                  )}
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
-      {jobs.length === 0 && (
-        <div className="flex items-center justify-center py-12 text-center">
-          <p className="text-sm text-slate-500">No jobs to display</p>
-        </div>
-      )}
+                </TableHead>
+              ))}
+            </TableRow>
+          ))}
+        </TableHeader>
+        <TableBody>
+          {table.getRowModel().rows.length ? (
+            table.getRowModel().rows.map((row) => (
+              <TableRow key={row.id} className="h-10">
+                {row.getVisibleCells().map((cell) => (
+                  <TableCell key={cell.id}>
+                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                  </TableCell>
+                ))}
+              </TableRow>
+            ))
+          ) : (
+            <TableRow>
+              <TableCell colSpan={columns.length} className="h-20 text-center text-sm text-slate-400">
+                No jobs to display
+              </TableCell>
+            </TableRow>
+          )}
+        </TableBody>
+      </Table>
     </div>
   );
 }

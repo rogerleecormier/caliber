@@ -5,7 +5,18 @@ import {
   getAgentAdminSettings,
   updateAgentAdminSettings,
 } from "@/server/functions/agent-admin";
-import { PageHero, PageSection } from "@caliber/ui-kit";
+import {
+  PageHero,
+  PageSection,
+  Input,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+  Badge,
+} from "@caliber/ui-kit";
 import { Clock, Shield, Trash2 } from "lucide-react";
 
 type AdminUser = { id: string; email: string; role: string | null; createdAt: string | Date };
@@ -111,27 +122,25 @@ function AdminPage() {
         title="Create User"
         description="Add a new user to the jobs application with an initial password."
       >
-        <form onSubmit={handleAddUser} className="mt-5 grid gap-3 md:grid-cols-[1fr_1fr_auto]">
-          <input
+        <form onSubmit={handleAddUser} className="mt-4 grid gap-3 md:grid-cols-[1fr_1fr_auto]">
+          <Input
             type="email"
             placeholder="Email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
-            className="rounded-lg border border-input bg-background px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
           />
-          <input
+          <Input
             type="password"
             placeholder="Password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
-            className="rounded-lg border border-input bg-background px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
           />
           <button
             type="submit"
             disabled={loading}
-            className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+            className="rounded-lg bg-orange-600 px-4 py-2 text-sm font-semibold text-white hover:bg-orange-700 disabled:opacity-50"
           >
             {loading ? "Adding..." : "Add User"}
           </button>
@@ -145,42 +154,47 @@ function AdminPage() {
         className="overflow-hidden p-0"
         contentClassName=""
       >
-        <table className="w-full text-sm">
-          <thead className="bg-slate-50">
-            <tr>
-              <th className="px-4 py-3 text-left font-medium">Email</th>
-              <th className="px-4 py-3 text-left font-medium">Role</th>
-              <th className="px-4 py-3 text-left font-medium">Created</th>
-              <th className="px-4 py-3 w-24" />
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-border">
+        <Table>
+          <TableHeader className="bg-slate-50">
+            <TableRow className="border-b border-slate-200 hover:bg-transparent">
+              <TableHead>Email</TableHead>
+              <TableHead>Role</TableHead>
+              <TableHead>Created</TableHead>
+              <TableHead className="w-24" />
+            </TableRow>
+          </TableHeader>
+          <TableBody>
             {userList.length === 0 ? (
-              <tr>
-                <td colSpan={4} className="px-4 py-8 text-center text-muted-foreground">
-                  No users yet
-                </td>
-              </tr>
+              <TableRow>
+                <TableCell colSpan={4} className="h-20 text-center text-sm text-slate-400">
+                  {loadingUsers ? "Loading users…" : "No users yet"}
+                </TableCell>
+              </TableRow>
             ) : (
               userList.map((u) => (
-                <tr key={u.id} className="hover:bg-muted/30">
-                  <td className="px-4 py-3">{u.email}</td>
-                  <td className="px-4 py-3 capitalize">{u.role}</td>
-                  <td className="px-4 py-3 text-muted-foreground">{u.createdAt ? new Date(u.createdAt).toISOString().slice(0, 10) : ""}</td>
-                  <td className="px-4 py-3 text-right">
+                <TableRow key={u.id} className="h-10">
+                  <TableCell className="font-medium text-slate-800">{u.email}</TableCell>
+                  <TableCell>
+                    <Badge variant={u.role === "admin" ? "default" : "secondary"} className={u.role === "admin" ? "bg-orange-600 text-white" : ""}>
+                      {u.role ?? "user"}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="text-slate-500 text-xs">{u.createdAt ? new Date(u.createdAt).toISOString().slice(0, 10) : ""}</TableCell>
+                  <TableCell className="text-right">
                     <button
+                      type="button"
                       onClick={() => handleDeleteUser(u.id)}
-                      className="inline-flex items-center gap-1 text-sm text-destructive hover:underline"
+                      className="inline-flex items-center gap-1 text-xs text-red-600 hover:text-red-700 font-medium"
                     >
                       <Trash2 className="h-3.5 w-3.5" />
                       Delete
                     </button>
-                  </td>
-                </tr>
+                  </TableCell>
+                </TableRow>
               ))
             )}
-          </tbody>
-        </table>
+          </TableBody>
+        </Table>
       </PageSection>
 
       <PageSection

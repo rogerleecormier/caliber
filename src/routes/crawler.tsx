@@ -313,7 +313,7 @@ function CrawlerDashboard() {
             </button>
             <button
               onClick={() => setIsAddModalOpen(true)}
-              className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 px-4 py-2 text-sm font-semibold text-white transition disabled:opacity-50 cursor-pointer shadow-sm"
+              className="inline-flex items-center gap-2 rounded-lg bg-teal-600 hover:bg-teal-700 px-4 py-2 text-sm font-semibold text-white transition disabled:opacity-50 cursor-pointer shadow-sm"
             >
               <Plus className="h-4 w-4" />
               Add Board
@@ -331,31 +331,31 @@ function CrawlerDashboard() {
       />
 
       {statusMessage && (
-        <div className={`p-4 rounded-xl border flex items-center gap-3 transition-all duration-300 ${
-          statusMessage.type === 'success' ? 'bg-green-50 border-green-200 text-green-800' :
+        <div className={`p-3.5 rounded-lg border flex items-center gap-3 text-sm font-medium ${
+          statusMessage.type === 'success' ? 'bg-teal-50 border-teal-200 text-teal-800' :
           statusMessage.type === 'error' ? 'bg-red-50 border-red-200 text-red-800' :
-          'bg-blue-50 border-blue-200 text-blue-800'
+          'bg-orange-50 border-orange-200 text-orange-800'
         }`}>
-          {statusMessage.type === 'success' && <CheckCircle2 className="w-5 h-5 shrink-0 text-green-600" />}
-          {statusMessage.type === 'error' && <AlertCircle className="w-5 h-5 shrink-0 text-red-600" />}
-          {statusMessage.type === 'info' && <RefreshCw className="w-5 h-5 animate-spin shrink-0 text-blue-600" />}
-          <span className="text-sm font-medium">{statusMessage.text}</span>
+          {statusMessage.type === 'success' && <CheckCircle2 className="w-4 h-4 shrink-0 text-teal-600" />}
+          {statusMessage.type === 'error' && <AlertCircle className="w-4 h-4 shrink-0 text-red-600" />}
+          {statusMessage.type === 'info' && <RefreshCw className="w-4 h-4 animate-spin shrink-0 text-orange-600" />}
+          <span>{statusMessage.text}</span>
         </div>
       )}
 
-      {/* Metrics Grid */}
-      <div className="grid grid-cols-2 gap-4 md:grid-cols-5">
+      {/* Metrics — single card, 5 tiles */}
+      <div className="rounded-lg border border-slate-200 bg-white/80 shadow-sm overflow-hidden grid grid-cols-2 sm:grid-cols-5 divide-x divide-slate-100">
         {[
           { title: 'Canonical Jobs', val: stats.canonical_count, desc: 'Deduplicated postings' },
           { title: 'Job Sources', val: stats.source_count, desc: 'Source mappings' },
           { title: 'Active Boards', val: stats.active_boards, desc: 'Crawling targets' },
           { title: 'LLM Runs (24h)', val: stats.llm_calls_24h, desc: 'Fuzzy match checks' },
-          { title: 'Errors (24h)', val: stats.errors_24h, desc: 'Crawl failures' },
+          { title: 'Errors (24h)', val: stats.errors_24h, desc: 'Crawl failures', accent: stats.errors_24h > 0 ? 'text-red-600' : '' },
         ].map(m => (
-          <div key={m.title} className="rounded-2xl border border-slate-200 bg-white/80 p-5 shadow-sm backdrop-blur-sm">
+          <div key={m.title} className="p-4">
             <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1">{m.title}</div>
-            <div className="text-2xl font-bold text-slate-900">{m.val || 0}</div>
-            <p className="text-[10px] text-slate-400 mt-1 leading-normal">{m.desc}</p>
+            <div className={`text-2xl font-bold ${(m as any).accent || 'text-slate-900'}`}>{m.val || 0}</div>
+            <p className="text-[10px] text-slate-400 mt-0.5">{m.desc}</p>
           </div>
         ))}
       </div>
@@ -363,16 +363,17 @@ function CrawlerDashboard() {
       {/* Main Content Area */}
       <div className="space-y-6">
         
-        {/* Tabs */}
-        <div className="flex w-full border-b border-slate-200 pb-px">
+        {/* Tabs — pill style */}
+        <div className="inline-flex items-center gap-1 rounded-lg bg-slate-100 p-1">
           {(['jobs', 'boards', 'logs', 'docs'] as const).map(tab => (
             <button
               key={tab}
+              type="button"
               onClick={() => setActiveTab(tab)}
-              className={`flex-1 py-3 text-sm font-bold border-b-2 text-center transition cursor-pointer ${
+              className={`rounded-md px-4 py-1.5 text-sm font-medium transition-all cursor-pointer ${
                 activeTab === tab
-                  ? 'border-primary-600 text-primary-600'
-                  : 'border-transparent text-slate-500 hover:text-slate-800'
+                  ? 'bg-orange-600 text-white shadow-sm'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
               }`}
             >
               {tab === 'jobs' ? 'Jobs' : tab === 'boards' ? 'Boards' : tab === 'logs' ? 'Audit Log' : 'Docs'}

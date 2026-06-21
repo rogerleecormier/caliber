@@ -19,6 +19,7 @@ import { getScoreBorderColor } from "@/lib/scoreUtils";
 import { getDocumentDownload } from "@/server/functions/get-history";
 import { FlagToggle } from "@/components/features/flag-toggle";
 import { cleanJobDescription } from "@/lib/html-utils";
+import { WorkTypeBadge } from "@/components/ui/work-type-badge";
 
 export type JobStatus = "Discovered" | "Analyzed" | "Prepped" | "Applied" | "Interviewed" | "Hired" | "Not Hired" | "Archived";
 
@@ -451,7 +452,7 @@ export function JobResultCard({
       <PrimaryCard
         title={job.title}
         description={`${job.company}${job.location ? ' · ' + job.location : ''}`}
-        className={`shadow-sm transition hover:shadow-md flex flex-col h-full ${
+        className={`shadow-sm transition hover:shadow-md flex flex-col h-full rounded-lg ${
           selected
             ? "ring-2 ring-primary-300 bg-white/85"
             : isNew
@@ -459,18 +460,25 @@ export function JobResultCard({
               : "bg-white/85"
         } ${getScoreBorderColor(score?.masterScore ?? 0)}`}
       >
-        <div className="space-y-4">
-          <div className="space-y-3">
-          <div className="flex flex-wrap items-center gap-2">
+        <div className="space-y-2">
+          <div className="space-y-2">
+          <div className="flex flex-wrap items-center gap-1.5">
             {(job.sourceName || job.sourceOrigin) && (
               <Badge className={`border-0 px-2 py-0 text-[10px] text-white ${
                 (job.sourceName || job.sourceOrigin)!.toLowerCase() === 'linkedin' ? 'bg-sky-600' :
-                (job.sourceName || job.sourceOrigin)!.toLowerCase() === 'greenhouse' ? 'bg-emerald-600' :
+                (job.sourceName || job.sourceOrigin)!.toLowerCase() === 'greenhouse' ? 'bg-teal-700' :
                 (job.sourceName || job.sourceOrigin)!.toLowerCase() === 'lever' ? 'bg-indigo-600' :
                 (job.sourceName || job.sourceOrigin)!.toLowerCase() === 'workable' ? 'bg-violet-600' : 'bg-slate-600'
               }`}>
                 {job.sourceName || (job.sourceOrigin ? job.sourceOrigin.charAt(0).toUpperCase() + job.sourceOrigin.slice(1) : '')}
               </Badge>
+            )}
+            {/* Remote/Hybrid badge only — no text label */}
+            {job.location && (
+              <WorkTypeBadge workType={
+                job.location.toLowerCase().includes("remote") ? "remote" :
+                job.location.toLowerCase().includes("hybrid") ? "hybrid" : undefined
+              } />
             )}
             {job.resultSource === "history" ? (
               <Badge variant="success" className="px-2 py-0 text-[10px]">
@@ -489,154 +497,64 @@ export function JobResultCard({
             ) : null}
           </div>
           {(job.postDateText && job.postDateText !== "Invalid Date") || job.firstSeenAt || job.ownerEmail ? (
-            <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500">
+            <div className="flex flex-wrap items-center gap-2 text-xs text-slate-400">
               {job.postDateText && job.postDateText !== "Invalid Date" ? (
-                <div className="flex items-center gap-1">
-                  <span className="text-[10px] font-medium text-slate-400">Posted:</span>
-                  <Caption className="text-xs text-slate-600">
-                    {(() => {
-                      const d = new Date(job.postDateText);
-                      return !isNaN(d.getTime()) ? d.toLocaleDateString() : job.postDateText;
-                    })()}
-                  </Caption>
-                </div>
-              ) : null}
-              {job.firstSeenAt ? (
-                <div className="flex items-center gap-1">
-                  <span className="text-[10px] font-medium text-slate-400">Found:</span>
-                  <Caption className="text-xs text-slate-600">
-                    {new Date(job.firstSeenAt).toLocaleDateString()}
-                  </Caption>
-                </div>
+                <span>
+                  {(() => {
+                    const d = new Date(job.postDateText!);
+                    return !isNaN(d.getTime()) ? d.toLocaleDateString() : job.postDateText;
+                  })()}
+                </span>
               ) : null}
               {job.ownerEmail ? (
-                <Caption className="text-[11px] text-slate-500">
-                  {job.ownerEmail}
-                </Caption>
+                <span className="text-[11px]">{job.ownerEmail}</span>
               ) : null}
             </div>
           ) : null}
 
-          {isRecommendation ? (
-            <div className="space-y-2.5">
-              {(score?.masterScore != null || job.matchScore != null || job.masterScore != null) && (
-                <div className="inline-block rounded-lg border border-emerald-100 bg-emerald-50 px-3 py-2">
-                  <Caption variant="semibold" className="block text-[10px] uppercase tracking-wide text-emerald-600">
-                    Match Score
-                  </Caption>
-                  <Body size="sm" weight="semibold" className="text-emerald-700">
-                    {formatScore(score?.masterScore ?? job.matchScore ?? job.masterScore)}
-                  </Body>
-                </div>
-              )}
-              {job.quickAnalysis && (
-                <div className="rounded-lg border border-indigo-100 bg-indigo-50/50 p-3">
-                  <span className="block text-[10px] font-bold uppercase tracking-wider text-indigo-600 mb-1">
-                    AI Quick Analysis
-                  </span>
-                  <p className="text-xs text-slate-700 leading-relaxed font-medium">
-                    {job.quickAnalysis}
-                  </p>
-                </div>
-              )}
+          {/* Master score only on card face — ATS/Career/Outlook in detail modal */}
+          {(score?.masterScore != null || job.matchScore != null || job.masterScore != null) && (
+            <div className={`inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-xs font-bold ${getScoreBorderColor(score?.masterScore ?? job.masterScore ?? 0)}`}>
+              <span className="text-[10px] font-medium text-slate-500 uppercase tracking-wide">Match</span>
+              {formatScore(score?.masterScore ?? job.matchScore ?? job.masterScore)}
             </div>
-          ) : (
-            score || job.matchScore != null ? (
-              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                {job.sourceName?.toLowerCase() === "manual" ? (
-                  <>
-                    {job.matchScore != null && (
-                      <div className="rounded-lg border border-emerald-100 bg-emerald-50 px-3 py-2">
-                        <Caption variant="semibold" className="block text-[10px] uppercase tracking-wide text-emerald-600">
-                          Match Score
-                        </Caption>
-                        <Body size="sm" weight="semibold" className="text-emerald-700">
-                          {formatScore(job.matchScore)}
-                        </Body>
-                      </div>
-                    )}
-                    {["ATS", "Career", "Outlook"].map((label) => (
-                      <div
-                        key={label}
-                        className="rounded-lg border border-slate-200 bg-white px-3 py-2"
-                      >
-                        <Caption variant="semibold" className="block text-[10px] uppercase tracking-wide text-slate-500">
-                          {label}
-                        </Caption>
-                        <Body size="sm" weight="semibold" className="text-slate-800">
-                          N/A
-                        </Body>
-                      </div>
-                    ))}
-                  </>
-                ) : (
-                  <>
-                    {job.matchScore != null && (
-                      <div className="rounded-lg border border-emerald-100 bg-emerald-50 px-3 py-2">
-                        <Caption variant="semibold" className="block text-[10px] uppercase tracking-wide text-emerald-600">
-                          Match Score
-                        </Caption>
-                        <Body size="sm" weight="semibold" className="text-emerald-700">
-                          {formatScore(job.matchScore)}
-                        </Body>
-                      </div>
-                    )}
-                    {score && [
-                      ["ATS", score.atsScore],
-                      ["Career", score.careerScore],
-                      ["Outlook", score.outlookScore],
-                    ].map(([label, value]) => (
-                      <div
-                        key={label}
-                        className="rounded-lg border border-slate-200 bg-white px-3 py-2"
-                      >
-                        <Caption variant="semibold" className="block text-[10px] uppercase tracking-wide text-slate-500">
-                          {label}
-                        </Caption>
-                        <Body
-                          size="sm"
-                          weight="semibold"
-                          className="text-slate-800"
-                        >
-                          {formatScore(value as number | null)}
-                        </Body>
-                      </div>
-                    ))}
-                  </>
-                )}
-              </div>
-            ) : null
+          )}
+
+          {isRecommendation && job.quickAnalysis && (
+            <div className="rounded-lg border border-indigo-100 bg-indigo-50/50 p-2.5">
+              <span className="block text-[10px] font-bold uppercase tracking-wider text-indigo-600 mb-1">
+                AI Quick Analysis
+              </span>
+              <p className="text-xs text-slate-700 leading-relaxed font-medium">
+                {job.quickAnalysis}
+              </p>
+            </div>
           )}
 
           {job.salary ? (
-            <Body size="sm" weight="medium" className="text-emerald-700">
-              {job.salary}
-            </Body>
+            <span className="text-xs font-semibold text-teal-700">{job.salary}</span>
           ) : null}
           {cleanedSnippet ? (
-            <Body size="sm" className="leading-relaxed text-slate-600">
+            <p className="text-xs leading-relaxed text-slate-500 line-clamp-2">
               {cleanedSnippet}
-            </Body>
+            </p>
           ) : null}
           {mostRecentDocuments.length > 0 && (
-            <div className="flex flex-wrap gap-2 pt-2 border-t border-slate-100">
-              <Caption variant="semibold" className="w-full text-[10px] uppercase tracking-wide text-slate-500">
-                Documents
-              </Caption>
+            <div className="flex flex-wrap gap-1.5 pt-2 border-t border-slate-100">
               {mostRecentDocuments.map((doc) => (
                 <button
                   key={doc.id}
                   type="button"
                   onClick={() => handleDownload(doc.r2Key, doc.fileName)}
                   disabled={downloadingKey === doc.r2Key}
-                  className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-60"
+                  className="inline-flex h-7 items-center gap-1 rounded border border-slate-200 bg-white px-2 text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-60"
                 >
                   {downloadingKey === doc.r2Key ? (
-                    <Loader2 className="h-3.5 w-3.5 animate-spin text-slate-500" />
+                    <Loader2 className="h-3 w-3 animate-spin text-slate-400" />
                   ) : doc.docType === "resume" ? (
-                    <FileText className="h-3.5 w-3.5 text-amber-600" />
+                    <FileText className="h-3 w-3 text-orange-500" />
                   ) : (
-                    <Mail className="h-3.5 w-3.5 text-amber-600" />
+                    <Mail className="h-3 w-3 text-orange-500" />
                   )}
                   {doc.docType === "resume" ? "Resume" : "Cover Letter"}
                 </button>
@@ -645,8 +563,8 @@ export function JobResultCard({
           )}
         </div>
 
-        <div className="flex flex-col gap-3 border-t border-slate-100 pt-3">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col gap-2 border-t border-slate-100 pt-2">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex w-full flex-wrap items-center gap-1.5 sm:w-auto">
               {onToggleFavorite && (
                 <button
@@ -696,7 +614,7 @@ export function JobResultCard({
                   target="_blank"
                   rel="noopener noreferrer"
                   onClick={onApplyClick}
-                  className="inline-flex h-8 items-center gap-1 whitespace-nowrap rounded-lg bg-amber-600 px-2.5 text-xs font-semibold text-white transition hover:bg-amber-700"
+                  className="inline-flex h-8 items-center gap-1 whitespace-nowrap rounded-lg bg-orange-600 px-2.5 text-xs font-semibold text-white transition hover:bg-orange-700"
                 >
                   Open <ExternalLink className="h-3.5 w-3.5" />
                 </a>

@@ -11,17 +11,17 @@
 @source inline("spx-nav-trigger spx-nav-trigger-idle spx-nav-trigger-active spx-menu-panel spx-menu-separator spx-menu-heading spx-menu-item spx-menu-item-inactive spx-menu-item-active spx-menu-item-disabled spx-page spx-page-narrow spx-app-frame spx-stack spx-glass-card spx-glass-card-strong spx-glass-card-muted spx-kicker spx-band spx-band-indigo spx-band-primary spx-stat-tile spx-grid-spotlight spx-auth-shell spx-status-shell spx-auth-card spx-status-card spx-page-header focus-ring focus-ring-secondary");
 
 @theme {
-  --color-primary-50: #fef2f2;
-  --color-primary-100: #fee2e2;
-  --color-primary-200: #fecaca;
-  --color-primary-300: #fca5a5;
-  --color-primary-400: #f87171;
-  --color-primary-500: #ef4444;
-  --color-primary-600: #dc2626;
-  --color-primary-700: #b91c1c;
-  --color-primary-800: #991b1b;
-  --color-primary-900: #7f1d1d;
-  --color-primary-950: #450a0a;
+  --color-primary-50: #fff7ed;
+  --color-primary-100: #ffedd5;
+  --color-primary-200: #fed7aa;
+  --color-primary-300: #fdba74;
+  --color-primary-400: #fb923c;
+  --color-primary-500: #f97316;
+  --color-primary-600: #ea580c;
+  --color-primary-700: #c2410c;
+  --color-primary-800: #9a3412;
+  --color-primary-900: #7c2d12;
+  --color-primary-950: #431407;
   --color-primary: hsl(var(--primary));
   --color-primary-foreground: hsl(var(--primary-foreground));
 
@@ -50,6 +50,18 @@
   --color-accent-950: #052e16;
   --color-accent: hsl(var(--accent));
   --color-accent-foreground: hsl(var(--accent-foreground));
+
+  --color-teal-50: #f0fdfa;
+  --color-teal-100: #ccfbf1;
+  --color-teal-200: #99f6e4;
+  --color-teal-300: #5eead4;
+  --color-teal-400: #2dd4bf;
+  --color-teal-500: #14b8a6;
+  --color-teal-600: #0d9488;
+  --color-teal-700: #0f766e;
+  --color-teal-800: #115e59;
+  --color-teal-900: #134e4a;
+  --color-teal-950: #051f1b;
 
   --color-success-50: #f0fdfa;
   --color-success-100: #ccfbf1;
@@ -143,7 +155,7 @@
   --card-foreground: 222 47% 11%;
   --popover: 0 0% 100%;
   --popover-foreground: 222 47% 11%;
-  --primary: 0 84% 60%;
+  --primary: 24 95% 48%;
   --primary-foreground: 0 0% 100%;
   --secondary: 220 14% 96%;
   --secondary-foreground: 222 47% 11%;
@@ -155,15 +167,15 @@
   --destructive-foreground: 0 0% 100%;
   --border: 220 13% 91%;
   --input: 220 13% 91%;
-  --ring: 0 84% 60%;
+  --ring: 24 95% 48%;
   --sidebar-background: 0 0% 100%;
   --sidebar-foreground: 222 47% 11%;
-  --sidebar-primary: 0 84% 60%;
+  --sidebar-primary: 24 95% 48%;
   --sidebar-primary-foreground: 0 0% 100%;
   --sidebar-accent: 220 14% 96%;
   --sidebar-accent-foreground: 222 47% 11%;
   --sidebar-border: 220 13% 91%;
-  --sidebar-ring: 0 84% 60%;
+  --sidebar-ring: 24 95% 48%;
 
   --spx-surface: rgba(255, 255, 255, 0.82);
   --spx-surface-strong: rgba(255, 255, 255, 0.9);
@@ -188,7 +200,7 @@
      wider than the content column. */
   --spx-header-max: var(--spx-page-max);
   --spx-bg:
-    radial-gradient(ellipse 78% 58% at 8% -12%, rgba(220, 38, 38, 0.08) 0%, transparent 55%),
+    radial-gradient(ellipse 78% 58% at 8% -12%, rgba(234, 88, 12, 0.07) 0%, transparent 55%),
     radial-gradient(ellipse 62% 52% at 92% 108%, rgba(99, 102, 241, 0.08) 0%, transparent 58%),
     linear-gradient(180deg, #f8fafc 0%, #f1f5f9 48%, #eef2ff 100%);
 }
@@ -291,7 +303,7 @@
 
   .spx-nav-trigger:focus {
     outline: none;
-    box-shadow: 0 0 0 2px rgba(217, 119, 6, 0.3);
+    box-shadow: 0 0 0 2px rgba(234, 88, 12, 0.3);
   }
 
   .spx-nav-trigger-idle {
@@ -435,9 +447,9 @@
 
   .spx-kicker {
     @apply inline-flex items-center gap-2 rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-[0.18em];
-    background: rgba(220, 38, 38, 0.08);
-    border: 1px solid rgba(220, 38, 38, 0.18);
-    color: #b91c1c;
+    background: rgba(234, 88, 12, 0.08);
+    border: 1px solid rgba(234, 88, 12, 0.18);
+    color: #c2410c;
   }
 
   .spx-band {
@@ -455,8 +467,8 @@
   }
 
   .spx-band-primary {
-    background: linear-gradient(135deg, rgba(220, 38, 38, 0.08) 0%, rgba(255, 255, 255, 0.84) 100%);
-    border-color: rgba(220, 38, 38, 0.16);
+    background: linear-gradient(135deg, rgba(234, 88, 12, 0.08) 0%, rgba(255, 255, 255, 0.84) 100%);
+    border-color: rgba(234, 88, 12, 0.16);
   }
 
   .spx-stat-tile {
@@ -510,7 +522,7 @@
     inset: 0;
     border-radius: inherit;
     pointer-events: none;
-    background: radial-gradient(circle at top left, rgba(220, 38, 38, 0.05), transparent 45%);
+    background: radial-gradient(circle at top left, rgba(234, 88, 12, 0.05), transparent 45%);
   }
 }
 

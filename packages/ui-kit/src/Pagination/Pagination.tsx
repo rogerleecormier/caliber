@@ -1,6 +1,13 @@
-import { ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "../lib/utils";
-import { Button } from "../ui/button";
+import {
+  Pagination as PaginationRoot,
+  PaginationContent,
+  PaginationEllipsis,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "../ui/pagination";
 
 interface PaginationProps {
   page: number;
@@ -21,46 +28,45 @@ export function Pagination({ page, totalPages, onPageChange, className }: Pagina
   if (totalPages <= 1) return null;
   const slots = getPageSlots(page, totalPages);
   return (
-    <div className={cn("flex items-center justify-center gap-1", className)}>
-      <Button
-        variant="outline"
-        size="sm"
-        onClick={() => onPageChange(page - 1)}
-        disabled={page <= 1}
-        aria-label="Previous page"
-      >
-        <ChevronLeft className="h-4 w-4" />
-        Prev
-      </Button>
-      {slots.map((slot, i) =>
-        slot === null ? (
-          // biome-ignore lint/suspicious/noArrayIndexKey: stable ellipsis positions
-          <span key={`ellipsis-${i}`} className="px-2 text-sm text-slate-400">
-            …
-          </span>
-        ) : (
-          <Button
-            key={slot}
-            variant={slot === page ? "default" : "outline"}
-            size="sm"
-            onClick={() => onPageChange(slot)}
-            aria-label={`Page ${slot}`}
-            aria-current={slot === page ? "page" : undefined}
-          >
-            {slot}
-          </Button>
-        ),
-      )}
-      <Button
-        variant="outline"
-        size="sm"
-        onClick={() => onPageChange(page + 1)}
-        disabled={page >= totalPages}
-        aria-label="Next page"
-      >
-        Next
-        <ChevronRight className="h-4 w-4" />
-      </Button>
-    </div>
+    <PaginationRoot className={cn(className)}>
+      <PaginationContent>
+        <PaginationItem>
+          <PaginationPrevious
+            onClick={() => onPageChange(page - 1)}
+            aria-disabled={page <= 1}
+            className={page <= 1 ? "pointer-events-none opacity-40" : "cursor-pointer"}
+          />
+        </PaginationItem>
+
+        {slots.map((slot, i) =>
+          slot === null ? (
+            // biome-ignore lint/suspicious/noArrayIndexKey: stable ellipsis positions
+            <PaginationItem key={`ellipsis-${i}`}>
+              <PaginationEllipsis />
+            </PaginationItem>
+          ) : (
+            <PaginationItem key={slot}>
+              <PaginationLink
+                isActive={slot === page}
+                onClick={() => onPageChange(slot)}
+                aria-label={`Page ${slot}`}
+                aria-current={slot === page ? "page" : undefined}
+                className="cursor-pointer"
+              >
+                {slot}
+              </PaginationLink>
+            </PaginationItem>
+          ),
+        )}
+
+        <PaginationItem>
+          <PaginationNext
+            onClick={() => onPageChange(page + 1)}
+            aria-disabled={page >= totalPages}
+            className={page >= totalPages ? "pointer-events-none opacity-40" : "cursor-pointer"}
+          />
+        </PaginationItem>
+      </PaginationContent>
+    </PaginationRoot>
   );
 }
