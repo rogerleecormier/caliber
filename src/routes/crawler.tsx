@@ -52,7 +52,11 @@ function CrawlerDashboard() {
 
   // Pagination and expandable rows
   const [page, setPage] = useState(0);
+  const [boardPage, setBoardPage] = useState(0);
+  const [logPage, setLogPage] = useState(0);
   const limit = 15;
+  const BOARD_PAGE_SIZE = 15;
+  const LOG_PAGE_SIZE = 25;
   const [expandedJobs, setExpandedJobs] = useState<Record<string, boolean>>({});
   const [expandedLogs, setExpandedLogs] = useState<Record<string, boolean>>({});
   const [expandedBoards, setExpandedBoards] = useState<Record<string, boolean>>({});
@@ -64,17 +68,19 @@ function CrawlerDashboard() {
 
   // useQuery with initialData from route loader
   const { data } = useQuery({
-    queryKey: ['crawler-data', page],
-    queryFn: () => getCrawlerStats({ data: { limit, offset: page * limit } }),
-    initialData: page === 0 ? loaderData : undefined,
+    queryKey: ['crawler-data', page, boardPage, logPage],
+    queryFn: () => getCrawlerStats({ data: { limit, offset: page * limit, boardOffset: boardPage * BOARD_PAGE_SIZE, logOffset: logPage * LOG_PAGE_SIZE } }),
+    initialData: page === 0 && boardPage === 0 && logPage === 0 ? loaderData : undefined,
     refetchInterval: autoRefresh ? 10000 : false,
   });
 
-  const { boards, jobs, totalJobs, auditLogs, stats } = data || {
+  const { boards, totalBoards, jobs, totalJobs, auditLogs, totalAuditLogs, stats } = data || {
     boards: [],
+    totalBoards: 0,
     jobs: [],
     totalJobs: 0,
     auditLogs: [],
+    totalAuditLogs: 0,
     stats: { canonical_count: 0, source_count: 0, active_boards: 0, errors_24h: 0, llm_calls_24h: 0 }
   };
 
@@ -621,6 +627,7 @@ function CrawlerDashboard() {
         {/* Tab Panel: Boards */}
         {activeTab === 'boards' && (
           <PageSection title="Crawled Boards" description="Greenhouse, Workable, Lever, and Ashby job boards currently tracked.">
+            <div className="space-y-4">
             <div className="bg-white/50 border border-slate-200 rounded-xl overflow-hidden shadow-sm">
               <div className="overflow-x-auto">
                 <table className="w-full text-left border-collapse">
@@ -762,11 +769,45 @@ function CrawlerDashboard() {
                 </table>
               </div>
             </div>
+            {totalBoards > BOARD_PAGE_SIZE && (
+              <div className="flex items-center justify-between border-t border-slate-200 bg-white/40 px-4 py-3 sm:px-6 rounded-2xl shadow-sm">
+                <div className="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
+                  <p className="text-sm text-slate-750 font-medium">
+                    Showing <span className="font-bold text-slate-900">{boardPage * BOARD_PAGE_SIZE + 1}</span> to{' '}
+                    <span className="font-bold text-slate-900">{Math.min((boardPage + 1) * BOARD_PAGE_SIZE, totalBoards)}</span>{' '}
+                    of <span className="font-bold text-slate-900">{totalBoards}</span> boards
+                  </p>
+                  <nav className="isolate inline-flex -space-x-px rounded-md shadow-sm">
+                    <button
+                      onClick={() => setBoardPage(p => Math.max(0, p - 1))}
+                      disabled={boardPage === 0}
+                      className="relative inline-flex items-center rounded-l-md px-2 py-2 text-slate-400 ring-1 ring-inset ring-slate-300 hover:bg-slate-50 disabled:opacity-50 cursor-pointer"
+                    >
+                      <span className="sr-only">Previous</span>
+                      <ChevronLeft className="h-5 w-5" />
+                    </button>
+                    <span className="relative inline-flex items-center px-4 py-2 text-sm font-bold text-slate-900 ring-1 ring-inset ring-slate-300">
+                      Page {boardPage + 1} of {Math.ceil(totalBoards / BOARD_PAGE_SIZE)}
+                    </span>
+                    <button
+                      onClick={() => setBoardPage(p => p + 1)}
+                      disabled={(boardPage + 1) * BOARD_PAGE_SIZE >= totalBoards}
+                      className="relative inline-flex items-center rounded-r-md px-2 py-2 text-slate-400 ring-1 ring-inset ring-slate-300 hover:bg-slate-50 disabled:opacity-50 cursor-pointer"
+                    >
+                      <span className="sr-only">Next</span>
+                      <ChevronRight className="h-5 w-5" />
+                    </button>
+                  </nav>
+                </div>
+              </div>
+            )}
+            </div>
           </PageSection>
         )}
         {/* Tab Panel: Logs */}
         {activeTab === 'logs' && (
           <PageSection title="Audit Logs" description="Webcrawler ingestion and deduplication logs.">
+            <div className="space-y-4">
             <div className="bg-white/50 border border-slate-200 rounded-xl overflow-hidden shadow-sm">
               <div className="overflow-x-auto">
                 <table className="w-full text-left border-collapse text-xs">
@@ -847,6 +888,39 @@ function CrawlerDashboard() {
                   </tbody>
                 </table>
               </div>
+            </div>
+            {totalAuditLogs > LOG_PAGE_SIZE && (
+              <div className="flex items-center justify-between border-t border-slate-200 bg-white/40 px-4 py-3 sm:px-6 rounded-2xl shadow-sm">
+                <div className="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
+                  <p className="text-sm text-slate-750 font-medium">
+                    Showing <span className="font-bold text-slate-900">{logPage * LOG_PAGE_SIZE + 1}</span> to{' '}
+                    <span className="font-bold text-slate-900">{Math.min((logPage + 1) * LOG_PAGE_SIZE, totalAuditLogs)}</span>{' '}
+                    of <span className="font-bold text-slate-900">{totalAuditLogs}</span> logs
+                  </p>
+                  <nav className="isolate inline-flex -space-x-px rounded-md shadow-sm">
+                    <button
+                      onClick={() => setLogPage(p => Math.max(0, p - 1))}
+                      disabled={logPage === 0}
+                      className="relative inline-flex items-center rounded-l-md px-2 py-2 text-slate-400 ring-1 ring-inset ring-slate-300 hover:bg-slate-50 disabled:opacity-50 cursor-pointer"
+                    >
+                      <span className="sr-only">Previous</span>
+                      <ChevronLeft className="h-5 w-5" />
+                    </button>
+                    <span className="relative inline-flex items-center px-4 py-2 text-sm font-bold text-slate-900 ring-1 ring-inset ring-slate-300">
+                      Page {logPage + 1} of {Math.ceil(totalAuditLogs / LOG_PAGE_SIZE)}
+                    </span>
+                    <button
+                      onClick={() => setLogPage(p => p + 1)}
+                      disabled={(logPage + 1) * LOG_PAGE_SIZE >= totalAuditLogs}
+                      className="relative inline-flex items-center rounded-r-md px-2 py-2 text-slate-400 ring-1 ring-inset ring-slate-300 hover:bg-slate-50 disabled:opacity-50 cursor-pointer"
+                    >
+                      <span className="sr-only">Next</span>
+                      <ChevronRight className="h-5 w-5" />
+                    </button>
+                  </nav>
+                </div>
+              </div>
+            )}
             </div>
           </PageSection>
         )}

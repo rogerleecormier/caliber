@@ -11,19 +11,23 @@ async function requireAdmin(ctx?: any) {
 }
 
 export const getCrawlerStats = createServerFn({ method: "GET" })
-  .inputValidator((d: { limit?: number; offset?: number } | undefined) => d || {})
+  .inputValidator((d: { limit?: number; offset?: number; boardOffset?: number; logOffset?: number } | undefined) => d || {})
   .handler(async (ctx: any) => {
     await requireAdmin(ctx);
-    
-    const { limit = 15, offset = 0 } = ctx.data || {};
+
+    const { limit = 15, offset = 0, boardOffset = 0, logOffset = 0 } = ctx.data || {};
+    const BOARD_PAGE_SIZE = 15;
+    const LOG_PAGE_SIZE = 25;
     const env = await getCloudflareEnvAsync();
     const db = env.DB;
     if (!db) {
       return {
         boards: [],
+        totalBoards: 0,
         jobs: [],
         totalJobs: 0,
         auditLogs: [],
+        totalAuditLogs: 0,
         stats: {
           canonical_count: 0,
           source_count: 0,
@@ -34,28 +38,36 @@ export const getCrawlerStats = createServerFn({ method: "GET" })
       };
     }
 
-    const { results: boards } = await db.prepare('SELECT * FROM boards ORDER BY COALESCE(last_crawled_at, created_at) DESC').all<any>();
-    
+    const { results: boards } = await db.prepare(`
+      SELECT * FROM boards ORDER BY COALESCE(last_crawled_at, created_at) DESC
+      LIMIT ? OFFSET ?
+    `).bind(BOARD_PAGE_SIZE, boardOffset).all<any>();
+
+    const totalBoardsRes = await db.prepare('SELECT COUNT(*) as total FROM boards').first<{ total: number }>();
+    const totalBoards = totalBoardsRes?.total || 0;
+
     const { results: jobs } = await db.prepare(`
-      SELECT * FROM canonical_jobs 
+      SELECT * FROM canonical_jobs
       WHERE id IN (SELECT DISTINCT canonical_id FROM job_sources)
-      ORDER BY last_seen_at DESC 
+      ORDER BY last_seen_at DESC
       LIMIT ? OFFSET ?
     `).bind(limit, offset).all<any>();
 
     const totalJobsRes = await db.prepare(`
-      SELECT COUNT(*) as total FROM canonical_jobs 
+      SELECT COUNT(*) as total FROM canonical_jobs
       WHERE id IN (SELECT DISTINCT canonical_id FROM job_sources)
     `).first<{ total: number }>();
     const totalJobs = totalJobsRes?.total || 0;
 
     const { results: auditLogs } = await db.prepare(`
-      SELECT * FROM audit_log 
-      WHERE canonical_id IS NULL AND board_token IS NULL 
-      ORDER BY created_at DESC 
-      LIMIT 50
-    `).all<any>();
-    
+      SELECT * FROM audit_log
+      ORDER BY created_at DESC
+      LIMIT ? OFFSET ?
+    `).bind(LOG_PAGE_SIZE, logOffset).all<any>();
+
+    const totalAuditLogsRes = await db.prepare('SELECT COUNT(*) as total FROM audit_log').first<{ total: number }>();
+    const totalAuditLogs = totalAuditLogsRes?.total || 0;
+
     const stats = await db.prepare(`
       SELECT
         (SELECT COUNT(*) FROM canonical_jobs WHERE id IN (SELECT DISTINCT canonical_id FROM job_sources)) as canonical_count,
@@ -70,7 +82,7 @@ export const getCrawlerStats = createServerFn({ method: "GET" })
     if (jobsWithSources.length > 0) {
       const jobIds = jobsWithSources.map(j => j.id);
       const placeholders = jobIds.map(() => '?').join(',');
-      
+
       const { results: sources } = await db.prepare(`
         SELECT * FROM job_sources WHERE canonical_id IN (${placeholders})
       `).bind(...jobIds).all<any>();
@@ -87,9 +99,11 @@ export const getCrawlerStats = createServerFn({ method: "GET" })
 
     return {
       boards: boards || [],
+      totalBoards,
       jobs: jobsWithSources,
       totalJobs,
       auditLogs: auditLogs || [],
+      totalAuditLogs,
       stats: stats || { canonical_count: 0, source_count: 0, active_boards: 0, errors_24h: 0, llm_calls_24h: 0 }
     };
   });
