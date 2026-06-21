@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef } from 'react';
 import { createFileRoute, redirect } from '@tanstack/react-router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
@@ -233,6 +233,9 @@ function DiscoveryDashboard() {
     toggleActiveMutation.isPending ||
     deleteBoardMutation.isPending;
 
+  const isPendingRef = useRef(isAnyMutationPending);
+  isPendingRef.current = isAnyMutationPending;
+
   const { data } = useQuery({
     queryKey: ['discovery-data'],
     queryFn: async () => {
@@ -385,7 +388,7 @@ function DiscoveryDashboard() {
               {!board.validated && (
                 <button
                   onClick={() => handleValidateBoard(board.id)}
-                  disabled={isAnyMutationPending}
+                  disabled={isPendingRef.current}
                   className="px-2 py-1 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 disabled:opacity-50 rounded-md transition cursor-pointer"
                 >
                   Validate
@@ -394,7 +397,7 @@ function DiscoveryDashboard() {
               {board.validated ? (
                 <button
                   onClick={() => handleToggleActive(board.id, board.is_active === 1)}
-                  disabled={isAnyMutationPending}
+                  disabled={isPendingRef.current}
                   className={`px-2 py-1 text-xs font-semibold rounded-md transition cursor-pointer ${
                     board.is_active === 1
                       ? 'text-red-700 bg-red-50 hover:bg-red-100'
@@ -406,7 +409,7 @@ function DiscoveryDashboard() {
               ) : null}
               <button
                 onClick={() => handleDeleteBoard(board.id)}
-                disabled={isAnyMutationPending}
+                disabled={isPendingRef.current}
                 className="p-1 text-slate-400 hover:text-red-600 transition cursor-pointer"
               >
                 <Trash2 className="w-4 h-4" />
@@ -416,7 +419,7 @@ function DiscoveryDashboard() {
         }
       }
     ],
-    [isAnyMutationPending]
+    []
   );
 
   const table = useReactTable({
