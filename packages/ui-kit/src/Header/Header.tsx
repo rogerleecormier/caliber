@@ -16,7 +16,9 @@ export function Header({ logo, label, children, searchBox }: HeaderProps) {
           {logo}
           {label && <span className={styles.appLabel}>{label}</span>}
         </div>
+        <div className="flex-1" />
         {searchBox}
+        <div className="w-4" />
         <nav className={styles.navArea}>{children}</nav>
       </div>
     </header>
