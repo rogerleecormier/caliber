@@ -170,7 +170,6 @@ function JobsPage() {
   const [aggregatedResults, setAggregatedResults] = useState<any>(null);
   const [savedAggregatedJobIds, setSavedAggregatedJobIds] = useState<Set<string>>(new Set());
   const [searchWarnings, setSearchWarnings] = useState<string[]>([]);
-  const [cronNewCount, setCronNewCount] = useState(0);
   const [analysisModalOpen, setAnalysisModalOpen] = useState(false);
   const [selectedJobForAnalysis, setSelectedJobForAnalysis] = useState<HubJob | null>(null);
   const [storedAnalysis, setStoredAnalysis] = useState<any>(null);
@@ -278,11 +277,6 @@ function JobsPage() {
           >
             <BookMarked className="h-4 w-4" />
             My Jobs
-            {cronNewCount > 0 && (
-              <span className="ml-2 rounded-full bg-green-500 text-white text-xs font-bold px-2 py-0.5">
-                +{cronNewCount}
-              </span>
-            )}
           </button>
           <button
             onClick={() => setActiveTab("all-jobs")}
@@ -318,8 +312,6 @@ function JobsPage() {
             cronStartHour={cronStartHour}
             cronFrequency={cronFrequency}
             canViewAllUsers={loaderData.canViewAllUsers}
-            cronNewCount={cronNewCount}
-            setCronNewCount={setCronNewCount}
             analysisModalOpen={analysisModalOpen}
             setAnalysisModalOpen={setAnalysisModalOpen}
             selectedJobForAnalysis={selectedJobForAnalysis}
@@ -470,8 +462,6 @@ function JobsListContentWrapper({
   cronStartHour,
   cronFrequency,
   canViewAllUsers,
-  cronNewCount,
-  setCronNewCount,
   analysisModalOpen,
   setAnalysisModalOpen,
   selectedJobForAnalysis,
@@ -496,8 +486,6 @@ function JobsListContentWrapper({
   cronStartHour: number;
   cronFrequency: string;
   canViewAllUsers: boolean;
-  cronNewCount: number;
-  setCronNewCount: (count: number) => void;
   analysisModalOpen: boolean;
   setAnalysisModalOpen: (open: boolean) => void;
   selectedJobForAnalysis: any;
@@ -612,23 +600,7 @@ function JobsListContentWrapper({
     }
   }, [analyze, searchUrl, navigate]);
 
-  useEffect(() => {
-    const hasActiveCron = loaderSavedSearches.some((s) => s.isActive);
-    if (!hasActiveCron) return;
 
-    const interval = setInterval(async () => {
-      try {
-        const check = await getPipelineJobHistory({ data: { page: 1, pageSize: 1 } });
-        if (check.total > localTotal) {
-          setCronNewCount(check.total - localTotal);
-        }
-      } catch {
-        // ignore polling errors silently
-      }
-    }, 60_000);
-
-    return () => clearInterval(interval);
-  }, [loaderSavedSearches, localTotal]);
 
   // ─── Handlers ─────────────────────────────────────────────────────────────
 
@@ -881,36 +853,7 @@ function JobsListContentWrapper({
   return (
     <>
 
-      {/* Cron new-jobs banner */}
-      {cronNewCount > 0 && (
-        <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-4 text-sm text-emerald-800">
-          <div className="flex items-center justify-between gap-4">
-            <p>
-              {cronNewCount} new job{cronNewCount === 1 ? "" : "s"} added by your active agents.
-            </p>
-            <div className="flex shrink-0 items-center gap-3">
-              <button
-                type="button"
-                onClick={() => {
-                  setCronNewCount(0);
-                  void jobsQuery.invalidateJobs();
-                }}
-                className="text-sm font-semibold text-emerald-700 hover:underline"
-              >
-                Refresh
-              </button>
-              <button
-                type="button"
-                onClick={() => setCronNewCount(0)}
-                className="text-emerald-600 hover:text-emerald-800"
-                aria-label="Dismiss"
-              >
-                ✕
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+
 
       {/* Search warnings banner */}
       {searchWarnings.length > 0 && (

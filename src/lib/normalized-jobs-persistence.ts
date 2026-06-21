@@ -7,7 +7,7 @@
  * per-user agent-discovered/analyzed pipeline rows (userId set).
  */
 
-import { and, asc, desc, eq, gte, inArray, like, lte, or, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, gte, inArray, like, lte, or, sql, ne } from 'drizzle-orm';
 import { getDb } from '@/db/db';
 import {
   appSettings,
