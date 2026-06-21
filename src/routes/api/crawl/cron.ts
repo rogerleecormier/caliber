@@ -2,6 +2,7 @@ import { createFileRoute } from '@tanstack/react-router';
 import { json } from '@tanstack/react-start';
 import { runBoardCrawlerCron } from '@/server/cron/board-crawler';
 import { getCloudflareEnvAsync } from '@/lib/cloudflare';
+import type { ExecutionContext } from 'cloudflare:workers';
 
 async function handleCronTrigger(request: Request) {
   try {
@@ -9,13 +10,18 @@ async function handleCronTrigger(request: Request) {
     const forceAll = url.searchParams.get('force') === 'true';
 
     const env = await getCloudflareEnvAsync();
+    const ctx = (globalThis as any).__CF_CTX__ as ExecutionContext | undefined;
 
-    // Fire-and-forget: enqueue the cron work without awaiting
-    // This ensures the response returns immediately
+    // Enqueue the cron work and use waitUntil to run it in the background
     if (env.CRAWL_CRON_QUEUE) {
-      env.CRAWL_CRON_QUEUE.send({ forceAll }).catch((err: any) => {
+      const queuePromise = env.CRAWL_CRON_QUEUE.send({ forceAll }).catch((err: any) => {
         console.error('[cron-trigger-api] Failed to enqueue cron job:', err);
       });
+
+      // Tell Cloudflare to wait for this promise in the background after returning the response
+      if (ctx?.waitUntil) {
+        ctx.waitUntil(queuePromise);
+      }
     }
 
     return json({
