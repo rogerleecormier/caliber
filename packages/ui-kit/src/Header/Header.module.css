@@ -17,7 +17,7 @@
 .headerContainer {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  gap: 1rem;
   padding: 0 1.5rem;
   min-height: 3.75rem;
   max-width: var(--spx-header-max, 72rem);
@@ -50,7 +50,7 @@
   align-items: center;
   gap: 0.25rem;
   flex-wrap: wrap;
-  justify-content: flex-end;
+  margin-left: auto;
 }
 
 /* ── AppHeader panel width variants ─────────────────────────────────────── */

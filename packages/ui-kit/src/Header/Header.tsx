@@ -5,9 +5,10 @@ interface HeaderProps {
   logo: ReactNode;
   label?: string;
   children?: ReactNode;
+  searchBox?: ReactNode;
 }
 
-export function Header({ logo, label, children }: HeaderProps) {
+export function Header({ logo, label, children, searchBox }: HeaderProps) {
   return (
     <header className={styles.glassNav}>
       <div className={styles.headerContainer}>
@@ -15,6 +16,7 @@ export function Header({ logo, label, children }: HeaderProps) {
           {logo}
           {label && <span className={styles.appLabel}>{label}</span>}
         </div>
+        {searchBox}
         <nav className={styles.navArea}>{children}</nav>
       </div>
     </header>
