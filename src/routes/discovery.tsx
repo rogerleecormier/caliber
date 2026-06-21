@@ -46,20 +46,6 @@ function DiscoveryDashboard() {
 
   const [statusMessage, setStatusMessage] = useState<{ text: string; type: 'success' | 'error' | 'info' } | null>(null);
 
-  // useQuery to poll discovery stats and update react-query cache
-  const { data } = useQuery({
-    queryKey: ['discovery-data'],
-    queryFn: () => getDiscoveryStats(),
-    initialData: loaderData,
-    refetchInterval: autoRefresh ? 10000 : false,
-  });
-
-  const { stats, boards, logs } = data || {
-    stats: { total_boards: 0, validated_boards: 0, active_boards: 0, discovered_last_week: 0, by_phase: [], false_positive_rate: 0 },
-    boards: [],
-    logs: []
-  };
-
   const showStatus = (text: string, type: 'success' | 'error' | 'info' = 'info') => {
     setStatusMessage({ text, type });
     setTimeout(() => setStatusMessage(null), 5000);
@@ -83,9 +69,6 @@ function DiscoveryDashboard() {
     },
     onError: (err: any) => {
       showStatus(err.message || 'Error triggering discovery phase', 'error');
-    },
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ['discovery-data'] });
     }
   });
 
@@ -106,9 +89,6 @@ function DiscoveryDashboard() {
     },
     onError: (err: any) => {
       showStatus(err.message || 'Error triggering cron', 'error');
-    },
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ['discovery-data'] });
     }
   });
 
@@ -253,6 +233,19 @@ function DiscoveryDashboard() {
     validateBoardMutation.isPending ||
     toggleActiveMutation.isPending ||
     deleteBoardMutation.isPending;
+
+  const { data } = useQuery({
+    queryKey: ['discovery-data'],
+    queryFn: () => getDiscoveryStats(),
+    initialData: loaderData,
+    refetchInterval: (autoRefresh && !isAnyMutationPending) ? 30000 : false,
+  });
+
+  const { stats, boards, logs } = data || {
+    stats: { total_boards: 0, validated_boards: 0, active_boards: 0, discovered_last_week: 0, by_phase: [], false_positive_rate: 0 },
+    boards: [],
+    logs: []
+  };
 
   const handleRunPhase = (phase: string) => {
     runPhaseMutation.mutate(phase);
