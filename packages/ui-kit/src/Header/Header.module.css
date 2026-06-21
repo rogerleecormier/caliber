@@ -56,7 +56,7 @@
 /* ── AppHeader panel width variants ─────────────────────────────────────── */
 
 .menuPanelUser {
-  width: 16rem;
+  width: 18rem;
 }
 
 .menuPanelTools {
@@ -68,7 +68,7 @@
 }
 
 .menuPanelDev {
-  width: 14rem;
+  width: 18rem;
 }
 
 .triggerUserMenu {
