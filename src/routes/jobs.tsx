@@ -165,20 +165,6 @@ function JobsPage() {
   const navigate = Route.useNavigate();
 
   const [viewMode, setViewMode] = useState<ViewMode>("cards");
-
-  const activeTab = view;
-  const setActiveTab = (newTab: 'my-jobs' | 'all-jobs' | 'quick-search') => {
-    navigate({ search: (prev) => ({ ...prev, view: newTab, page: 1 }) });
-  };
-
-  const [vectorSearchQuery, setVectorSearchQuery] = useState("");
-  const vectorSearch = useVectorSearch(vectorSearchQuery, activeTab === "quick-search");
-
-  const [drawerOpen, setDrawerOpen] = useState(false);
-  const [aggregatedSearchOpen, setAggregatedSearchOpen] = useState(false);
-  const [aggregatedResults, setAggregatedResults] = useState<any>(null);
-  const [savedAggregatedJobIds, setSavedAggregatedJobIds] = useState<Set<string>>(new Set());
-  const [searchWarnings, setSearchWarnings] = useState<string[]>([]);
   const [analysisModalOpen, setAnalysisModalOpen] = useState(false);
   const [selectedJobForAnalysis, setSelectedJobForAnalysis] = useState<HubJob | null>(null);
   const [storedAnalysis, setStoredAnalysis] = useState<any>(null);
@@ -221,7 +207,7 @@ function JobsPage() {
       <PageHero
         eyebrow="Caliber"
         icon={<Briefcase className="h-3.5 w-3.5" />}
-        title="Your High-Caliber Job Pipeline"
+        title="All Jobs"
         description={
           loaderData.canViewAllUsers
             ? "Browse all users' agent jobs and manage the full pipeline."
@@ -230,7 +216,7 @@ function JobsPage() {
         actions={
           <div className="flex flex-wrap items-center justify-end gap-2.5">
             <Link
-              to="/dashboard"
+              to="/insights"
               className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white/80 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-white hover:border-slate-300"
             >
               <BarChart3 className="h-4 w-4" />
@@ -273,182 +259,12 @@ function JobsPage() {
         }
       />
 
-      {/* Tab Navigation — pill/capsule style */}
-      <div className="px-4 md:px-6">
-        <div className="mb-5 inline-flex items-center gap-1 rounded-lg bg-slate-100 p-1">
-          {([
-            { key: "my-jobs", label: "My Jobs", icon: <BookMarked className="h-3.5 w-3.5" /> },
-            { key: "all-jobs", label: "All Jobs", icon: <Sparkles className="h-3.5 w-3.5" /> },
-            { key: "quick-search", label: "Quick Search", icon: <Search className="h-3.5 w-3.5" /> },
-          ] as const).map((tab) => (
-            <button
-              key={tab.key}
-              type="button"
-              onClick={() => setActiveTab(tab.key)}
-              className={`inline-flex items-center gap-1.5 rounded-md px-4 py-1.5 text-sm font-medium transition-all ${
-                activeTab === tab.key
-                  ? "bg-orange-600 text-white shadow-sm"
-                  : "text-slate-600 hover:text-slate-900 hover:bg-white/60"
-              }`}
-            >
-              {tab.icon}
-              {tab.label}
-            </button>
-          ))}
-        </div>
-
-        {/* My Jobs Tab */}
-        {activeTab === "my-jobs" && (
-          <JobsListContentWrapper
-            jobHistoryPromise={jobHistory}
-            hasResume={hasResume}
-            fullName={fullName}
-            savedSearches={loaderSavedSearches}
-            cronStartHour={cronStartHour}
-            cronFrequency={cronFrequency}
-            canViewAllUsers={loaderData.canViewAllUsers}
-            analysisModalOpen={analysisModalOpen}
-            setAnalysisModalOpen={setAnalysisModalOpen}
-            selectedJobForAnalysis={selectedJobForAnalysis}
-            setSelectedJobForAnalysis={setSelectedJobForAnalysis}
-            storedAnalysis={storedAnalysis}
-            setStoredAnalysis={setStoredAnalysis}
-            searchWarnings={searchWarnings}
-            setSearchWarnings={setSearchWarnings}
-            drawerOpen={drawerOpen}
-            setDrawerOpen={setDrawerOpen}
-            aggregatedSearchOpen={aggregatedSearchOpen}
-            setAggregatedSearchOpen={setAggregatedSearchOpen}
-            aggregatedResults={aggregatedResults}
-            setAggregatedResults={setAggregatedResults}
-            savedAggregatedJobIds={savedAggregatedJobIds}
-            setSavedAggregatedJobIds={setSavedAggregatedJobIds}
-            viewMode={viewMode}
-            setViewMode={setViewMode}
-          />
-        )}
-
-        {/* All Jobs Tab */}
-        {activeTab === "all-jobs" && (
-          <CatalogBrowser
-            onAnalyzeClick={openAnalysisModal}
-            viewMode={viewMode}
-            setViewMode={setViewMode}
-            recommendedJobs={loaderData.recommendedJobs}
-          />
-        )}
-
-        {/* Quick Search Tab */}
-        {activeTab === "quick-search" && (
-          <div className="space-y-4">
-            <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 mb-4">
-              <h3 className="font-semibold text-orange-900 mb-1">Quick Job Search</h3>
-              <p className="text-sm text-orange-800">
-                Search across Adzuna, Jooble, and Remotive simultaneously. Results are cached for 1 hour.
-              </p>
-            </div>
-
-            {/* Vector semantic search — pre-populates All Jobs filters */}
-            <div className="rounded-lg border border-slate-200 bg-white/80 p-4 shadow-sm">
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-2">Semantic Search</p>
-              <VectorSearchBar
-                value={vectorSearchQuery}
-                onChange={setVectorSearchQuery}
-                placeholder="Describe what you're looking for, e.g. 'remote senior engineer fintech'…"
-                isLoading={vectorSearch.isFetching}
-              />
-              {vectorSearch.data?.parsedQuery && (
-                <div className="mt-3 flex flex-wrap items-center gap-2">
-                  <span className="text-xs text-slate-500">Filter All Jobs:</span>
-                  {vectorSearch.data.parsedQuery.title && (
-                    <button
-                      type="button"
-                      onClick={() => navigate({ search: (prev) => ({ ...prev, view: "all-jobs", query: vectorSearch.data!.parsedQuery!.title!, page: 1 }) })}
-                      className="inline-flex items-center gap-1 rounded-full bg-orange-50 border border-orange-200 px-2.5 py-1 text-xs font-semibold text-orange-700 hover:bg-orange-100 transition"
-                    >
-                      Title: {vectorSearch.data.parsedQuery.title}
-                    </button>
-                  )}
-                  {vectorSearch.data.parsedQuery.remote && (
-                    <button
-                      type="button"
-                      onClick={() => navigate({ search: (prev) => ({ ...prev, view: "all-jobs", remote: true, page: 1 }) })}
-                      className="inline-flex items-center gap-1 rounded-full bg-teal-50 border border-teal-200 px-2.5 py-1 text-xs font-semibold text-teal-700 hover:bg-teal-100 transition"
-                    >
-                      Remote
-                    </button>
-                  )}
-                </div>
-              )}
-            </div>
-
-            {aggregatedResults ? (
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="text-lg font-semibold">
-                      {aggregatedResults.jobs.length} unique jobs found
-                    </h3>
-                    {aggregatedResults.deduped > 0 && (
-                      <p className="text-sm text-gray-500">
-                        ({aggregatedResults.deduped + aggregatedResults.jobs.length} results across {Object.values(aggregatedResults.sources).filter((s: any) => s.success).length} sources, {aggregatedResults.deduped} duplicates removed)
-                      </p>
-                    )}
-                  </div>
-                  <Button
-                    variant="outline"
-                    onClick={() => {
-                      setAggregatedResults(null);
-                      setAggregatedSearchOpen(true);
-                    }}
-                  >
-                    <Search className="h-4 w-4 mr-2" />
-                    New Search
-                  </Button>
-                </div>
-                <AggregatedJobsResults
-                  jobs={aggregatedResults.jobs}
-                  onSaveJob={async (job) => {
-                    setSavedAggregatedJobIds((prev) =>
-                      new Set([...prev, `${job.source}-${job.id}`])
-                    );
-                    // Optional: save to database
-                    try {
-                      await fetch('/api/saved-jobs', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(job),
-                      });
-                    } catch (error) {
-                      console.error('Failed to save job:', error);
-                    }
-                  }}
-                  onAnalyzeJob={async (job) => {
-                    setSelectedJobForAnalysis({
-                      title: job.title,
-                      company: job.company,
-                      sourceUrl: job.jobUrl,
-                    } as any);
-                    setAnalysisModalOpen(true);
-                  }}
-                  savedJobIds={savedAggregatedJobIds}
-                />
-              </div>
-            ) : (
-              <div className="text-center py-12">
-                <Sparkles className="h-12 w-12 text-gray-300 mx-auto mb-4" />
-                <p className="text-gray-600 mb-4">
-                  No search results yet. Click the Quick Search button to get started.
-                </p>
-                <Button onClick={() => setAggregatedSearchOpen(true)}>
-                  <Sparkles className="h-4 w-4 mr-2" />
-                  Start Search
-                </Button>
-              </div>
-            )}
-          </div>
-        )}
-      </div>
+      <CatalogBrowser
+        onAnalyzeClick={openAnalysisModal}
+        viewMode={viewMode}
+        setViewMode={setViewMode}
+        recommendedJobs={loaderData.recommendedJobs}
+      />
 
       <AnalysisModal
         isOpen={analysisModalOpen}
@@ -466,25 +282,6 @@ function JobsPage() {
         onDocumentGenerated={() => {}}
       />
 
-      <EnhancedJobSearch
-        open={aggregatedSearchOpen}
-        onOpenChange={setAggregatedSearchOpen}
-        onSearchComplete={(result) => {
-          setAggregatedResults(result);
-          setAggregatedSearchOpen(false);
-          setActiveTab("quick-search");
-        }}
-      />
-
-      <AgentsSearchDrawer
-        open={drawerOpen}
-        onOpenChange={setDrawerOpen}
-        hasResume={hasResume}
-        fullName={fullName}
-        initialSavedSearches={loaderSavedSearches}
-        cronStartHour={cronStartHour}
-        cronFrequency={cronFrequency}
-      />
     </div>
   );
 }

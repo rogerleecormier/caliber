@@ -47,7 +47,7 @@ import {
   flexRender,
 } from "@tanstack/react-table";
 
-export const Route = createFileRoute("/dashboard")({
+export const Route = createFileRoute("/insights")({
   beforeLoad: ({ context }) => {
     const ctx = context as { user?: { id: string } | null };
     if (!ctx.user) requireLoginRedirect();
@@ -100,25 +100,12 @@ function DashboardPage() {
 // Fast header section — renders immediately
 function DashboardHeader() {
   return (
-    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-      <PageHero
-        eyebrow="Search Insights"
-        icon={<BarChart3 className="h-3.5 w-3.5" />}
-        title="Search Insights Dashboard"
-        description="Real-time analytics on your job search performance, match quality, and positioning trends."
-        className="flex-1"
-      />
-
-      <div className="flex items-center gap-3 shrink-0 self-start md:self-center">
-        <div className="flex items-center gap-1.5 text-xs text-slate-500 bg-white/70 border border-slate-200/80 px-2.5 py-1.5 rounded-lg shadow-sm">
-          <span className="relative flex h-2 w-2">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-            <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-          </span>
-          <span className="font-semibold text-slate-600">Dynamic Ingestion Live</span>
-        </div>
-      </div>
-    </div>
+    <PageHero
+      eyebrow="Insights"
+      icon={<BarChart3 className="h-3.5 w-3.5" />}
+      title="My Insights"
+      description="Real-time analytics on your job search performance, match quality, and positioning trends."
+    />
   );
 }
 

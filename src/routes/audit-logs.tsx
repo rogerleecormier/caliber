@@ -33,7 +33,7 @@ type LogsSearchParams = {
 
 const PAGE_SIZE = 25;
 
-export const Route = createFileRoute("/logs")({
+export const Route = createFileRoute("/audit-logs")({
   beforeLoad: ({ context }) => {
     const ctx = context as { user?: { id: string } | null };
     if (!ctx.user) requireLoginRedirect();
@@ -45,8 +45,8 @@ export const Route = createFileRoute("/logs")({
     level: typeof search.level === "string" ? search.level : "",
     agentName: typeof search.agentName === "string" ? search.agentName : "",
   }),
-  component: LogsPage,
-  pendingComponent: LogsLoading,
+  component: AuditLogsPage,
+  pendingComponent: AuditLogsLoading,
 });
 
 import {
@@ -591,7 +591,7 @@ function ConsoleLogsTab({ run }: { run: any }) {
   );
 }
 
-function LogsPage() {
+function AuditLogsPage() {
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
   const [localAgentName, setLocalAgentName] = useState(search.agentName);
@@ -987,7 +987,7 @@ function LogsPage() {
   );
 }
 
-function LogsLoading() {
+function AuditLogsLoading() {
   return (
     <div className="spx-page space-y-6 animate-pulse">
       <div className="h-28 w-full rounded-xl bg-slate-200 dark:bg-slate-800 border border-slate-300 dark:border-slate-700" />

@@ -12,16 +12,18 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as SyncRouteImport } from './routes/sync'
 import { Route as SignupRouteImport } from './routes/signup'
 import { Route as ProfileRouteImport } from './routes/profile'
-import { Route as LogsRouteImport } from './routes/logs'
+import { Route as MyJobsRouteImport } from './routes/my-jobs'
+import { Route as MyAgentsRouteImport } from './routes/my-agents'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as LinkedinSearchRouteImport } from './routes/linkedin-search'
 import { Route as LinkedinJobsRouteImport } from './routes/linkedin-jobs'
 import { Route as JobsRouteImport } from './routes/jobs'
+import { Route as InsightsRouteImport } from './routes/insights'
 import { Route as DiscoveryRouteImport } from './routes/discovery'
-import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as CrawlerRouteImport } from './routes/crawler'
+import { Route as AuditLogsRouteImport } from './routes/audit-logs'
 import { Route as AdminSetupRouteImport } from './routes/admin-setup'
-import { Route as AdminRouteImport } from './routes/admin'
+import { Route as AdminSettingsRouteImport } from './routes/admin-settings'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ApiTestRouteImport } from './routes/api/test'
 import { Route as ApiSavedJobsRouteImport } from './routes/api/saved-jobs'
@@ -72,9 +74,14 @@ const ProfileRoute = ProfileRouteImport.update({
   path: '/profile',
   getParentRoute: () => rootRouteImport,
 } as any)
-const LogsRoute = LogsRouteImport.update({
-  id: '/logs',
-  path: '/logs',
+const MyJobsRoute = MyJobsRouteImport.update({
+  id: '/my-jobs',
+  path: '/my-jobs',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MyAgentsRoute = MyAgentsRouteImport.update({
+  id: '/my-agents',
+  path: '/my-agents',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LoginRoute = LoginRouteImport.update({
@@ -97,14 +104,14 @@ const JobsRoute = JobsRouteImport.update({
   path: '/jobs',
   getParentRoute: () => rootRouteImport,
 } as any)
+const InsightsRoute = InsightsRouteImport.update({
+  id: '/insights',
+  path: '/insights',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const DiscoveryRoute = DiscoveryRouteImport.update({
   id: '/discovery',
   path: '/discovery',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const DashboardRoute = DashboardRouteImport.update({
-  id: '/dashboard',
-  path: '/dashboard',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CrawlerRoute = CrawlerRouteImport.update({
@@ -112,14 +119,19 @@ const CrawlerRoute = CrawlerRouteImport.update({
   path: '/crawler',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuditLogsRoute = AuditLogsRouteImport.update({
+  id: '/audit-logs',
+  path: '/audit-logs',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AdminSetupRoute = AdminSetupRouteImport.update({
   id: '/admin-setup',
   path: '/admin-setup',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AdminRoute = AdminRouteImport.update({
-  id: '/admin',
-  path: '/admin',
+const AdminSettingsRoute = AdminSettingsRouteImport.update({
+  id: '/admin-settings',
+  path: '/admin-settings',
   getParentRoute: () => rootRouteImport,
 } as any)
 const IndexRoute = IndexRouteImport.update({
@@ -297,16 +309,18 @@ const ApiAuthSignInEmailRoute = ApiAuthSignInEmailRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/admin': typeof AdminRoute
+  '/admin-settings': typeof AdminSettingsRoute
   '/admin-setup': typeof AdminSetupRoute
+  '/audit-logs': typeof AuditLogsRoute
   '/crawler': typeof CrawlerRoute
-  '/dashboard': typeof DashboardRoute
   '/discovery': typeof DiscoveryRoute
+  '/insights': typeof InsightsRoute
   '/jobs': typeof JobsRoute
   '/linkedin-jobs': typeof LinkedinJobsRoute
   '/linkedin-search': typeof LinkedinSearchRoute
   '/login': typeof LoginRoute
-  '/logs': typeof LogsRoute
+  '/my-agents': typeof MyAgentsRoute
+  '/my-jobs': typeof MyJobsRoute
   '/profile': typeof ProfileRoute
   '/signup': typeof SignupRoute
   '/sync': typeof SyncRoute
@@ -346,16 +360,18 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/admin': typeof AdminRoute
+  '/admin-settings': typeof AdminSettingsRoute
   '/admin-setup': typeof AdminSetupRoute
+  '/audit-logs': typeof AuditLogsRoute
   '/crawler': typeof CrawlerRoute
-  '/dashboard': typeof DashboardRoute
   '/discovery': typeof DiscoveryRoute
+  '/insights': typeof InsightsRoute
   '/jobs': typeof JobsRoute
   '/linkedin-jobs': typeof LinkedinJobsRoute
   '/linkedin-search': typeof LinkedinSearchRoute
   '/login': typeof LoginRoute
-  '/logs': typeof LogsRoute
+  '/my-agents': typeof MyAgentsRoute
+  '/my-jobs': typeof MyJobsRoute
   '/profile': typeof ProfileRoute
   '/signup': typeof SignupRoute
   '/sync': typeof SyncRoute
@@ -396,16 +412,18 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/admin': typeof AdminRoute
+  '/admin-settings': typeof AdminSettingsRoute
   '/admin-setup': typeof AdminSetupRoute
+  '/audit-logs': typeof AuditLogsRoute
   '/crawler': typeof CrawlerRoute
-  '/dashboard': typeof DashboardRoute
   '/discovery': typeof DiscoveryRoute
+  '/insights': typeof InsightsRoute
   '/jobs': typeof JobsRoute
   '/linkedin-jobs': typeof LinkedinJobsRoute
   '/linkedin-search': typeof LinkedinSearchRoute
   '/login': typeof LoginRoute
-  '/logs': typeof LogsRoute
+  '/my-agents': typeof MyAgentsRoute
+  '/my-jobs': typeof MyJobsRoute
   '/profile': typeof ProfileRoute
   '/signup': typeof SignupRoute
   '/sync': typeof SyncRoute
@@ -447,16 +465,18 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
-    | '/admin'
+    | '/admin-settings'
     | '/admin-setup'
+    | '/audit-logs'
     | '/crawler'
-    | '/dashboard'
     | '/discovery'
+    | '/insights'
     | '/jobs'
     | '/linkedin-jobs'
     | '/linkedin-search'
     | '/login'
-    | '/logs'
+    | '/my-agents'
+    | '/my-jobs'
     | '/profile'
     | '/signup'
     | '/sync'
@@ -496,16 +516,18 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
-    | '/admin'
+    | '/admin-settings'
     | '/admin-setup'
+    | '/audit-logs'
     | '/crawler'
-    | '/dashboard'
     | '/discovery'
+    | '/insights'
     | '/jobs'
     | '/linkedin-jobs'
     | '/linkedin-search'
     | '/login'
-    | '/logs'
+    | '/my-agents'
+    | '/my-jobs'
     | '/profile'
     | '/signup'
     | '/sync'
@@ -545,16 +567,18 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
-    | '/admin'
+    | '/admin-settings'
     | '/admin-setup'
+    | '/audit-logs'
     | '/crawler'
-    | '/dashboard'
     | '/discovery'
+    | '/insights'
     | '/jobs'
     | '/linkedin-jobs'
     | '/linkedin-search'
     | '/login'
-    | '/logs'
+    | '/my-agents'
+    | '/my-jobs'
     | '/profile'
     | '/signup'
     | '/sync'
@@ -595,16 +619,18 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  AdminRoute: typeof AdminRoute
+  AdminSettingsRoute: typeof AdminSettingsRoute
   AdminSetupRoute: typeof AdminSetupRoute
+  AuditLogsRoute: typeof AuditLogsRoute
   CrawlerRoute: typeof CrawlerRoute
-  DashboardRoute: typeof DashboardRoute
   DiscoveryRoute: typeof DiscoveryRoute
+  InsightsRoute: typeof InsightsRoute
   JobsRoute: typeof JobsRoute
   LinkedinJobsRoute: typeof LinkedinJobsRoute
   LinkedinSearchRoute: typeof LinkedinSearchRoute
   LoginRoute: typeof LoginRoute
-  LogsRoute: typeof LogsRoute
+  MyAgentsRoute: typeof MyAgentsRoute
+  MyJobsRoute: typeof MyJobsRoute
   ProfileRoute: typeof ProfileRoute
   SignupRoute: typeof SignupRoute
   SyncRoute: typeof SyncRoute
@@ -665,11 +691,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProfileRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/logs': {
-      id: '/logs'
-      path: '/logs'
-      fullPath: '/logs'
-      preLoaderRoute: typeof LogsRouteImport
+    '/my-jobs': {
+      id: '/my-jobs'
+      path: '/my-jobs'
+      fullPath: '/my-jobs'
+      preLoaderRoute: typeof MyJobsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/my-agents': {
+      id: '/my-agents'
+      path: '/my-agents'
+      fullPath: '/my-agents'
+      preLoaderRoute: typeof MyAgentsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/login': {
@@ -700,18 +733,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof JobsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/insights': {
+      id: '/insights'
+      path: '/insights'
+      fullPath: '/insights'
+      preLoaderRoute: typeof InsightsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/discovery': {
       id: '/discovery'
       path: '/discovery'
       fullPath: '/discovery'
       preLoaderRoute: typeof DiscoveryRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/dashboard': {
-      id: '/dashboard'
-      path: '/dashboard'
-      fullPath: '/dashboard'
-      preLoaderRoute: typeof DashboardRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/crawler': {
@@ -721,6 +754,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CrawlerRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/audit-logs': {
+      id: '/audit-logs'
+      path: '/audit-logs'
+      fullPath: '/audit-logs'
+      preLoaderRoute: typeof AuditLogsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/admin-setup': {
       id: '/admin-setup'
       path: '/admin-setup'
@@ -728,11 +768,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminSetupRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/admin': {
-      id: '/admin'
-      path: '/admin'
-      fullPath: '/admin'
-      preLoaderRoute: typeof AdminRouteImport
+    '/admin-settings': {
+      id: '/admin-settings'
+      path: '/admin-settings'
+      fullPath: '/admin-settings'
+      preLoaderRoute: typeof AdminSettingsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/': {
@@ -990,16 +1030,18 @@ const ApiV3JobsRouteWithChildren = ApiV3JobsRoute._addFileChildren(
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  AdminRoute: AdminRoute,
+  AdminSettingsRoute: AdminSettingsRoute,
   AdminSetupRoute: AdminSetupRoute,
+  AuditLogsRoute: AuditLogsRoute,
   CrawlerRoute: CrawlerRoute,
-  DashboardRoute: DashboardRoute,
   DiscoveryRoute: DiscoveryRoute,
+  InsightsRoute: InsightsRoute,
   JobsRoute: JobsRoute,
   LinkedinJobsRoute: LinkedinJobsRoute,
   LinkedinSearchRoute: LinkedinSearchRoute,
   LoginRoute: LoginRoute,
-  LogsRoute: LogsRoute,
+  MyAgentsRoute: MyAgentsRoute,
+  MyJobsRoute: MyJobsRoute,
   ProfileRoute: ProfileRoute,
   SignupRoute: SignupRoute,
   SyncRoute: SyncRoute,

@@ -22,7 +22,7 @@ import { Clock, Shield, Trash2 } from "lucide-react";
 type AdminUser = { id: string; email: string; role: string | null; createdAt: string | Date };
 type AgentSettings = Awaited<ReturnType<typeof getAgentAdminSettings>>;
 
-export const Route = createFileRoute("/admin")({
+export const Route = createFileRoute("/admin-settings")({
   beforeLoad: ({ context }) => {
     const ctx = context as { user?: { id: string; role: string } | null };
     if (!ctx.user) throw redirect({ to: "/login" });
@@ -114,7 +114,7 @@ function AdminPage() {
       <PageHero
         eyebrow="Admin"
         icon={<Shield className="h-3.5 w-3.5" />}
-        title="User Management"
+        title="Admin Settings"
         description="Manage jobs-app access, create accounts, and remove users when needed."
       />
 

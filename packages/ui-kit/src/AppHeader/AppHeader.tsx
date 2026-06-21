@@ -10,6 +10,9 @@ import {
   LogOut,
   Shield,
   User,
+  Search,
+  Activity,
+  Bot,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -349,13 +352,11 @@ export function AppHeader({
     window.location.reload();
   }
 
-  // Tools entries retired
-
-  const jobsEntries: MenuEntry[] = [
+  const navEntries: MenuEntry[] = [
     {
       type: "link",
-      key: "job-pipeline",
-      label: "Jobs",
+      key: "all-jobs",
+      label: "All Jobs",
       sublabel: "Agent searches & tracking",
       href: "https://caliber.rcormier.dev/jobs",
       path: "/jobs",
@@ -363,20 +364,89 @@ export function AppHeader({
       tone: "primary",
       appScope: "jobs",
     },
+  ];
+
+  const adminEntries: MenuEntry[] = [
     {
       type: "link",
-      key: "dashboard",
-      label: "Insights",
-      sublabel: "Match trends & activity",
-      href: "https://caliber.rcormier.dev/dashboard",
-      path: "/dashboard",
-      icon: BarChart3,
-      tone: "success",
+      key: "admin-settings",
+      label: "Admin Settings",
+      sublabel: "System configuration",
+      href: app === "jobs" ? "/admin-settings" : `${sharedOrigin}/admin-settings`,
+      path: "/admin-settings",
+      icon: Shield,
+      tone: "primary",
+      appScope: "jobs",
+    },
+    {
+      type: "link",
+      key: "discovery",
+      label: "Discovery Agents",
+      sublabel: "Manage discovery settings",
+      href: `${appOrigin}/discovery`,
+      path: "/discovery",
+      icon: Bot,
+      tone: "primary",
+      appScope: "jobs",
+    },
+    {
+      type: "link",
+      key: "crawler",
+      label: "Crawler Agents",
+      sublabel: "Manage crawlers",
+      href: `${appOrigin}/crawler`,
+      path: "/crawler",
+      icon: Briefcase,
+      tone: "primary",
       appScope: "jobs",
     },
   ];
 
-  const userEntries: MenuEntry[] = [
+  const userMenuEntries: MenuEntry[] = [
+    {
+      type: "link",
+      key: "my-jobs",
+      label: "My Jobs",
+      sublabel: "Saved & favorited jobs",
+      href: `${appOrigin}/my-jobs`,
+      path: "/my-jobs",
+      icon: Briefcase,
+      tone: "primary",
+      appScope: "jobs",
+    },
+    {
+      type: "link",
+      key: "my-insights",
+      label: "My Insights",
+      sublabel: "Match trends & activity",
+      href: `${appOrigin}/insights`,
+      path: "/insights",
+      icon: BarChart3,
+      tone: "success",
+      appScope: "jobs",
+    },
+    {
+      type: "link",
+      key: "my-agents",
+      label: "My Agents",
+      sublabel: "Search agents",
+      href: `${appOrigin}/my-agents`,
+      path: "/my-agents",
+      icon: Bot,
+      tone: "primary",
+      appScope: "jobs",
+    },
+    {
+      type: "link",
+      key: "my-activity",
+      label: "My Activity",
+      sublabel: "Audit logs",
+      href: `${appOrigin}/audit-logs`,
+      path: "/audit-logs",
+      icon: Activity,
+      tone: "primary",
+      appScope: "jobs",
+    },
     {
       type: "link",
       key: "profile",
@@ -387,85 +457,13 @@ export function AppHeader({
       tone: "primary",
       appScope: "jobs",
     },
-    {
-      type: "link",
-      key: "search-logs",
-      label: "Search Logs",
-      href: `${appOrigin}/logs`,
-      path: "/logs",
-      icon: FileText,
-      tone: "primary",
-      appScope: "jobs",
-    },
-    ...(resolvedUser?.role === "admin"
-      ? ([
-          { type: "separator", key: "user-separator-admin" },
-          {
-            type: "link",
-            key: "admin",
-            label: "Admin",
-            href: app === "jobs" ? "/admin" : `${sharedOrigin}/admin`,
-            path: "/admin",
-            icon: Shield,
-            tone: "primary",
-            appScope: "jobs",
-          },
-          {
-            type: "link",
-            key: "discovery",
-            label: "Discovery Agent",
-            href: `${appOrigin}/discovery`,
-            path: "/discovery",
-            icon: Shield,
-            tone: "primary",
-            appScope: "jobs",
-          },
-          {
-            type: "link",
-            key: "crawler",
-            label: "Crawler Agent",
-            href: `${appOrigin}/crawler`,
-            path: "/crawler",
-            icon: Briefcase,
-            tone: "primary",
-            appScope: "jobs",
-          },
-        ] as MenuEntry[])
-      : []),
-    { type: "separator", key: "user-separator-logout" },
-    {
-      type: "action",
-      key: "sign-out",
-      label: "Sign Out",
-      icon: LogOut,
-      onSelect: handleSharedLogout,
-    },
-  ];
-
-  const devEntries: MenuEntry[] = [
-    {
-      type: "link",
-      key: "cards",
-      label: "Card Library",
-      href: "https://caliber.rcormier.dev/cards",
-      icon: Layers,
-      tone: "primary",
-    },
-    {
-      type: "link",
-      key: "typography",
-      label: "Typography",
-      href: "https://caliber.rcormier.dev/typography",
-      icon: Layers,
-      tone: "primary",
-    },
   ];
 
   const mobileNavLinks = useMemo(() => {
-    return jobsEntries.filter(
+    return navEntries.filter(
       (entry): entry is MenuLinkItem => entry.type === "link" && entry.appScope === "jobs"
     );
-  }, [jobsEntries]);
+  }, [navEntries]);
 
   function renderMenuEntries(entries: MenuEntry[]) {
     return entries.map((entry) => {
@@ -526,7 +524,7 @@ export function AppHeader({
     <>
       <Header logo={logo}>
         <div className="hidden md:flex items-center gap-1">
-          {jobsEntries.map((entry) => {
+          {navEntries.map((entry) => {
             if (entry.type !== "link") return null;
             const Icon = entry.icon;
             const active =
@@ -557,32 +555,40 @@ export function AppHeader({
           })}
         </div>
 
-        {isDev ? (
-          <SharedDropdownMenu
-            label="Dev"
-            icon={Layers}
-            panelClass={styles.menuPanelDev}
-            align="end"
-            entries={renderMenuEntries(devEntries)}
-          />
-        ) : null}
-
         {resolvedUser ? (
-          <DropdownMenu modal={false}>
-            <DropdownMenuTrigger asChild>
-              <button className={`spx-nav-trigger spx-nav-trigger-idle ${styles.triggerUserMenu}`}>
-                <User size={14} className="shrink-0" />
-                <ChevronDown size={12} className="shrink-0 opacity-50" />
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent
-              align="end"
-              sideOffset={8}
-              className={`spx-menu-panel ${styles.menuPanelUser}`}
-            >
-              {renderMenuEntries(userEntries)}
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <>
+            {resolvedUser.role === "admin" ? (
+              <SharedDropdownMenu
+                label="Admin"
+                icon={Shield}
+                panelClass={styles.menuPanelDev}
+                align="end"
+                entries={renderMenuEntries(adminEntries)}
+              />
+            ) : null}
+
+            <DropdownMenu modal={false}>
+              <DropdownMenuTrigger asChild>
+                <button className={`spx-nav-trigger spx-nav-trigger-idle ${styles.triggerUserMenu}`}>
+                  <User size={14} className="shrink-0" />
+                  <ChevronDown size={12} className="shrink-0 opacity-50" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent
+                align="end"
+                sideOffset={8}
+                className={`spx-menu-panel ${styles.menuPanelUser}`}
+              >
+                {renderMenuEntries(userMenuEntries)}
+                <DropdownMenuSeparator className="spx-menu-separator" />
+                <SharedActionMenu
+                  label="Sign Out"
+                  icon={LogOut}
+                  onSelect={handleSharedLogout}
+                />
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </>
         ) : (
           <a href={loginHref} className="spx-nav-trigger spx-nav-trigger-idle">
             <LogIn size={14} />
@@ -661,7 +667,7 @@ export function AppHeader({
                     sideOffset={8}
                     className={`spx-menu-panel ${styles.menuPanelUser}`}
                   >
-                    {renderMenuEntries(userEntries)}
+                    {renderMenuEntries(userMenuEntries)}
                   </DropdownMenuContent>
                 </DropdownMenu>
               ) : (
