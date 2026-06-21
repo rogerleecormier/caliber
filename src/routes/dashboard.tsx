@@ -75,13 +75,59 @@ const ChartTooltip = ({ active, payload, label }: any) => {
 // Main Dashboard Page
 function DashboardPage() {
   const { analyticsData } = Route.useLoaderData() as any;
+  const [drillDown, setDrillDown] = useState<{ title: string; jobs: any[] } | null>(null);
 
   return (
     <div className="spx-page space-y-8 pb-16">
       <DashboardHeader />
       <Suspense fallback={<DashboardContentSkeleton />}>
-        <DashboardContent analyticsDataPromise={analyticsData} />
+        <DashboardContent analyticsDataPromise={analyticsData} setDrillDown={setDrillDown} />
       </Suspense>
+
+      {/* Drill-down dialog lives in the sync parent to avoid async component + Radix issues */}
+      <DrillDownDialog
+        open={!!drillDown}
+        onClose={() => setDrillDown(null)}
+        title={drillDown?.title ?? ""}
+        description={drillDown ? `${drillDown.jobs.length} job${drillDown.jobs.length === 1 ? "" : "s"}` : undefined}
+      >
+        {drillDown && (
+          <div className="space-y-1">
+            {drillDown.jobs.length === 0 ? (
+              <p className="text-sm text-slate-400 py-6 text-center">No jobs match this filter.</p>
+            ) : (
+              <>
+                {drillDown.jobs.slice(0, 50).map((job: any) => (
+                  <div key={job.id ?? job.sourceUrl} className="flex items-center justify-between py-2 border-b border-slate-100 last:border-0">
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-slate-800 truncate">{job.title}</p>
+                      <p className="text-xs text-slate-500 truncate">{job.company}</p>
+                    </div>
+                    {job.matchScore != null && (
+                      <span className="text-xs font-bold text-teal-700 bg-teal-50 border border-teal-200 rounded px-1.5 py-0.5 shrink-0 ml-3">
+                        {job.matchScore}%
+                      </span>
+                    )}
+                  </div>
+                ))}
+                {drillDown.jobs.length > 50 && (
+                  <p className="text-xs text-slate-400 pt-2 text-center">Showing first 50 of {drillDown.jobs.length} jobs</p>
+                )}
+                <div className="pt-3 text-center">
+                  <Link
+                    to="/jobs"
+                    search={{ view: "all-jobs", page: 1, query: "", remote: false, sortBy: "posted-date", status: "", analyzedOnly: false }}
+                    onClick={() => setDrillDown(null)}
+                    className="text-sm font-semibold text-orange-600 hover:text-orange-700"
+                  >
+                    View all jobs →
+                  </Link>
+                </div>
+              </>
+            )}
+          </div>
+        )}
+      </DrillDownDialog>
     </div>
   );
 }
@@ -114,17 +160,13 @@ function DashboardHeader() {
 // Slow content section — streams in via Suspense
 async function DashboardContent({
   analyticsDataPromise,
+  setDrillDown,
 }: {
   analyticsDataPromise: Promise<AnalyticsSummaryData>;
+  setDrillDown: (v: { title: string; jobs: any[] } | null) => void;
 }): Promise<React.ReactElement> {
   const initialData: AnalyticsSummaryData = await analyticsDataPromise;
   const [selectedPeriod, setSelectedPeriod] = useState<string>("all_time");
-
-  // Selected drill-down state
-  const [drillDown, setDrillDown] = useState<{
-    title: string;
-    jobs: any[];
-  } | null>(null);
 
   // Real-time data fetching (Query is invalidated when actions occur elsewhere)
   const { data } = useQuery({
@@ -615,52 +657,6 @@ async function DashboardContent({
         <RecentAnalysesTable jobs={data.recentAnalyses} />
       </section>
 
-      {/* Drill-down Dialog */}
-      <DrillDownDialog
-        open={!!drillDown}
-        onClose={() => setDrillDown(null)}
-        title={drillDown?.title ?? ""}
-        description={drillDown ? `${drillDown.jobs.length} job${drillDown.jobs.length === 1 ? "" : "s"}` : undefined}
-      >
-        {drillDown && (
-          <div className="space-y-1">
-            {drillDown.jobs.length === 0 ? (
-              <p className="text-sm text-slate-400 py-6 text-center">No jobs match this filter.</p>
-            ) : (
-              <>
-                {drillDown.jobs.slice(0, 50).map((job: any) => (
-                  <div key={job.id ?? job.sourceUrl} className="flex items-center justify-between py-2 border-b border-slate-100 last:border-0">
-                    <div className="min-w-0">
-                      <p className="text-sm font-semibold text-slate-800 truncate">{job.title}</p>
-                      <p className="text-xs text-slate-500 truncate">{job.company}</p>
-                    </div>
-                    <div className="flex items-center gap-2 shrink-0 ml-3">
-                      {job.matchScore != null && (
-                        <span className="text-xs font-bold text-teal-700 bg-teal-50 border border-teal-200 rounded px-1.5 py-0.5">
-                          {job.matchScore}%
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                ))}
-                {drillDown.jobs.length > 50 && (
-                  <p className="text-xs text-slate-400 pt-2 text-center">Showing first 50 of {drillDown.jobs.length} jobs</p>
-                )}
-                <div className="pt-3 text-center">
-                  <Link
-                    to="/jobs"
-                    search={{ view: "all-jobs", page: 1, query: "", remote: false, sortBy: "posted-date", status: "", analyzedOnly: false }}
-                    onClick={() => setDrillDown(null)}
-                    className="text-sm font-semibold text-orange-600 hover:text-orange-700"
-                  >
-                    View all jobs →
-                  </Link>
-                </div>
-              </>
-            )}
-          </div>
-        )}
-      </DrillDownDialog>
     </div>
   );
 }
