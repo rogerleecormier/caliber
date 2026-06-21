@@ -68,7 +68,7 @@ function DiscoveryDashboard() {
   // mutations for discovery actions
   const runPhaseMutation = useMutation({
     mutationFn: async (phase: string) => {
-      const res = await fetch(`/api/discovery/run-phase?phase=${phase}&direct=true`, {
+      const res = await fetch(`/api/discovery/run-phase?phase=${phase}`, {
         method: 'POST'
       });
       const data = await res.json() as any;
@@ -79,7 +79,7 @@ function DiscoveryDashboard() {
       showStatus('Triggering discovery phase...', 'info');
     },
     onSuccess: (_, phase) => {
-      showStatus(`Phase ${phase} complete! Boards discovered successfully.`, 'success');
+      showStatus(`Phase ${phase} enqueued! Worker will process it in the background.`, 'success');
     },
     onError: (err: any) => {
       showStatus(err.message || 'Error triggering discovery phase', 'error');
