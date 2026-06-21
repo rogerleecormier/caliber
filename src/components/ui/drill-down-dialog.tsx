@@ -5,7 +5,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogDescription,
-} from "@caliber/ui-kit"
+} from "@caliber/ui-kit/src/ui/dialog"
 
 interface DrillDownDialogProps {
   open: boolean

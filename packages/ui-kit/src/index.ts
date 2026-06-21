@@ -21,7 +21,8 @@ export * from "./ui/badge";
 export * from "./ui/button";
 export * from "./ui/card";
 export * from "./ui/checkbox";
-export * from "./ui/dialog";
+// dialog.tsx intentionally NOT re-exported here — Radix Dialog uses document APIs
+// that crash CF Workers SSR. Import directly: import { Dialog } from "@caliber/ui-kit/src/ui/dialog"
 export * from "./ui/dropdown-menu";
 // Shadcn pagination primitives — exported individually to avoid conflict with Pagination wrapper
 export {

@@ -18,7 +18,11 @@ import {
 import { requireLoginRedirect } from "@/lib/auth-redirect";
 import { PageHero } from "@caliber/ui-kit";
 import { StatCardGrid, CompactStatTile } from "@/components/ui/compact-stat-card";
-import { DrillDownDialog } from "@/components/ui/drill-down-dialog";
+
+// DrillDownDialog uses Radix Dialog which calls document APIs — lazy-load client-only
+const DrillDownDialog = React.lazy(() =>
+  import("@/components/ui/drill-down-dialog").then((m) => ({ default: m.DrillDownDialog }))
+);
 import {
   BarChart,
   Bar,
@@ -84,50 +88,54 @@ function DashboardPage() {
         <DashboardContent analyticsDataPromise={analyticsData} setDrillDown={setDrillDown} />
       </Suspense>
 
-      {/* Drill-down dialog lives in the sync parent to avoid async component + Radix issues */}
-      <DrillDownDialog
-        open={!!drillDown}
-        onClose={() => setDrillDown(null)}
-        title={drillDown?.title ?? ""}
-        description={drillDown ? `${drillDown.jobs.length} job${drillDown.jobs.length === 1 ? "" : "s"}` : undefined}
-      >
-        {drillDown && (
-          <div className="space-y-1">
-            {drillDown.jobs.length === 0 ? (
-              <p className="text-sm text-slate-400 py-6 text-center">No jobs match this filter.</p>
-            ) : (
-              <>
-                {drillDown.jobs.slice(0, 50).map((job: any) => (
-                  <div key={job.id ?? job.sourceUrl} className="flex items-center justify-between py-2 border-b border-slate-100 last:border-0">
-                    <div className="min-w-0">
-                      <p className="text-sm font-semibold text-slate-800 truncate">{job.title}</p>
-                      <p className="text-xs text-slate-500 truncate">{job.company}</p>
-                    </div>
-                    {job.matchScore != null && (
-                      <span className="text-xs font-bold text-teal-700 bg-teal-50 border border-teal-200 rounded px-1.5 py-0.5 shrink-0 ml-3">
-                        {job.matchScore}%
-                      </span>
+      {/* DrillDownDialog is lazy-loaded (client-only) — Radix Dialog uses document APIs unsafe for CF Workers SSR */}
+      {typeof window !== "undefined" && (
+        <Suspense fallback={null}>
+          <DrillDownDialog
+            open={!!drillDown}
+            onClose={() => setDrillDown(null)}
+            title={drillDown?.title ?? ""}
+            description={drillDown ? `${drillDown.jobs.length} job${drillDown.jobs.length === 1 ? "" : "s"}` : undefined}
+          >
+            {drillDown && (
+              <div className="space-y-1">
+                {drillDown.jobs.length === 0 ? (
+                  <p className="text-sm text-slate-400 py-6 text-center">No jobs match this filter.</p>
+                ) : (
+                  <>
+                    {drillDown.jobs.slice(0, 50).map((job: any) => (
+                      <div key={job.id ?? job.sourceUrl} className="flex items-center justify-between py-2 border-b border-slate-100 last:border-0">
+                        <div className="min-w-0">
+                          <p className="text-sm font-semibold text-slate-800 truncate">{job.title}</p>
+                          <p className="text-xs text-slate-500 truncate">{job.company}</p>
+                        </div>
+                        {job.matchScore != null && (
+                          <span className="text-xs font-bold text-teal-700 bg-teal-50 border border-teal-200 rounded px-1.5 py-0.5 shrink-0 ml-3">
+                            {job.matchScore}%
+                          </span>
+                        )}
+                      </div>
+                    ))}
+                    {drillDown.jobs.length > 50 && (
+                      <p className="text-xs text-slate-400 pt-2 text-center">Showing first 50 of {drillDown.jobs.length} jobs</p>
                     )}
-                  </div>
-                ))}
-                {drillDown.jobs.length > 50 && (
-                  <p className="text-xs text-slate-400 pt-2 text-center">Showing first 50 of {drillDown.jobs.length} jobs</p>
+                    <div className="pt-3 text-center">
+                      <Link
+                        to="/jobs"
+                        search={{ view: "all-jobs", page: 1, query: "", remote: false, sortBy: "posted-date", status: "", analyzedOnly: false }}
+                        onClick={() => setDrillDown(null)}
+                        className="text-sm font-semibold text-orange-600 hover:text-orange-700"
+                      >
+                        View all jobs →
+                      </Link>
+                    </div>
+                  </>
                 )}
-                <div className="pt-3 text-center">
-                  <Link
-                    to="/jobs"
-                    search={{ view: "all-jobs", page: 1, query: "", remote: false, sortBy: "posted-date", status: "", analyzedOnly: false }}
-                    onClick={() => setDrillDown(null)}
-                    className="text-sm font-semibold text-orange-600 hover:text-orange-700"
-                  >
-                    View all jobs →
-                  </Link>
-                </div>
-              </>
+              </div>
             )}
-          </div>
-        )}
-      </DrillDownDialog>
+          </DrillDownDialog>
+        </Suspense>
+      )}
     </div>
   );
 }
@@ -158,15 +166,14 @@ function DashboardHeader() {
 }
 
 // Slow content section — streams in via Suspense
-// Uses React.use() to unwrap the deferred promise (sync component, not async)
-function DashboardContent({
+async function DashboardContent({
   analyticsDataPromise,
   setDrillDown,
 }: {
   analyticsDataPromise: Promise<AnalyticsSummaryData>;
   setDrillDown: (v: { title: string; jobs: any[] } | null) => void;
-}) {
-  const initialData: AnalyticsSummaryData = React.use(analyticsDataPromise);
+}): Promise<React.ReactElement> {
+  const initialData: AnalyticsSummaryData = await analyticsDataPromise;
   const [selectedPeriod, setSelectedPeriod] = useState<string>("all_time");
 
   // Real-time data fetching (Query is invalidated when actions occur elsewhere)
