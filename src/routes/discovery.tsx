@@ -22,7 +22,6 @@ import {
 import { PageHero, PageSection } from '@caliber/ui-kit';
 import { getDiscoveryStats } from '@/server/functions/discovery';
 
-// Server loader runs queries directly on D1 via server function
 export const Route = createFileRoute('/discovery')({
   beforeLoad: ({ context }) => {
     const ctx = context as { user?: { id: string; role: string } | null };
@@ -236,7 +235,22 @@ function DiscoveryDashboard() {
 
   const { data } = useQuery({
     queryKey: ['discovery-data'],
-    queryFn: () => getDiscoveryStats(),
+    queryFn: async () => {
+      const res = await fetch('/api/discovery/stats');
+      const json = await res.json() as any;
+      return {
+        stats: {
+          total_boards: json.total_boards ?? 0,
+          validated_boards: json.validated_boards ?? 0,
+          active_boards: json.active_boards ?? 0,
+          discovered_last_week: json.discovered_last_week ?? 0,
+          by_phase: json.by_phase ?? [],
+          false_positive_rate: json.false_positive_rate ?? 0,
+        },
+        boards: json.boards ?? [],
+        logs: json.recent_audit ?? [],
+      };
+    },
     initialData: loaderData,
     refetchInterval: (autoRefresh && !isAnyMutationPending) ? 30000 : false,
   });
