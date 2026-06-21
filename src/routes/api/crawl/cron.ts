@@ -10,12 +10,12 @@ async function handleCronTrigger(request: Request) {
 
     const env = await getCloudflareEnvAsync();
 
-    // Enqueue the cron work to avoid blocking the main thread
+    // Fire-and-forget: enqueue the cron work without awaiting
+    // This ensures the response returns immediately
     if (env.CRAWL_CRON_QUEUE) {
-      await env.CRAWL_CRON_QUEUE.send({ forceAll });
-    } else {
-      // Fallback: run synchronously if queue not available
-      await runBoardCrawlerCron(env as any, forceAll);
+      env.CRAWL_CRON_QUEUE.send({ forceAll }).catch((err: any) => {
+        console.error('[cron-trigger-api] Failed to enqueue cron job:', err);
+      });
     }
 
     return json({

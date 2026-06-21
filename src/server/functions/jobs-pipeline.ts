@@ -491,9 +491,9 @@ export const getCatalogJobs = createServerFn({ method: "GET" })
     // ATS filter — join job_sources
     const atsFilter = data.ats?.trim();
 
-    // Count total
+    // Count total — use DISTINCT to avoid counting duplicates from LEFT JOINs
     const countRows = await db
-      .select({ total: count() })
+      .select({ total: count(canonicalJobs.id, { distinct: true }) })
       .from(canonicalJobs)
       .leftJoin(jobSources, eq(jobSources.canonicalId, canonicalJobs.id))
       .leftJoin(normalizedJobs, and(
@@ -510,7 +510,28 @@ export const getCatalogJobs = createServerFn({ method: "GET" })
       ));
     const total = Number(countRows[0]?.total ?? 0);
 
-    // Fetch page
+    // Fetch page — get only distinct canonical jobs by using a subquery
+    // This avoids the LEFT JOIN duplication issue
+    const jobIds = await db
+      .selectDistinct({ id: canonicalJobs.id })
+      .from(canonicalJobs)
+      .leftJoin(jobSources, eq(jobSources.canonicalId, canonicalJobs.id))
+      .leftJoin(normalizedJobs, and(
+        eq(normalizedJobs.canonicalJobId, canonicalJobs.id),
+        eq(normalizedJobs.userId, user.id)
+      ))
+      .where(and(
+        ...conditions,
+        atsFilter ? eq(jobSources.ats, atsFilter) : undefined,
+        or(
+          isNull(normalizedJobs.currentStage),
+          ne(normalizedJobs.currentStage, 'Archived')
+        )
+      ))
+      .orderBy(desc(canonicalJobs.lastSeenAt))
+      .limit(pageSize)
+      .offset(offset);
+
     const rows = await db
       .select({
         id: canonicalJobs.id,
@@ -537,19 +558,17 @@ export const getCatalogJobs = createServerFn({ method: "GET" })
         eq(normalizedJobs.canonicalJobId, canonicalJobs.id),
         eq(normalizedJobs.userId, user.id)
       ))
-      .where(and(
-        ...conditions,
-        atsFilter ? eq(jobSources.ats, atsFilter) : undefined,
-        or(
-          isNull(normalizedJobs.currentStage),
-          ne(normalizedJobs.currentStage, 'Archived')
-        )
-      ))
-      .orderBy(desc(canonicalJobs.lastSeenAt))
-      .limit(pageSize)
-      .offset(offset);
+      .where(inArray(canonicalJobs.id, jobIds.map(j => j.id)));
 
-    const jobs = rows.map((r) => ({
+    // Deduplicate by canonical job ID — keep first source per job
+    const seenIds = new Set<string>();
+    const uniqueRows = rows.filter((r) => {
+      if (seenIds.has(r.id)) return false;
+      seenIds.add(r.id);
+      return true;
+    });
+
+    const jobs = uniqueRows.map((r) => ({
       ...r,
       isSaved: r.currentStage !== null && r.currentStage !== undefined,
       isFavorited: r.isFavorited === true || r.isFavorited === 1,

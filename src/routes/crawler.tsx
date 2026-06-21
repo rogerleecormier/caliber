@@ -55,6 +55,7 @@ function CrawlerDashboard() {
   const limit = 15;
   const [expandedJobs, setExpandedJobs] = useState<Record<string, boolean>>({});
   const [expandedLogs, setExpandedLogs] = useState<Record<string, boolean>>({});
+  const [expandedBoards, setExpandedBoards] = useState<Record<string, boolean>>({});
 
   // Overriding search results list
   const [searchedJobs, setSearchedJobs] = useState<any[] | null>(null);
@@ -281,7 +282,7 @@ function CrawlerDashboard() {
         eyebrow="Operations"
         icon={<Briefcase className="h-3.5 w-3.5" />}
         title="Crawler Agent"
-        description="API-first crawler aggregator for Greenhouse, Lever, and Ashby boards."
+        description="API-first crawler aggregator for Greenhouse, Workable, Lever, and Ashby boards."
         actions={
           <div className="flex items-center gap-2">
             <label className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white/70 px-3 py-2 text-sm font-medium text-slate-700 cursor-pointer shadow-sm">
@@ -619,12 +620,13 @@ function CrawlerDashboard() {
 
         {/* Tab Panel: Boards */}
         {activeTab === 'boards' && (
-          <PageSection title="Crawled Boards" description="Greenhouse, Lever, and Ashby job boards currently tracked.">
+          <PageSection title="Crawled Boards" description="Greenhouse, Workable, Lever, and Ashby job boards currently tracked.">
             <div className="bg-white/50 border border-slate-200 rounded-xl overflow-hidden shadow-sm">
               <div className="overflow-x-auto">
                 <table className="w-full text-left border-collapse">
                   <thead>
                     <tr className="bg-slate-50 border-b border-slate-200 text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                      <th className="px-5 py-4 w-10"></th>
                       <th className="px-5 py-4">ATS</th>
                       <th className="px-5 py-4">Token</th>
                       <th className="px-5 py-4">Company Name</th>
@@ -636,42 +638,125 @@ function CrawlerDashboard() {
                   <tbody className="divide-y divide-slate-200 text-xs">
                     {boards.length === 0 ? (
                       <tr>
-                        <td colSpan={6} className="px-5 py-12 text-center text-slate-500">
+                        <td colSpan={7} className="px-5 py-12 text-center text-slate-500">
                           No boards configured. Add your first board in the discovery panel!
                         </td>
                       </tr>
                     ) : (
-                      boards.map((board: any) => (
-                        <tr key={board.id} className="hover:bg-slate-50/50 transition">
-                          <td className="px-5 py-3 font-semibold text-slate-700 capitalize">{board.ats}</td>
-                          <td className="px-5 py-3 font-mono text-slate-600">{board.token}</td>
-                          <td className="px-5 py-3 text-slate-900 font-semibold">{board.company_name || '-'}</td>
-                          <td className="px-5 py-3 text-slate-500 capitalize">{board.crawl_frequency_tier.replace('tier', 'Tier ')}</td>
-                          <td className="px-5 py-3 text-center">
-                            <button
-                              onClick={() => handleToggleBoard(board.id, board.is_active === 1)}
-                              disabled={toggleBoardMutation.isPending}
-                              className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase border cursor-pointer ${
-                                board.is_active === 1
-                                  ? 'bg-green-50 border-green-200 text-green-700'
-                                  : 'bg-slate-100 border-slate-200 text-slate-400'
-                              }`}
+                      boards.map((board: any) => {
+                        const isExpanded = !!expandedBoards[board.id];
+                        return (
+                          <React.Fragment key={board.id}>
+                            <tr
+                              className="hover:bg-slate-50/50 transition cursor-pointer"
+                              onClick={() => setExpandedBoards(prev => ({ ...prev, [board.id]: !prev[board.id] }))}
                             >
-                              {board.is_active === 1 ? 'Active' : 'Disabled'}
-                            </button>
-                          </td>
-                          <td className="px-5 py-3 text-right">
-                            <button
-                              onClick={() => handleRunCrawl(board.ats, board.token, board.id)}
-                              disabled={loading === `crawl-${board.id}`}
-                              className="p-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-slate-800 rounded-lg border border-slate-200 transition cursor-pointer inline-flex items-center"
-                              title="Force crawl now"
-                            >
-                              <Play className="h-3.5 w-3.5 fill-current" />
-                            </button>
-                          </td>
-                        </tr>
-                      ))
+                              <td className="px-5 py-3">
+                                {isExpanded ? <ChevronUp className="h-4 w-4 text-slate-400" /> : <ChevronDown className="h-4 w-4 text-slate-400" />}
+                              </td>
+                              <td className="px-5 py-3 font-semibold text-slate-700 capitalize">{board.ats}</td>
+                              <td className="px-5 py-3 font-mono text-slate-600">{board.token}</td>
+                              <td className="px-5 py-3 text-slate-900 font-semibold">{board.company_name || '-'}</td>
+                              <td className="px-5 py-3 text-slate-500 capitalize">{board.crawl_frequency_tier.replace('tier', 'Tier ')}</td>
+                              <td className="px-5 py-3 text-center">
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleToggleBoard(board.id, board.is_active === 1);
+                                  }}
+                                  disabled={toggleBoardMutation.isPending}
+                                  className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase border cursor-pointer ${
+                                    board.is_active === 1
+                                      ? 'bg-green-50 border-green-200 text-green-700'
+                                      : 'bg-slate-100 border-slate-200 text-slate-400'
+                                  }`}
+                                >
+                                  {board.is_active === 1 ? 'Active' : 'Disabled'}
+                                </button>
+                              </td>
+                              <td className="px-5 py-3 text-right">
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleRunCrawl(board.ats, board.token, board.id);
+                                  }}
+                                  disabled={loading === `crawl-${board.id}`}
+                                  className="p-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-slate-800 rounded-lg border border-slate-200 transition cursor-pointer inline-flex items-center"
+                                  title="Force crawl now"
+                                >
+                                  <Play className={`h-3.5 w-3.5 fill-current ${loading === `crawl-${board.id}` ? 'animate-spin' : ''}`} />
+                                </button>
+                              </td>
+                            </tr>
+
+                            {isExpanded && (
+                              <tr className="bg-slate-50/30">
+                                <td colSpan={7} className="px-5 py-4 border-t border-slate-100">
+                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-xs text-slate-700 font-medium">
+                                    <div className="space-y-4">
+                                      {/* Board Details */}
+                                      <div>
+                                        <h4 className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-2">Board Details</h4>
+                                        <div className="bg-white border border-slate-200 rounded-xl p-4 space-y-3">
+                                          <div>
+                                            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">ATS Type</span>
+                                            <p className="text-slate-700 font-semibold capitalize mt-1">{board.ats}</p>
+                                          </div>
+                                          <div>
+                                            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Board Token</span>
+                                            <p className="text-slate-700 font-mono font-semibold mt-1">{board.token}</p>
+                                          </div>
+                                          <div>
+                                            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Company Name</span>
+                                            <p className="text-slate-700 font-semibold mt-1">{board.company_name || 'Not specified'}</p>
+                                          </div>
+                                          <div>
+                                            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Crawl Frequency</span>
+                                            <p className="text-slate-700 font-semibold capitalize mt-1">{board.crawl_frequency_tier.replace('tier', 'Tier ')}</p>
+                                          </div>
+                                        </div>
+                                      </div>
+                                    </div>
+
+                                    <div className="space-y-4">
+                                      {/* Timeline Info */}
+                                      <div>
+                                        <h4 className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-2">Timeline</h4>
+                                        <div className="bg-white border border-slate-200 rounded-xl p-4 space-y-3">
+                                          <div>
+                                            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Created At</span>
+                                            <p suppressHydrationWarning className="text-slate-700 font-semibold mt-1 text-[11px]">
+                                              {new Date(board.created_at).toLocaleString()}
+                                            </p>
+                                          </div>
+                                          <div>
+                                            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Discovered At</span>
+                                            <p suppressHydrationWarning className="text-slate-700 font-semibold mt-1 text-[11px]">
+                                              {new Date(board.discovered_at).toLocaleString()}
+                                            </p>
+                                          </div>
+                                          <div>
+                                            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Status</span>
+                                            <div className="mt-1">
+                                              <span className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-[10px] font-extrabold uppercase border ${
+                                                board.is_active === 1
+                                                  ? 'bg-green-50 border-green-200 text-green-700'
+                                                  : 'bg-slate-100 border-slate-200 text-slate-400'
+                                              }`}>
+                                                {board.is_active === 1 ? 'Active' : 'Disabled'}
+                                              </span>
+                                            </div>
+                                          </div>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </td>
+                              </tr>
+                            )}
+                          </React.Fragment>
+                        );
+                      })
                     )}
                   </tbody>
                 </table>
