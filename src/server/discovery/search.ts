@@ -66,7 +66,7 @@ export async function googleDorkSearch(ats: string): Promise<SearchResult[]> {
 
     return results;
   } catch (e) {
-    console.error(`[search] Google dork search failed for ${ats}, using fallback mock:`, e);
+    console.warn(`[search] Google dork search failed for ${ats}, using fallback mock:`, (e as Error).message);
     return getMockSearchResults(ats, 'google_dork');
   }
 }
