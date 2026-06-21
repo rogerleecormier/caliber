@@ -8,27 +8,39 @@ async function handleCronTrigger(request: Request) {
   try {
     const url = new URL(request.url);
     const forceAll = url.searchParams.get('force') === 'true';
-
-    const env = await getCloudflareEnvAsync();
     const ctx = (globalThis as any).__CF_CTX__ as ExecutionContext | undefined;
 
-    // Enqueue the cron work and use waitUntil to run it in the background
-    if (env.CRAWL_CRON_QUEUE) {
-      const queuePromise = env.CRAWL_CRON_QUEUE.send({ forceAll }).catch((err: any) => {
-        console.error('[cron-trigger-api] Failed to enqueue cron job:', err);
-      });
-
-      // Tell Cloudflare to wait for this promise in the background after returning the response
-      if (ctx?.waitUntil) {
-        ctx.waitUntil(queuePromise);
-      }
-    }
-
-    return json({
+    // Return response immediately, then schedule work in background
+    const response = json({
       success: true,
       message: 'Crawler cron scheduled',
       forceAll
     });
+
+    // Schedule the actual work to run in background without blocking the response
+    const backgroundWork = async () => {
+      try {
+        const env = await getCloudflareEnvAsync();
+        if (env.CRAWL_CRON_QUEUE) {
+          await env.CRAWL_CRON_QUEUE.send({ forceAll });
+          console.log('[cron-trigger-api] Successfully enqueued crawler cron job');
+        } else {
+          console.warn('[cron-trigger-api] CRAWL_CRON_QUEUE not available');
+        }
+      } catch (err: any) {
+        console.error('[cron-trigger-api] Failed to enqueue cron job:', err);
+      }
+    };
+
+    // Tell Cloudflare to run this in the background
+    if (ctx?.waitUntil) {
+      ctx.waitUntil(backgroundWork());
+    } else {
+      // Fallback: at least don't block the response
+      backgroundWork().catch(err => console.error('[cron-trigger-api] Background work failed:', err));
+    }
+
+    return response;
   } catch (error) {
     console.error('[cron-trigger-api] Error triggering crawler cron:', error);
     return json({
