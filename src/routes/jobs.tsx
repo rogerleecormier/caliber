@@ -1479,8 +1479,8 @@ function CatalogBrowser({
               Top vector matches with custom AI Quick Analysis synthesized for you.
             </p>
           </div>
-          <div className="grid gap-4 grid-cols-1 lg:grid-cols-2">
-            {recommendedJobs.map((job: any) => {
+          <div className="flex flex-col gap-4">
+            {recommendedJobs.slice(0, 3).map((job: any) => {
               const cardJob = {
                 ...job,
                 title: job.jobTitle || job.title,
@@ -1496,6 +1496,7 @@ function CatalogBrowser({
                   key={job.id}
                   job={cardJob}
                   isRecommendation={true}
+                  isHorizontal={true}
                   isFavorited={job.isFavorited === 1 || job.isFavorited === true}
                   onToggleFavorite={() => handleStar(job)}
                   onAnalyzeClick={async () => {

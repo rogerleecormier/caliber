@@ -6,6 +6,7 @@ import {
   Body,
   Caption,
   PrimaryCard,
+  Card,
 } from "@caliber/ui-kit";
 import {
   ExternalLink,
@@ -77,6 +78,7 @@ interface JobResultCardProps {
   onToggleFavorite?: () => void | Promise<void>;
   isRecommendation?: boolean;
   onApplyClick?: () => void;
+  isHorizontal?: boolean;
 }
 
 function getScore(job: JobResultCardJob) {
@@ -123,6 +125,7 @@ export function JobResultCard({
   onToggleFavorite,
   isRecommendation = false,
   onApplyClick,
+  isHorizontal = false,
 }: JobResultCardProps) {
   const score = getScore(job);
   const hasUrl = !!(job.sourceUrl && job.sourceUrl !== "text-input");
@@ -170,6 +173,264 @@ export function JobResultCard({
     }
   }
 
+
+  if (isHorizontal) {
+    return (
+      <Card
+        className={`shadow-sm transition hover:shadow-md border-l-4 ${getScoreBorderColor(score?.masterScore ?? 0)} ${
+          selected
+            ? "ring-2 ring-primary-300 bg-white/85"
+            : isNew
+              ? "ring-2 ring-indigo-300 bg-indigo-50/30"
+              : "bg-white/85"
+        } relative p-5 flex flex-col md:flex-row gap-6 justify-between items-stretch`}
+      >
+        {/* Selection checkbox or flag icon */}
+        {showSelection ? (
+          <input
+            type="checkbox"
+            checked={selected}
+            onChange={onSelect}
+            className="absolute right-3 top-3 h-4 w-4 shrink-0 rounded border-slate-300 text-primary-600 z-10"
+            aria-label={`Select ${job.title} at ${job.company}`}
+          />
+        ) : null}
+        {job.id != null ? (
+          <div className={`absolute top-2 z-10 ${showSelection ? "right-9" : "right-2"}`}>
+            <FlagToggle jobId={job.id} initialFlagged={!!job.isFlagged} />
+          </div>
+        ) : null}
+
+        {/* Left Column: Job Info */}
+        <div className="flex-1 space-y-4">
+          <div className="space-y-2">
+            {/* Badges row */}
+            <div className="flex flex-wrap items-center gap-2">
+              {(job.sourceName || job.sourceOrigin) && (
+                <Badge className={`border-0 px-2 py-0 text-[10px] text-white ${
+                  (job.sourceName || job.sourceOrigin)!.toLowerCase() === 'linkedin' ? 'bg-sky-600' :
+                  (job.sourceName || job.sourceOrigin)!.toLowerCase() === 'greenhouse' ? 'bg-emerald-600' :
+                  (job.sourceName || job.sourceOrigin)!.toLowerCase() === 'lever' ? 'bg-indigo-600' :
+                  (job.sourceName || job.sourceOrigin)!.toLowerCase() === 'workable' ? 'bg-violet-600' : 'bg-slate-600'
+                }`}>
+                  {job.sourceName || (job.sourceOrigin ? job.sourceOrigin.charAt(0).toUpperCase() + job.sourceOrigin.slice(1) : '')}
+                </Badge>
+              )}
+              {job.resultSource === "history" ? (
+                <Badge variant="success" className="px-2 py-0 text-[10px]">
+                  Tracked
+                </Badge>
+              ) : null}
+              {isNew ? (
+                <Badge className="border-0 bg-indigo-600 px-2 py-0 text-[10px] text-white">
+                  New Match
+                </Badge>
+              ) : null}
+              {score?.isUnicorn ? (
+                <Badge variant="warning" className="px-2 py-0 text-[10px]" title={score.unicornReason || "Unicorn opportunity"}>
+                  Unicorn
+                </Badge>
+              ) : null}
+            </div>
+
+            {/* Title & Company */}
+            <div>
+              <h3 className="text-lg font-bold text-primary-500 leading-tight">
+                {job.title}
+              </h3>
+              <p className="text-sm font-medium text-slate-600 mt-1">
+                {job.company}{job.location ? ' · ' + job.location : ''}
+              </p>
+            </div>
+          </div>
+
+          {/* Dates & Meta info */}
+          {((job.postDateText && job.postDateText !== "Invalid Date") || job.firstSeenAt || job.ownerEmail) && (
+            <div className="flex flex-wrap items-center gap-4 text-xs text-slate-500">
+              {job.postDateText && job.postDateText !== "Invalid Date" ? (
+                <div className="flex items-center gap-1">
+                  <span className="text-[10px] font-medium text-slate-400">Posted:</span>
+                  <Caption className="text-xs text-slate-600">
+                    {(() => {
+                      const d = new Date(job.postDateText);
+                      return !isNaN(d.getTime()) ? d.toLocaleDateString() : job.postDateText;
+                    })()}
+                  </Caption>
+                </div>
+              ) : null}
+              {job.firstSeenAt ? (
+                <div className="flex items-center gap-1">
+                  <span className="text-[10px] font-medium text-slate-400">Found:</span>
+                  <Caption className="text-xs text-slate-600">
+                    {new Date(job.firstSeenAt).toLocaleDateString()}
+                  </Caption>
+                </div>
+              ) : null}
+              {job.ownerEmail ? (
+                <Caption className="text-[11px] text-slate-500">
+                  {job.ownerEmail}
+                </Caption>
+              ) : null}
+            </div>
+          )}
+
+          {job.salary ? (
+            <Body size="sm" weight="medium" className="text-emerald-700">
+              {job.salary}
+            </Body>
+          ) : null}
+
+          {cleanedSnippet ? (
+            <Body size="sm" className="leading-relaxed text-slate-600 max-w-3xl">
+              {cleanedSnippet}
+            </Body>
+          ) : null}
+
+          {mostRecentDocuments.length > 0 && (
+            <div className="flex flex-wrap gap-2 pt-2 border-t border-slate-100">
+              <Caption variant="semibold" className="w-full text-[10px] uppercase tracking-wide text-slate-500">
+                Documents
+              </Caption>
+              {mostRecentDocuments.map((doc) => (
+                <button
+                  key={doc.id}
+                  type="button"
+                  onClick={() => handleDownload(doc.r2Key, doc.fileName)}
+                  disabled={downloadingKey === doc.r2Key}
+                  className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-60"
+                >
+                  {downloadingKey === doc.r2Key ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin text-slate-500" />
+                  ) : doc.docType === "resume" ? (
+                    <FileText className="h-3.5 w-3.5 text-amber-600" />
+                  ) : (
+                    <Mail className="h-3.5 w-3.5 text-amber-600" />
+                  )}
+                  {doc.docType === "resume" ? "Resume" : "Cover Letter"}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Right Column: AI Analysis, Score & Actions */}
+        <div className="w-full md:w-80 md:border-l md:border-slate-100 md:pl-6 flex flex-col justify-between gap-4 shrink-0">
+          <div className="space-y-3">
+            {/* Match Score */}
+            {(score?.masterScore != null || job.matchScore != null || job.masterScore != null) && (
+              <div className="inline-flex items-center gap-2 rounded-xl border border-emerald-100 bg-emerald-50 px-3.5 py-1.5 shadow-sm">
+                <Caption variant="semibold" className="text-[10px] uppercase tracking-wide text-emerald-600">
+                  Match Score
+                </Caption>
+                <span className="text-sm font-extrabold text-emerald-700">
+                  {formatScore(score?.masterScore ?? job.matchScore ?? job.masterScore)}
+                </span>
+              </div>
+            )}
+
+            {/* Quick Analysis */}
+            {job.quickAnalysis && (
+              <div className="rounded-xl border border-indigo-100 bg-indigo-50/45 p-3 shadow-inner">
+                <span className="block text-[10px] font-bold uppercase tracking-wider text-indigo-600 mb-1">
+                  AI Quick Analysis
+                </span>
+                <p className="text-xs text-slate-700 leading-relaxed font-medium">
+                  {job.quickAnalysis}
+                </p>
+              </div>
+            )}
+          </div>
+
+          {/* Action buttons */}
+          <div className="flex flex-col gap-2 pt-3 md:pt-0">
+            <div className="flex flex-wrap items-center gap-2">
+              {onToggleFavorite && (
+                <button
+                  type="button"
+                  onClick={onToggleFavorite}
+                  className={`flex-1 inline-flex h-9 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg border px-3 text-xs font-semibold transition ${
+                    isFavorited
+                      ? "border-amber-300 bg-amber-50 text-amber-700 hover:bg-amber-100"
+                      : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                  }`}
+                >
+                  <span className="mr-0.5">{isFavorited ? "★" : "☆"}</span>
+                  {isFavorited ? "Favorited" : "Favorite"}
+                </button>
+              )}
+              {isAnalyzed ? (
+                <button
+                  type="button"
+                  onClick={onAnalyzeClick}
+                  className="flex-1 inline-flex h-9 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg border border-indigo-200 bg-indigo-50 px-3 text-xs font-semibold text-indigo-700 transition hover:bg-indigo-100"
+                >
+                  <Sparkles className="h-3.5 w-3.5" />
+                  View Analysis
+                </button>
+              ) : onAnalyzeClick ? (
+                <button
+                  type="button"
+                  onClick={onAnalyzeClick}
+                  className="flex-1 inline-flex h-9 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg border border-amber-200 bg-amber-50 px-3 text-xs font-semibold text-amber-700 transition hover:bg-indigo-50 hover:text-amber-800"
+                >
+                  <Sparkles className="h-3.5 w-3.5" />
+                  Analyze
+                </button>
+              ) : (
+                <Link
+                  to="/jobs"
+                  search={(prev: any) => ({ ...prev, url: hasUrl ? job.sourceUrl : undefined })}
+                  className="flex-1 inline-flex h-9 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg border border-amber-200 bg-amber-50 px-3 text-xs font-semibold text-amber-700 transition hover:bg-indigo-50 hover:text-amber-800"
+                >
+                  <Sparkles className="h-3.5 w-3.5" />
+                  Analyze
+                </Link>
+              )}
+            </div>
+
+            {hasUrl ? (
+              <a
+                href={job.sourceUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={onApplyClick}
+                className="w-full inline-flex h-9 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg bg-amber-600 px-3 text-xs font-semibold text-white transition hover:bg-amber-700"
+              >
+                Open <ExternalLink className="h-3.5 w-3.5" />
+              </a>
+            ) : (
+              <button
+                type="button"
+                disabled
+                className="w-full inline-flex h-9 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg bg-slate-100 border border-slate-200 px-3 text-xs font-semibold text-slate-400 cursor-not-allowed"
+              >
+                Open <ExternalLink className="h-3.5 w-3.5" />
+              </button>
+            )}
+
+            {statusOptions && onStatusChange ? (
+              <div className="flex items-center justify-between gap-2 mt-1">
+                <span className="text-xs font-medium text-slate-600">Status</span>
+                <select
+                  value={(job.status ?? "Analyzed") as JobStatus}
+                  onChange={(event: ChangeEvent<HTMLSelectElement>) =>
+                    onStatusChange(event.target.value as JobStatus)
+                  }
+                  disabled={statusPending}
+                  className="h-8 w-full max-w-[200px] rounded-lg border border-slate-200 bg-white px-2 text-xs font-semibold text-slate-700 disabled:opacity-60"
+                  aria-label={`Status for ${job.title}`}
+                >
+                  {statusOptions.map((status) => (
+                    <option key={status} value={status}>{status}</option>
+                  ))}
+                </select>
+              </div>
+            ) : null}
+          </div>
+        </div>
+      </Card>
+    );
+  }
 
   return (
     <div className="relative h-full flex flex-col">
