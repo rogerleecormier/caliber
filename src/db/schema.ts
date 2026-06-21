@@ -368,6 +368,7 @@ export const normalizedJobs = sqliteTable('normalized_jobs', {
   outlookReason: text('outlook_reason'),
   isUnicorn: integer('is_unicorn').notNull().default(0),
   unicornReason: text('unicorn_reason'),
+  quickAnalysis: text('quick_analysis'),
 
   // ── Deep analysis fields (from /analyze pipeline) ──
   jdText: text('jd_text'),

@@ -12,6 +12,7 @@ export interface JobScoreResult {
   outlookReason: string;
   isUnicorn: boolean;
   unicornReason: string | null;
+  quickAnalysis?: string | null;
 }
 
 export interface JobToScore {
@@ -41,7 +42,9 @@ export async function scoreJobAgainstProfile(
   profile: string,
   job: JobToScore,
   weights: ScoringWeights = DEFAULT_SCORING_WEIGHTS,
+  options?: { allowUnicorn?: boolean },
 ): Promise<JobScoreResult> {
+  const allowUnicorn = options?.allowUnicorn ?? true;
   try {
     const userMessage = `
 Candidate Profile:
@@ -109,6 +112,7 @@ ${(job.description || "").substring(0, 2000)}
           outlookReason: "Parsing failed — check AI output format.",
           isUnicorn: false,
           unicornReason: null,
+          quickAnalysis: "Failed to parse AI scoring details.",
         };
       }
     }
@@ -128,8 +132,9 @@ ${(job.description || "").substring(0, 2000)}
     const careerReason = getVal(parsed, ["careerReason", "career_reason"]) || "No details available.";
     const outlookReason = getVal(parsed, ["outlookReason", "outlook_reason"]) || "No details available.";
 
-    const isUnicorn = !!getVal(parsed, ["isUnicorn", "is_unicorn", "unicorn"]);
-    const unicornReason = getVal(parsed, ["unicornReason", "unicorn_reason"]) || null;
+    const isUnicorn = allowUnicorn ? !!getVal(parsed, ["isUnicorn", "is_unicorn", "unicorn"]) : false;
+    const unicornReason = allowUnicorn ? (getVal(parsed, ["unicornReason", "unicorn_reason"]) || null) : null;
+    const quickAnalysis = getVal(parsed, ["quickAnalysis", "quick_analysis"]) || "No quick analysis generated.";
 
     const masterScore = clamp(
       atsScore * weights.ats + careerScore * weights.career + outlookScore * weights.outlook,
@@ -148,6 +153,7 @@ ${(job.description || "").substring(0, 2000)}
       outlookReason,
       isUnicorn,
       unicornReason: isUnicorn ? unicornReason : null,
+      quickAnalysis,
     };
   } catch (error) {
     console.error(`Error scoring job ${job.id}:`, error);
@@ -162,6 +168,7 @@ ${(job.description || "").substring(0, 2000)}
       outlookReason: "Scoring failed due to an error.",
       isUnicorn: false,
       unicornReason: null,
+      quickAnalysis: "Scoring failed due to an error.",
     };
   }
 }

@@ -1,5 +1,6 @@
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { useDebouncedValue } from '@tanstack/react-pacer';
+import { useRouter } from '@tanstack/react-router';
 import { getCatalogJobs, starCatalogJob } from '@/server/functions/jobs-pipeline';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -53,6 +54,7 @@ const PAGE_SIZE = 20;
 
 export function useCatalogQuery(filters: CatalogFilters) {
   const queryClient = useQueryClient();
+  const router = useRouter();
 
   // Debounce keyword/company inputs via @tanstack/react-pacer
   const [debouncedQuery] = useDebouncedValue(filters.query, { wait: 350 });
@@ -146,6 +148,7 @@ export function useCatalogQuery(filters: CatalogFilters) {
     onSettled: () => {
       // Invalidate My Jobs pipeline so the starred job appears there
       void queryClient.invalidateQueries({ queryKey: ['jobs'] });
+      router.invalidate();
     },
   });
 

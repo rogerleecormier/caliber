@@ -271,13 +271,52 @@ export const getRecommendedJobs = createServerFn({ method: "GET" })
       let item: any;
 
       if (existing) {
-        // If the existing row doesn't have the canonicalJobId linked, update it
         if (existing.canonicalJobId !== job.id) {
           await db
             .update(normalizedJobs)
             .set({ canonicalJobId: job.id })
             .where(eq(normalizedJobs.id, existing.id));
           existing.canonicalJobId = job.id;
+        }
+
+        // If it exists but doesn't have a quickAnalysis yet, run AI synthesis
+        if (!existing.quickAnalysis && resumeText) {
+          try {
+            const scores = await scoreJobAgainstProfile(env.AI, resumeText, {
+              id: job.id,
+              title: job.titleDisplay,
+              description: job.descriptionPlain || '',
+            });
+            await db
+              .update(normalizedJobs)
+              .set({
+                quickAnalysis: scores.quickAnalysis,
+                isUnicorn: scores.isUnicorn ? 1 : 0,
+                unicornReason: scores.unicornReason,
+                atsScore: scores.atsScore,
+                careerScore: scores.careerScore,
+                outlookScore: scores.outlookScore,
+                masterScore: scores.masterScore,
+                atsReason: scores.atsReason,
+                careerReason: scores.careerReason,
+                outlookReason: scores.outlookReason,
+                updatedAt: now,
+              })
+              .where(eq(normalizedJobs.id, existing.id));
+            
+            existing.quickAnalysis = scores.quickAnalysis;
+            existing.isUnicorn = scores.isUnicorn ? 1 : 0;
+            existing.unicornReason = scores.unicornReason;
+            existing.atsScore = scores.atsScore;
+            existing.careerScore = scores.careerScore;
+            existing.outlookScore = scores.outlookScore;
+            existing.masterScore = scores.masterScore;
+            existing.atsReason = scores.atsReason;
+            existing.careerReason = scores.careerReason;
+            existing.outlookReason = scores.outlookReason;
+          } catch (scoreErr) {
+            console.error("[getRecommendedJobs] scoring existing failed:", scoreErr);
+          }
         }
 
         item = {
@@ -300,6 +339,7 @@ export const getRecommendedJobs = createServerFn({ method: "GET" })
           outlookReason: 'Awaiting evaluation.',
           isUnicorn: false,
           unicornReason: null as string | null,
+          quickAnalysis: null as string | null,
         };
 
         if (resumeText) {
@@ -338,6 +378,7 @@ export const getRecommendedJobs = createServerFn({ method: "GET" })
             isFlagged: false,
             isUnicorn: scores.isUnicorn ? 1 : 0,
             unicornReason: scores.unicornReason,
+            quickAnalysis: scores.quickAnalysis,
             atsScore: scores.atsScore,
             careerScore: scores.careerScore,
             outlookScore: scores.outlookScore,
@@ -580,6 +621,8 @@ export const starCatalogJob = createServerFn({ method: "POST" })
         location: canonical.locationDisplay ?? null,
         sourceUrl,
         canonicalSourceUrl: canonicalUrl,
+        description: canonical.descriptionPlain ?? null,
+        snippet: canonical.descriptionPlain ? canonical.descriptionPlain.substring(0, 300) : null,
         isFlagged: false,
         remoteType: canonical.remote ? 'fully_remote' : 'unspecified',
         workplaceType: canonical.remote ? 'remote' : 'on-site',

@@ -175,7 +175,7 @@ export async function runAgentPoller(env: CloudflareEnv): Promise<void> {
               id: canonicalId,
               title: job.title,
               description: job.description || job.snippet || '',
-            });
+            }, undefined, { allowUnicorn: false });
           } catch (scoreErr) {
             console.error(`[agent-poller] Scoring failed for job ${canonicalId}:`, scoreErr);
           }
@@ -208,8 +208,8 @@ export async function runAgentPoller(env: CloudflareEnv): Promise<void> {
               atsReason: scores.atsReason,
               careerReason: scores.careerReason,
               outlookReason: scores.outlookReason,
-              isUnicorn: scores.isUnicorn ? 1 : 0,
-              unicornReason: scores.unicornReason,
+              isUnicorn: 0,
+              unicornReason: null,
               lastSeenAt: now,
               updatedAt: now,
             })
@@ -234,8 +234,8 @@ export async function runAgentPoller(env: CloudflareEnv): Promise<void> {
             remoteType: job.workplaceType === 'remote' ? 'fully_remote' : 'unspecified',
             currentStage: 'Favorited',
             isFlagged: false,
-            isUnicorn: scores.isUnicorn ? 1 : 0,
-            unicornReason: scores.unicornReason,
+            isUnicorn: 0,
+            unicornReason: null,
             atsScore: scores.atsScore,
             careerScore: scores.careerScore,
             outlookScore: scores.outlookScore,

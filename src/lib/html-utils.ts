@@ -11,19 +11,30 @@ export function decodeHtmlEntities(text: string): string {
   };
 
   let decoded = text;
-  for (const [entity, char] of Object.entries(map)) {
-    decoded = decoded.split(entity).join(char);
+  let previous = '';
+  let iterations = 0;
+
+  // Run up to 5 times to handle nested/doubly encoded entities (e.g. &amp;lt; -> &lt; -> <)
+  while (decoded !== previous && iterations < 5) {
+    previous = decoded;
+    
+    // Replace mapped entities
+    for (const [entity, char] of Object.entries(map)) {
+      decoded = decoded.split(entity).join(char);
+    }
+
+    // Handle numeric entities like &#123;
+    decoded = decoded.replace(/&#(\d+);/g, (match, dec) => {
+      return String.fromCharCode(parseInt(dec, 10));
+    });
+
+    // Handle hex entities like &#x1F;
+    decoded = decoded.replace(/&#x([0-9a-fA-F]+);/g, (match, hex) => {
+      return String.fromCharCode(parseInt(hex, 16));
+    });
+    
+    iterations++;
   }
-
-  // Handle numeric entities like &#123;
-  decoded = decoded.replace(/&#(\d+);/g, (match, dec) => {
-    return String.fromCharCode(parseInt(dec, 10));
-  });
-
-  // Handle hex entities like &#x1F;
-  decoded = decoded.replace(/&#x([0-9a-fA-F]+);/g, (match, hex) => {
-    return String.fromCharCode(parseInt(hex, 16));
-  });
 
   return decoded;
 }
@@ -31,12 +42,22 @@ export function decodeHtmlEntities(text: string): string {
 export function cleanJobDescription(description: string): string {
   if (!description) return '';
 
+  // 1. Recursive decode HTML entities
   let cleaned = decodeHtmlEntities(description);
 
-  // Remove HTML tags
+  // 2. Strip HTML tags
   cleaned = cleaned.replace(/<[^>]*>/g, '');
 
-  // Replace multiple whitespace with single space
+  // 3. Strip any leftover or unrecognized entities (e.g. &ldquo;, &hellip;, &rsquo;, etc.)
+  cleaned = cleaned.replace(/&[a-zA-Z0-9#x]+;/g, ' ');
+
+  // 4. Normalize unicode characters (like non-breaking spaces, smart quotes, etc.)
+  cleaned = cleaned.replace(/[\u00A0\u2000-\u200A\u202F\u205F\u3000]/g, ' '); // Spaces
+  cleaned = cleaned.replace(/[\u2018\u2019]/g, "'"); // Smart single quotes
+  cleaned = cleaned.replace(/[\u201C\u201D]/g, '"'); // Smart double quotes
+  cleaned = cleaned.replace(/\u2026/g, '...'); // Ellipsis
+
+  // 5. Replace multiple whitespace/newlines with a single space
   cleaned = cleaned.replace(/\s+/g, ' ').trim();
 
   return cleaned;

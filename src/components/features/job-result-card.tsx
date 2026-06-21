@@ -58,6 +58,7 @@ export type JobResultCardJob = {
   matchScore?: number | null;
   isFlagged?: boolean | number | null;
   documents?: Array<{ id: number; docType: string; r2Key: string; fileName: string }>;
+  quickAnalysis?: string | null;
 };
 
 
@@ -74,6 +75,8 @@ interface JobResultCardProps {
   onAnalyzeClick?: () => void;
   isFavorited?: boolean;
   onToggleFavorite?: () => void | Promise<void>;
+  isRecommendation?: boolean;
+  onApplyClick?: () => void;
 }
 
 function getScore(job: JobResultCardJob) {
@@ -118,6 +121,8 @@ export function JobResultCard({
   onAnalyzeClick,
   isFavorited = false,
   onToggleFavorite,
+  isRecommendation = false,
+  onApplyClick,
 }: JobResultCardProps) {
   const score = getScore(job);
   const hasUrl = !!(job.sourceUrl && job.sourceUrl !== "text-input");
@@ -251,71 +256,96 @@ export function JobResultCard({
             </div>
           ) : null}
 
-          {score || job.matchScore != null ? (
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-              {job.sourceName?.toLowerCase() === "manual" ? (
-                <>
-                  {job.matchScore != null && (
-                    <div className="rounded-lg border border-emerald-100 bg-emerald-50 px-3 py-2">
-                      <Caption variant="semibold" className="block text-[10px] uppercase tracking-wide text-emerald-600">
-                        Match Score
-                      </Caption>
-                      <Body size="sm" weight="semibold" className="text-emerald-700">
-                        {formatScore(job.matchScore)}
-                      </Body>
-                    </div>
-                  )}
-                  {["ATS", "Career", "Outlook"].map((label) => (
-                    <div
-                      key={label}
-                      className="rounded-lg border border-slate-200 bg-white px-3 py-2"
-                    >
-                      <Caption variant="semibold" className="block text-[10px] uppercase tracking-wide text-slate-500">
-                        {label}
-                      </Caption>
-                      <Body size="sm" weight="semibold" className="text-slate-800">
-                        N/A
-                      </Body>
-                    </div>
-                  ))}
-                </>
-              ) : (
-                <>
-                  {job.matchScore != null && (
-                    <div className="rounded-lg border border-emerald-100 bg-emerald-50 px-3 py-2">
-                      <Caption variant="semibold" className="block text-[10px] uppercase tracking-wide text-emerald-600">
-                        Match Score
-                      </Caption>
-                      <Body size="sm" weight="semibold" className="text-emerald-700">
-                        {formatScore(job.matchScore)}
-                      </Body>
-                    </div>
-                  )}
-                  {score && [
-                    ["ATS", score.atsScore],
-                    ["Career", score.careerScore],
-                    ["Outlook", score.outlookScore],
-                  ].map(([label, value]) => (
-                    <div
-                      key={label}
-                      className="rounded-lg border border-slate-200 bg-white px-3 py-2"
-                    >
-                      <Caption variant="semibold" className="block text-[10px] uppercase tracking-wide text-slate-500">
-                        {label}
-                      </Caption>
-                      <Body
-                        size="sm"
-                        weight="semibold"
-                        className="text-slate-800"
-                      >
-                        {formatScore(value as number | null)}
-                      </Body>
-                    </div>
-                  ))}
-                </>
+          {isRecommendation ? (
+            <div className="space-y-2.5">
+              {(score?.masterScore != null || job.matchScore != null || job.masterScore != null) && (
+                <div className="inline-block rounded-lg border border-emerald-100 bg-emerald-50 px-3 py-2">
+                  <Caption variant="semibold" className="block text-[10px] uppercase tracking-wide text-emerald-600">
+                    Match Score
+                  </Caption>
+                  <Body size="sm" weight="semibold" className="text-emerald-700">
+                    {formatScore(score?.masterScore ?? job.matchScore ?? job.masterScore)}
+                  </Body>
+                </div>
+              )}
+              {job.quickAnalysis && (
+                <div className="rounded-lg border border-indigo-100 bg-indigo-50/50 p-3">
+                  <span className="block text-[10px] font-bold uppercase tracking-wider text-indigo-600 mb-1">
+                    AI Quick Analysis
+                  </span>
+                  <p className="text-xs text-slate-700 leading-relaxed font-medium">
+                    {job.quickAnalysis}
+                  </p>
+                </div>
               )}
             </div>
-          ) : null}
+          ) : (
+            score || job.matchScore != null ? (
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                {job.sourceName?.toLowerCase() === "manual" ? (
+                  <>
+                    {job.matchScore != null && (
+                      <div className="rounded-lg border border-emerald-100 bg-emerald-50 px-3 py-2">
+                        <Caption variant="semibold" className="block text-[10px] uppercase tracking-wide text-emerald-600">
+                          Match Score
+                        </Caption>
+                        <Body size="sm" weight="semibold" className="text-emerald-700">
+                          {formatScore(job.matchScore)}
+                        </Body>
+                      </div>
+                    )}
+                    {["ATS", "Career", "Outlook"].map((label) => (
+                      <div
+                        key={label}
+                        className="rounded-lg border border-slate-200 bg-white px-3 py-2"
+                      >
+                        <Caption variant="semibold" className="block text-[10px] uppercase tracking-wide text-slate-500">
+                          {label}
+                        </Caption>
+                        <Body size="sm" weight="semibold" className="text-slate-800">
+                          N/A
+                        </Body>
+                      </div>
+                    ))}
+                  </>
+                ) : (
+                  <>
+                    {job.matchScore != null && (
+                      <div className="rounded-lg border border-emerald-100 bg-emerald-50 px-3 py-2">
+                        <Caption variant="semibold" className="block text-[10px] uppercase tracking-wide text-emerald-600">
+                          Match Score
+                        </Caption>
+                        <Body size="sm" weight="semibold" className="text-emerald-700">
+                          {formatScore(job.matchScore)}
+                        </Body>
+                      </div>
+                    )}
+                    {score && [
+                      ["ATS", score.atsScore],
+                      ["Career", score.careerScore],
+                      ["Outlook", score.outlookScore],
+                    ].map(([label, value]) => (
+                      <div
+                        key={label}
+                        className="rounded-lg border border-slate-200 bg-white px-3 py-2"
+                      >
+                        <Caption variant="semibold" className="block text-[10px] uppercase tracking-wide text-slate-500">
+                          {label}
+                        </Caption>
+                        <Body
+                          size="sm"
+                          weight="semibold"
+                          className="text-slate-800"
+                        >
+                          {formatScore(value as number | null)}
+                        </Body>
+                      </div>
+                    ))}
+                  </>
+                )}
+              </div>
+            ) : null
+          )}
 
           {job.salary ? (
             <Body size="sm" weight="medium" className="text-emerald-700">
@@ -404,6 +434,7 @@ export function JobResultCard({
                   href={job.sourceUrl}
                   target="_blank"
                   rel="noopener noreferrer"
+                  onClick={onApplyClick}
                   className="inline-flex h-8 items-center gap-1 whitespace-nowrap rounded-lg bg-amber-600 px-2.5 text-xs font-semibold text-white transition hover:bg-amber-700"
                 >
                   Open <ExternalLink className="h-3.5 w-3.5" />

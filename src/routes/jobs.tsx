@@ -162,6 +162,8 @@ function JobsPage() {
   const { hasResume, fullName, savedSearches: loaderSavedSearches, cronStartHour, cronFrequency, jobHistory } = loaderData;
   const navigate = Route.useNavigate();
 
+  const [viewMode, setViewMode] = useState<ViewMode>("cards");
+
   const activeTab = view;
   const setActiveTab = (newTab: 'my-jobs' | 'all-jobs' | 'quick-search') => {
     navigate({ search: (prev) => ({ ...prev, view: newTab, page: 1 }) });
@@ -330,12 +332,19 @@ function JobsPage() {
             setAggregatedResults={setAggregatedResults}
             savedAggregatedJobIds={savedAggregatedJobIds}
             setSavedAggregatedJobIds={setSavedAggregatedJobIds}
+            viewMode={viewMode}
+            setViewMode={setViewMode}
           />
         )}
 
         {/* All Jobs Tab */}
         {activeTab === "all-jobs" && (
-          <CatalogBrowser onAnalyzeClick={openAnalysisModal} />
+          <CatalogBrowser
+            onAnalyzeClick={openAnalysisModal}
+            viewMode={viewMode}
+            setViewMode={setViewMode}
+            recommendedJobs={loaderData.recommendedJobs}
+          />
         )}
 
         {/* Quick Search Tab */}
@@ -480,6 +489,8 @@ function JobsListContentWrapper({
   setAggregatedResults,
   savedAggregatedJobIds,
   setSavedAggregatedJobIds,
+  viewMode,
+  setViewMode,
 }: {
   jobHistoryPromise: any;
   hasResume: boolean;
@@ -504,6 +515,8 @@ function JobsListContentWrapper({
   setAggregatedResults: (results: any) => void;
   savedAggregatedJobIds: Set<string>;
   setSavedAggregatedJobIds: (ids: Set<string> | ((prev: Set<string>) => Set<string>)) => void;
+  viewMode: ViewMode;
+  setViewMode: (mode: ViewMode) => void;
 }): React.ReactElement {
   const { page, query, remote, sortBy, status: activeStatus, analyzedOnly, analyze, url: searchUrl, view } = Route.useSearch();
   const navigate = Route.useNavigate();
@@ -520,7 +533,6 @@ function JobsListContentWrapper({
   const [selectedIds, setSelectedIds] = useState<Set<number>>(() => new Set());
   const [pendingStatusId, setPendingStatusId] = useState<number | null>(null);
   const [pendingBulkAction, setPendingBulkAction] = useState<"archive" | "delete" | null>(null);
-  const [viewMode, setViewMode] = useState<ViewMode>("cards");
   const didMount = useRef(false);
 
   const jobs = (jobsQuery.data?.rows ?? rows) as HubJob[];
@@ -1256,7 +1268,17 @@ function formatSalary(min?: number | null, max?: number | null) {
   return `${fmt(min!)}+`;
 }
 
-function CatalogBrowser({ onAnalyzeClick }: { onAnalyzeClick: (job: any) => void }) {
+function CatalogBrowser({
+  onAnalyzeClick,
+  viewMode,
+  setViewMode,
+  recommendedJobs,
+}: {
+  onAnalyzeClick: (job: any) => void;
+  viewMode: ViewMode;
+  setViewMode: (mode: ViewMode) => void;
+  recommendedJobs: any[];
+}) {
   // Local filter state — text inputs are debounced inside useCatalogQuery via @tanstack/react-pacer
   const [filters, setFilters] = useState<CatalogFilters>({
     query: '',
@@ -1311,8 +1333,37 @@ function CatalogBrowser({ onAnalyzeClick }: { onAnalyzeClick: (job: any) => void
               : 'Loading catalog…'}
           </p>
         </div>
-        <button
-          onClick={() => setFiltersOpen((o) => !o)}
+        <div className="flex items-center gap-2">
+          {/* View Toggle */}
+          <div className="inline-flex items-center rounded-lg border border-slate-200 bg-slate-50 p-1 gap-1">
+            <button
+              type="button"
+              onClick={() => setViewMode("cards")}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                viewMode === "cards"
+                  ? "bg-white border border-slate-200 text-slate-900 shadow-sm"
+                  : "text-slate-600 hover:text-slate-900"
+              }`}
+              title="Card view"
+            >
+              <Grid3x3 className="h-4 w-4" />
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode("table")}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                viewMode === "table"
+                  ? "bg-white border border-slate-200 text-slate-900 shadow-sm"
+                  : "text-slate-600 hover:text-slate-900"
+              }`}
+              title="Table view"
+            >
+              <Table2 className="h-4 w-4" />
+            </button>
+          </div>
+
+          <button
+            onClick={() => setFiltersOpen((o) => !o)}
           className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-sm font-medium transition ${
             filtersOpen || hasActiveFilters
               ? 'bg-slate-900 text-white border-slate-900'
@@ -1323,6 +1374,7 @@ function CatalogBrowser({ onAnalyzeClick }: { onAnalyzeClick: (job: any) => void
           Filters
           {hasActiveFilters && <span className="ml-1 h-2 w-2 rounded-full bg-amber-400" />}
         </button>
+        </div>
       </div>
 
       {/* Search */}
@@ -1415,6 +1467,61 @@ function CatalogBrowser({ onAnalyzeClick }: { onAnalyzeClick: (job: any) => void
       )}
 
       {/* Results */}
+      {/* Recommended Jobs */}
+      {recommendedJobs && recommendedJobs.length > 0 && (
+        <div className="space-y-4 mb-8">
+          <div>
+            <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+              <Sparkles className="h-5 w-5 text-indigo-500 animate-pulse" />
+              AI-Recommended Jobs
+            </h3>
+            <p className="text-xs text-slate-500 mt-0.5">
+              Top vector matches with custom AI Quick Analysis synthesized for you.
+            </p>
+          </div>
+          <div className="grid gap-4 grid-cols-1 lg:grid-cols-2">
+            {recommendedJobs.map((job: any) => {
+              const cardJob = {
+                ...job,
+                title: job.jobTitle || job.title,
+                company: job.employerName || job.company,
+                location: job.location,
+                sourceUrl: job.sourceUrl,
+                snippet: job.snippet || (job.description ? job.description.substring(0, 300) : ''),
+                isFavorited: job.isFavorited === 1 || job.isFavorited === true,
+                isSaved: job.isSaved === 1 || job.isSaved === true,
+              };
+              return (
+                <JobResultCard
+                  key={job.id}
+                  job={cardJob}
+                  isRecommendation={true}
+                  isFavorited={job.isFavorited === 1 || job.isFavorited === true}
+                  onToggleFavorite={() => handleStar(job)}
+                  onAnalyzeClick={async () => {
+                    if (!job.isSaved && !job.isFavorited) {
+                      await starMutation.mutateAsync({ canonicalJobId: job.canonicalJobId || String(job.id), star: true });
+                    }
+                    onAnalyzeClick({
+                      ...job,
+                      title: job.jobTitle || job.title,
+                      company: job.employerName || job.company,
+                      sourceUrl: job.sourceUrl,
+                    });
+                  }}
+                  onApplyClick={async () => {
+                    if (!job.isSaved && !job.isFavorited) {
+                      await starMutation.mutateAsync({ canonicalJobId: job.canonicalJobId || String(job.id), star: true });
+                    }
+                  }}
+                />
+              );
+            })}
+          </div>
+          <div className="border-b border-slate-200/60 pt-4" />
+        </div>
+      )}
+
       {isLoading ? (
         <div className="text-center py-16">
           <Loader2 className="h-8 w-8 text-slate-300 mx-auto mb-3 animate-spin" />
@@ -1422,95 +1529,152 @@ function CatalogBrowser({ onAnalyzeClick }: { onAnalyzeClick: (job: any) => void
         </div>
       ) : data && data.jobs.length > 0 ? (
         <>
-          <div
-            className={`divide-y divide-slate-100 border border-slate-200 rounded-xl overflow-hidden bg-white shadow-sm transition-opacity ${
-              isFetching ? 'opacity-60' : 'opacity-100'
-            }`}
-          >
-            {data.jobs.map((job) => {
-              const salary = formatSalary(job.compensationMin, job.compensationMax);
-              const badgeCls = atsBadgeClass[job.ats ?? ''] ?? 'bg-slate-100 text-slate-600';
-              const isStarring = starMutation.isPending && (starMutation.variables as any)?.canonicalJobId === job.id;
+          {viewMode === "cards" ? (
+            <div className="grid gap-4 grid-cols-1 lg:grid-cols-2">
+              {data.jobs.map((job) => {
+                const cardJob = {
+                  title: job.titleDisplay,
+                  company: job.companyDisplay,
+                  location: job.locationDisplay,
+                  sourceUrl: job.applyUrl ?? job.sourceUrl ?? '',
+                  salary: formatSalary(job.compensationMin, job.compensationMax),
+                  snippet: job.descriptionPlain ? job.descriptionPlain.substring(0, 300) : null,
+                  description: job.descriptionPlain ?? null,
+                  firstSeenAt: job.firstSeenAt,
+                  sourceOrigin: job.ats,
+                  isSaved: job.isSaved,
+                  isFavorited: job.isFavorited,
+                };
 
-              return (
-                <div
-                  key={job.id}
-                  className="flex items-start gap-3 px-4 py-3.5 hover:bg-slate-50/80 transition group"
-                >
-                  {/* Star */}
-                  <button
-                    onClick={() => handleStar(job)}
-                    disabled={isStarring}
-                    title={job.isFavorited ? 'Remove from My Jobs' : 'Star to add to My Jobs'}
-                    className={`mt-0.5 flex-shrink-0 transition-all ${
-                      job.isFavorited ? 'text-amber-400 scale-110' : 'text-slate-200 hover:text-amber-400 hover:scale-110'
-                    } ${isStarring ? 'opacity-50 animate-pulse' : ''}`}
-                  >
-                    <Star className="h-5 w-5" fill={job.isFavorited ? 'currentColor' : 'none'} strokeWidth={1.5} />
-                  </button>
-
-                  {/* Info */}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-start gap-2 justify-between">
-                      <div className="min-w-0 flex-1">
-                        <p className="font-semibold text-slate-900 text-sm leading-tight truncate">{job.titleDisplay}</p>
-                        <p className="text-sm text-slate-500 mt-0.5 truncate">{job.companyDisplay}</p>
-                      </div>
-                      <div className="flex items-center gap-1.5 flex-shrink-0">
-                        {job.ats && (
-                          <span className={`px-2 py-0.5 rounded-full text-[11px] font-bold uppercase tracking-wide ${badgeCls}`}>
-                            {job.ats}
-                          </span>
-                        )}
-                        {job.remote && (
-                          <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-teal-50 text-teal-700 text-[11px] font-bold">
-                            <Globe className="h-3 w-3" />
-                            Remote
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                    <div className="flex flex-wrap items-center gap-2 mt-1 text-[12px] text-slate-400">
-                      {job.locationDisplay && <span>{job.locationDisplay}</span>}
-                      {salary && <span className="text-emerald-600 font-semibold">{salary}</span>}
-                      {job.experienceLevel && <span className="capitalize">{job.experienceLevel.replace(/_/g, ' ')}</span>}
-                      {job.lastSeenAt && (
-                        <span>{new Date(job.lastSeenAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
-                      )}
-                      {job.isSaved && !job.isFavorited && (
-                        <span className="text-slate-400 italic">in pipeline</span>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Hover actions */}
-                  <div className="flex items-center gap-1.5 flex-shrink-0 opacity-0 group-hover:opacity-100 transition">
-                    {(job.applyUrl || job.sourceUrl) && (
-                      <a
-                        href={job.applyUrl ?? job.sourceUrl ?? '#'}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="px-2.5 py-1 text-[12px] font-semibold bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition"
-                      >
-                        Apply
-                      </a>
-                    )}
-                    <button
-                      onClick={() => onAnalyzeClick({
+                return (
+                  <JobResultCard
+                    key={job.id}
+                    job={cardJob}
+                    isNew={false}
+                    showSelection={false}
+                    onAnalyzeClick={async () => {
+                      if (!job.isSaved || !job.isFavorited) {
+                        await starMutation.mutateAsync({ canonicalJobId: job.id, star: true });
+                      }
+                      onAnalyzeClick({
                         ...job,
                         title: job.titleDisplay,
                         company: job.companyDisplay,
                         sourceUrl: job.applyUrl ?? job.sourceUrl,
-                      })}
-                      className="px-2.5 py-1 text-[12px] font-medium border border-slate-200 text-slate-600 rounded-lg hover:bg-slate-100 transition"
+                      });
+                    }}
+                    isFavorited={job.isFavorited}
+                    onToggleFavorite={() => handleStar(job)}
+                    onApplyClick={async () => {
+                      if (!job.isSaved || !job.isFavorited) {
+                        await starMutation.mutateAsync({ canonicalJobId: job.id, star: true });
+                      }
+                    }}
+                  />
+                );
+              })}
+            </div>
+          ) : (
+            <div
+              className={`divide-y divide-slate-100 border border-slate-200 rounded-xl overflow-hidden bg-white shadow-sm transition-opacity ${
+                isFetching ? 'opacity-60' : 'opacity-100'
+              }`}
+            >
+              {data.jobs.map((job) => {
+                const salary = formatSalary(job.compensationMin, job.compensationMax);
+                const badgeCls = atsBadgeClass[job.ats ?? ''] ?? 'bg-slate-100 text-slate-600';
+                const isStarring = starMutation.isPending && (starMutation.variables as any)?.canonicalJobId === job.id;
+
+                return (
+                  <div
+                    key={job.id}
+                    className="flex items-start gap-3 px-4 py-3.5 hover:bg-slate-50/80 transition group"
+                  >
+                    {/* Star */}
+                    <button
+                      onClick={() => handleStar(job)}
+                      disabled={isStarring}
+                      title={job.isFavorited ? 'Remove from My Jobs' : 'Star to add to My Jobs'}
+                      className={`mt-0.5 flex-shrink-0 transition-all ${
+                        job.isFavorited ? 'text-amber-400 scale-110' : 'text-slate-200 hover:text-amber-400 hover:scale-110'
+                      } ${isStarring ? 'opacity-50 animate-pulse' : ''}`}
                     >
-                      Analyze
+                      <Star className="h-5 w-5" fill={job.isFavorited ? 'currentColor' : 'none'} strokeWidth={1.5} />
                     </button>
+
+                    {/* Info */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-start gap-2 justify-between">
+                        <div className="min-w-0 flex-1">
+                          <p className="font-semibold text-slate-900 text-sm leading-tight truncate">{job.titleDisplay}</p>
+                          <p className="text-sm text-slate-500 mt-0.5 truncate">{job.companyDisplay}</p>
+                        </div>
+                        <div className="flex items-center gap-1.5 flex-shrink-0">
+                          {job.ats && (
+                            <span className={`px-2 py-0.5 rounded-full text-[11px] font-bold uppercase tracking-wide ${badgeCls}`}>
+                              {job.ats}
+                            </span>
+                          )}
+                          {job.remote && (
+                            <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-teal-50 text-teal-700 text-[11px] font-bold">
+                              <Globe className="h-3 w-3" />
+                              Remote
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-2 mt-1 text-[12px] text-slate-400">
+                        {job.locationDisplay && <span>{job.locationDisplay}</span>}
+                        {salary && <span className="text-emerald-600 font-semibold">{salary}</span>}
+                        {job.experienceLevel && <span className="capitalize">{job.experienceLevel.replace(/_/g, ' ')}</span>}
+                        {job.lastSeenAt && (
+                          <span>{new Date(job.lastSeenAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
+                        )}
+                        {job.isSaved && !job.isFavorited && (
+                          <span className="text-slate-400 italic">in pipeline</span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Hover actions */}
+                    <div className="flex items-center gap-1.5 flex-shrink-0 opacity-0 group-hover:opacity-100 transition">
+                      {(job.applyUrl || job.sourceUrl) && (
+                        <a
+                          href={job.applyUrl ?? job.sourceUrl ?? '#'}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={async () => {
+                            if (!job.isSaved || !job.isFavorited) {
+                              await starMutation.mutateAsync({ canonicalJobId: job.id, star: true });
+                            }
+                          }}
+                          className="px-2.5 py-1 text-[12px] font-semibold bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition"
+                        >
+                          Apply
+                        </a>
+                      )}
+                      <button
+                        onClick={async () => {
+                          if (!job.isSaved || !job.isFavorited) {
+                            await starMutation.mutateAsync({ canonicalJobId: job.id, star: true });
+                          }
+                          onAnalyzeClick({
+                            ...job,
+                            title: job.titleDisplay,
+                            company: job.companyDisplay,
+                            sourceUrl: job.applyUrl ?? job.sourceUrl,
+                          });
+                        }}
+                        className="px-2.5 py-1 text-[12px] font-medium border border-slate-200 text-slate-600 rounded-lg hover:bg-slate-100 transition"
+                      >
+                        Analyze
+                      </button>
+                    </div>
                   </div>
-                </div>
-              );
-            })}
-          </div>
+                );
+              })}
+            </div>
+          )}
 
           {/* Pagination */}
           {totalPages > 1 && (

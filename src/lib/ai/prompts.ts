@@ -83,7 +83,8 @@ Return ONLY valid JSON — no markdown, no explanation outside the JSON object:
   "careerReason": string (1 sentence why),
   "outlookReason": string (1 sentence why),
   "isUnicorn": boolean,
-  "unicornReason": string | null
+  "unicornReason": string | null,
+  "quickAnalysis": string (2-3 sentences explaining why this job fits the candidate's background)
 }
 
 SCORING RULES:
@@ -124,7 +125,9 @@ SCORING RULES:
    - But their transferable skills make them a strong match
    - Example: A Project Manager would be a unicorn match for "Chief of Staff", "Implementation Lead", or "Customer Success Director"
    - If isUnicorn is true, explain WHY in unicornReason
-   - If isUnicorn is false, set unicornReason to null`;
+   - If isUnicorn is false, set unicornReason to null
+
+5. Quick Analysis (quickAnalysis): Provide a concise 2-3 sentence synthesis of why this specific job is recommended for this candidate based on their resume, matching points, growth potential, or why it was flagged as a unicorn.`;
 
 // Zero-tolerance JSON-only directive prepended to every resume-parse prompt.
 // Gemma responds well to explicit, absolute formatting constraints and an

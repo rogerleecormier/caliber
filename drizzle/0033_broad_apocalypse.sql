@@ -1,0 +1,1 @@
+ALTER TABLE `normalized_jobs` ADD COLUMN `quick_analysis` text;
