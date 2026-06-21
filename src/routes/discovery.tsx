@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef } from 'react';
+import { useState, useMemo, useRef, memo } from 'react';
 import { createFileRoute, redirect } from '@tanstack/react-router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
@@ -490,23 +490,23 @@ function DiscoveryDashboard() {
 
       {/* Stats Cards */}
       <div className="grid grid-cols-2 gap-4 md:grid-cols-5">
-        <div className="rounded-2xl border border-slate-200 bg-white/80 p-5 shadow-sm backdrop-blur-sm">
+        <div className="rounded-2xl border border-slate-200 bg-white/80 p-5 shadow-sm">
           <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1">Total Discovered</div>
           <div className="text-2xl font-bold text-slate-900">{stats.total_boards}</div>
         </div>
-        <div className="rounded-2xl border border-slate-200 bg-white/80 p-5 shadow-sm backdrop-blur-sm">
+        <div className="rounded-2xl border border-slate-200 bg-white/80 p-5 shadow-sm">
           <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1">Validated Boards</div>
           <div className="text-2xl font-bold text-green-600">{stats.validated_boards}</div>
         </div>
-        <div className="rounded-2xl border border-slate-200 bg-white/80 p-5 shadow-sm backdrop-blur-sm">
+        <div className="rounded-2xl border border-slate-200 bg-white/80 p-5 shadow-sm">
           <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1">Active Crawlers</div>
           <div className="text-2xl font-bold text-blue-600">{stats.active_boards}</div>
         </div>
-        <div className="rounded-2xl border border-slate-200 bg-white/80 p-5 shadow-sm backdrop-blur-sm">
+        <div className="rounded-2xl border border-slate-200 bg-white/80 p-5 shadow-sm">
           <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1">New This Week</div>
           <div className="text-2xl font-bold text-indigo-600">+{stats.discovered_last_week}</div>
         </div>
-        <div className="rounded-2xl border border-slate-200 bg-white/80 p-5 shadow-sm backdrop-blur-sm">
+        <div className="rounded-2xl border border-slate-200 bg-white/80 p-5 shadow-sm">
           <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1">False Positives</div>
           <div className="text-2xl font-bold text-amber-600">{(stats.false_positive_rate * 100).toFixed(1)}%</div>
         </div>
@@ -525,7 +525,7 @@ function DiscoveryDashboard() {
             { id: 'search_engine', name: 'Search Engines', desc: 'Google dorks indexing boards.' },
             { id: 'job_feeds', name: 'Job Feeds', desc: 'Indeed & ZipRecruiter job redirect scans.' }
           ].map(phase => (
-            <div key={phase.id} className="flex flex-col justify-between p-4 rounded-xl border border-slate-200 bg-white/60 backdrop-blur-sm shadow-sm transition hover:shadow-md">
+            <div key={phase.id} className="flex flex-col justify-between p-4 rounded-xl border border-slate-200 bg-white/60 shadow-sm transition hover:shadow-md">
               <div>
                 <h4 className="font-semibold text-slate-900 text-sm flex items-center gap-1.5">
                   <span className="w-2 h-2 rounded-full bg-primary-500" />
@@ -593,7 +593,7 @@ function DiscoveryDashboard() {
         </div>
 
         {/* Boards Table */}
-        <div className="overflow-x-auto border border-slate-200 rounded-xl shadow-sm bg-white/50 backdrop-blur-sm">
+        <div className="overflow-x-auto border border-slate-200 rounded-xl shadow-sm bg-white/50">
           <table className="w-full text-left border-collapse">
             <thead>
               {table.getHeaderGroups().map((headerGroup) => (
@@ -666,7 +666,7 @@ function DiscoveryDashboard() {
         title="Recent Discovery Logs"
         description="Chronological log of newly registered candidate endpoints and auto-validation results."
       >
-        <div className="border border-slate-200 rounded-xl overflow-hidden shadow-sm bg-white/50 backdrop-blur-sm max-h-[300px] overflow-y-auto">
+        <div className="border border-slate-200 rounded-xl overflow-hidden shadow-sm bg-white/50 max-h-[300px] overflow-y-auto">
           <div className="p-3 bg-slate-900 text-slate-300 font-mono text-xs divide-y divide-slate-800">
             {logs.map((log: any) => {
               let details: any = {};
