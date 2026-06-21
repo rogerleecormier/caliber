@@ -315,7 +315,9 @@ function SharedDropdownMenu({
         sideOffset={8}
         className={["spx-menu-panel", panelClass].join(" ")}
       >
-        {entries}
+        <div className="px-1">
+          {entries}
+        </div>
       </DropdownMenuContent>
     </DropdownMenu>
   );
@@ -609,13 +611,15 @@ export function AppHeader({
                 sideOffset={8}
                 className={`spx-menu-panel ${styles.menuPanelUser}`}
               >
-                {renderMenuEntries(userMenuEntries)}
-                <DropdownMenuSeparator className="spx-menu-separator" />
-                <SharedActionMenu
-                  label="Sign Out"
-                  icon={LogOut}
-                  onSelect={handleSharedLogout}
-                />
+                <div className="px-1">
+                  {renderMenuEntries(userMenuEntries)}
+                  <DropdownMenuSeparator className="spx-menu-separator" />
+                  <SharedActionMenu
+                    label="Sign Out"
+                    icon={LogOut}
+                    onSelect={handleSharedLogout}
+                  />
+                </div>
               </DropdownMenuContent>
             </DropdownMenu>
           </>
@@ -697,7 +701,9 @@ export function AppHeader({
                     sideOffset={8}
                     className={`spx-menu-panel ${styles.menuPanelUser}`}
                   >
-                    {renderMenuEntries(userMenuEntries)}
+                    <div className="px-1">
+                      {renderMenuEntries(userMenuEntries)}
+                    </div>
                   </DropdownMenuContent>
                 </DropdownMenu>
               ) : (
