@@ -47,19 +47,27 @@ export const getCrawlerStats = createServerFn({ method: "GET" })
     const totalBoards = totalBoardsRes?.total || 0;
 
     const { results: jobs } = await db.prepare(`
-      SELECT * FROM canonical_jobs
-      WHERE is_listed = 1
-      AND id IN (SELECT DISTINCT canonical_id FROM job_sources)
-      AND id NOT IN (SELECT DISTINCT canonical_job_id FROM normalized_jobs WHERE current_stage = 'Archived')
-      ORDER BY last_seen_at DESC
+      SELECT c.* FROM canonical_jobs c
+      WHERE c.is_listed = 1
+      AND c.id IN (SELECT DISTINCT canonical_id FROM job_sources)
+      AND NOT EXISTS (
+        SELECT 1 FROM normalized_jobs n
+        WHERE n.canonical_job_id = c.id
+        AND n.current_stage = 'Archived'
+      )
+      ORDER BY c.last_seen_at DESC
       LIMIT ? OFFSET ?
     `).bind(limit, offset).all<any>();
 
     const totalJobsRes = await db.prepare(`
-      SELECT COUNT(*) as total FROM canonical_jobs
-      WHERE is_listed = 1
-      AND id IN (SELECT DISTINCT canonical_id FROM job_sources)
-      AND id NOT IN (SELECT DISTINCT canonical_job_id FROM normalized_jobs WHERE current_stage = 'Archived')
+      SELECT COUNT(*) as total FROM canonical_jobs c
+      WHERE c.is_listed = 1
+      AND c.id IN (SELECT DISTINCT canonical_id FROM job_sources)
+      AND NOT EXISTS (
+        SELECT 1 FROM normalized_jobs n
+        WHERE n.canonical_job_id = c.id
+        AND n.current_stage = 'Archived'
+      )
     `).first<{ total: number }>();
     const totalJobs = totalJobsRes?.total || 0;
 
@@ -74,7 +82,16 @@ export const getCrawlerStats = createServerFn({ method: "GET" })
 
     const stats = await db.prepare(`
       SELECT
-        (SELECT COUNT(*) FROM canonical_jobs WHERE is_listed = 1 AND id IN (SELECT DISTINCT canonical_id FROM job_sources) AND id NOT IN (SELECT DISTINCT canonical_job_id FROM normalized_jobs WHERE current_stage = 'Archived')) as canonical_count,
+        (
+          SELECT COUNT(*) FROM canonical_jobs c
+          WHERE c.is_listed = 1
+          AND c.id IN (SELECT DISTINCT canonical_id FROM job_sources)
+          AND NOT EXISTS (
+            SELECT 1 FROM normalized_jobs n
+            WHERE n.canonical_job_id = c.id
+            AND n.current_stage = 'Archived'
+          )
+        ) as canonical_count,
         (SELECT COUNT(*) FROM job_sources) as source_count,
         (SELECT COUNT(*) FROM boards WHERE is_active = 1) as active_boards,
         (SELECT COUNT(*) FROM audit_log WHERE event_type = 'error' AND created_at > datetime('now', '-24 hours')) as errors_24h,
