@@ -445,6 +445,52 @@ export const togglePipelineJobFavorite = createServerFn({ method: "POST" })
 
 // ─── Catalog Browser ──────────────────────────────────────────────────────────
 
+// Diagnostic endpoint to check catalog state
+export const getCatalogStats = createServerFn({ method: "GET" })
+  .inputValidator((data: {}) => data)
+  .handler(async (ctx: any) => {
+    const user = await resolveSessionUser((ctx as any)?.request);
+    if (!user) throw new Error("Not authenticated");
+    const env = await getCloudflareEnvAsync();
+    if (!env.DB) return { error: "Database unavailable" };
+    const db = getDb(env.DB);
+
+    try {
+      // Count total canonical jobs
+      const totalJobs = await db
+        .select({ count: count() })
+        .from(canonicalJobs)
+        .where(eq(canonicalJobs.isListed, true));
+
+      // Count jobs with titles and companies normalized
+      const normalizedJobs = await db
+        .select({ count: count() })
+        .from(canonicalJobs)
+        .where(and(
+          eq(canonicalJobs.isListed, true),
+          sql`${canonicalJobs.titleNorm} IS NOT NULL AND ${canonicalJobs.titleNorm} != ''`,
+          sql`${canonicalJobs.companyNorm} IS NOT NULL AND ${canonicalJobs.companyNorm} != ''`
+        ));
+
+      // Check if Vectorize is available
+      const vectorizeAvailable = !!env.VECTORIZE;
+      const aiAvailable = !!env.AI;
+
+      return {
+        totalListedJobs: totalJobs[0]?.count || 0,
+        normalizedJobs: normalizedJobs[0]?.count || 0,
+        vectorizeAvailable,
+        aiAvailable,
+        timestamp: new Date().toISOString(),
+      };
+    } catch (error) {
+      return {
+        error: error instanceof Error ? error.message : "Unknown error",
+        timestamp: new Date().toISOString(),
+      };
+    }
+  });
+
 export const getCatalogJobs = createServerFn({ method: "GET" })
   .inputValidator((data: {
     query?: string;
@@ -471,9 +517,11 @@ export const getCatalogJobs = createServerFn({ method: "GET" })
     const conditions: any[] = [eq(canonicalJobs.isListed, true)];
 
     // Try vector search first if enabled and query exists
+    let vectorSearchAttempted = false;
     let vectorJobIds: string[] | null = null;
     if (data.useVectorSearch && data.query?.trim() && env.VECTORIZE && env.AI) {
       try {
+        vectorSearchAttempted = true;
         const { embedJob } = await import('@/server/dedup/embedding');
         const queryVector = await embedJob(env, {
           titleDisplay: data.query.trim(),
@@ -496,21 +544,30 @@ export const getCatalogJobs = createServerFn({ method: "GET" })
         // If we have vector results, use those IDs as the search filter
         if (vectorJobIds.length > 0) {
           conditions.push(inArray(canonicalJobs.id, vectorJobIds));
+          console.log('[getCatalogJobs] Vector search found', vectorJobIds.length, 'results');
+        } else {
+          // Vector search returned 0 results - fall back to keyword search
+          console.warn('[getCatalogJobs] Vector search returned 0 results, falling back to keyword search');
+          vectorJobIds = null;
         }
       } catch (error) {
         // Fall back to keyword search if vector search fails
         console.warn('[getCatalogJobs] Vector search failed, falling back to keyword search:', error);
+        vectorJobIds = null;
       }
     }
 
-    // Fall back to keyword search if vector search wasn't used or failed
-    if (!vectorJobIds && data.query?.trim()) {
+    // Fall back to keyword search if vector search wasn't attempted, didn't find results, or failed
+    if (vectorJobIds === null && data.query?.trim()) {
       const q = data.query.trim().toLowerCase();
       // Use instr for SQLite substring matching (case-insensitive)
       conditions.push(or(
         sql`instr(${canonicalJobs.titleNorm}, ${q}) > 0`,
         sql`instr(${canonicalJobs.companyNorm}, ${q}) > 0`,
       ));
+      if (!vectorSearchAttempted) {
+        console.log('[getCatalogJobs] Using keyword search for query:', q);
+      }
     }
     if (data.remote === true) conditions.push(eq(canonicalJobs.remote, true));
     if (data.remote === false) conditions.push(eq(canonicalJobs.remote, false));
@@ -552,13 +609,14 @@ export const getCatalogJobs = createServerFn({ method: "GET" })
     const total = Number(countRows[0]?.total ?? 0);
 
     // Debug logging
-    if (data.query?.trim()) {
-      console.log('[getCatalogJobs] Query:', {
-        query: data.query.trim(),
-        total,
-        conditionsCount: conditions.length,
-      });
-    }
+    console.log('[getCatalogJobs] Search attempt:', {
+      query: data.query?.trim() || 'none',
+      total,
+      vectorSearchAttempted,
+      vectorJobIds: vectorJobIds?.length || 0,
+      conditionsCount: conditions.length,
+      isListed: true,
+    });
 
     // Fetch page — get only distinct canonical jobs by using a subquery
     // This avoids the LEFT JOIN duplication issue
