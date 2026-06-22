@@ -8,6 +8,17 @@ import { fileURLToPath } from "url";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const isDev = process.env.NODE_ENV !== "production";
 
+// Stub cloudflare:workers only for client/ssr environments (not the cloudflare environment,
+// where the real module is available and needed by the plugin's virtual export-types module).
+const cloudflareWorkersStubPlugin = {
+  name: "cloudflare-workers-stub",
+  resolveId(id: string, _importer: string | undefined, options: { ssr?: boolean }) {
+    if (id === "cloudflare:workers" && options?.ssr) {
+      return path.resolve(__dirname, "src/stubs/cloudflare-workers-stub.ts");
+    }
+  },
+};
+
 const config = defineConfig({
   plugins: [
     // TanStack Start must come first for proper routing
@@ -17,6 +28,7 @@ const config = defineConfig({
       configPath: "./wrangler.toml",
     }),
     tailwindcss(),
+    ...(isDev ? [cloudflareWorkersStubPlugin] : []),
   ],
   resolve: {
     tsconfigPaths: true,
@@ -24,10 +36,6 @@ const config = defineConfig({
       'node:sqlite': new URL('./src/stubs/node-sqlite.js', import.meta.url).pathname,
       // Fix blake3-wasm resolution issue by pointing to browser version
       'blake3-wasm': 'blake3-wasm/esm/browser/index.js',
-      // Stub cloudflare:workers in dev so auth/session imports don't crash
-      ...(isDev ? {
-        'cloudflare:workers': path.resolve(__dirname, 'src/stubs/cloudflare-workers-stub.ts'),
-      } : {}),
     },
   },
   optimizeDeps: {

@@ -27,6 +27,7 @@ database_name = "caliber-db"
 database_id = "55a19e36-ed5b-4a31-83db-56ec83dd9a71"
 preview_database_id = "55a19e36-ed5b-4a31-83db-56ec83dd9a71"
 migrations_dir = "drizzle"
+remote = true
 
 # R2 bucket for generated PDF documents (resumes, cover letters)
 [[r2_buckets]]

@@ -171,7 +171,7 @@ export function AggregatedJobCard({
       {/* Description Preview */}
       {cleanedDescription && (
         <div className="mb-3">
-          <p className="text-xs text-gray-600 line-clamp-2">
+          <p className="text-xs text-gray-600 line-clamp-3">
             {cleanedDescription}
           </p>
         </div>

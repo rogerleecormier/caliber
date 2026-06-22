@@ -497,14 +497,23 @@ export function JobResultCard({
             ) : null}
           </div>
           {(job.postDateText && job.postDateText !== "Invalid Date") || job.firstSeenAt || job.ownerEmail ? (
-            <div className="flex flex-wrap items-center gap-2 text-xs text-slate-400">
+            <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500">
               {job.postDateText && job.postDateText !== "Invalid Date" ? (
-                <span>
-                  {(() => {
-                    const d = new Date(job.postDateText!);
-                    return !isNaN(d.getTime()) ? d.toLocaleDateString() : job.postDateText;
-                  })()}
-                </span>
+                <div className="flex items-center gap-1">
+                  <span className="text-[10px] font-medium text-slate-400">Posted:</span>
+                  <span>
+                    {(() => {
+                      const d = new Date(job.postDateText!);
+                      return !isNaN(d.getTime()) ? d.toLocaleDateString() : job.postDateText;
+                    })()}
+                  </span>
+                </div>
+              ) : null}
+              {job.firstSeenAt ? (
+                <div className="flex items-center gap-1">
+                  <span className="text-[10px] font-medium text-slate-400">Found:</span>
+                  <span>{new Date(job.firstSeenAt).toLocaleDateString()}</span>
+                </div>
               ) : null}
               {job.ownerEmail ? (
                 <span className="text-[11px]">{job.ownerEmail}</span>
@@ -535,7 +544,7 @@ export function JobResultCard({
             <span className="text-xs font-semibold text-teal-700">{job.salary}</span>
           ) : null}
           {cleanedSnippet ? (
-            <p className="text-xs leading-relaxed text-slate-500 line-clamp-2">
+            <p className="text-xs leading-relaxed text-slate-500 line-clamp-3">
               {cleanedSnippet}
             </p>
           ) : null}

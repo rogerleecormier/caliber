@@ -123,11 +123,14 @@ function MyJobsPage() {
     query,
     sortBy,
     status: activeStatus,
+    remote: false,
+    analyzedOnly: false,
+    view: "my-jobs" as const,
     isFavorited: true,
     pageSize: PAGE_SIZE,
   };
 
-  const jobsQuery = useJobsQuery(searchParams);
+  const jobsQuery = useJobsQuery({ searchParams });
   const { data: jobs, isLoading } = jobsQuery;
 
   const handleStatusChange = async (jobId: string, newStatus: JobStatus) => {

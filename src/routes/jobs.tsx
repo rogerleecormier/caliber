@@ -1352,6 +1352,7 @@ function CatalogBrowser({
                   snippet: job.descriptionPlain ? job.descriptionPlain.substring(0, 300) : null,
                   description: job.descriptionPlain ?? null,
                   firstSeenAt: job.firstSeenAt,
+                  postDateText: job.sourceCreatedAt,
                   sourceOrigin: job.ats,
                   isSaved: job.isSaved,
                   isFavorited: job.isFavorited,

@@ -554,9 +554,11 @@ export const getCatalogJobs = createServerFn({ method: "GET" })
         compensationCurrency: canonicalJobs.compensationCurrency,
         firstSeenAt: canonicalJobs.firstSeenAt,
         lastSeenAt: canonicalJobs.lastSeenAt,
+        descriptionPlain: canonicalJobs.descriptionPlain,
         ats: jobSources.ats,
         sourceUrl: jobSources.sourceUrl,
         applyUrl: jobSources.applyUrl,
+        sourceCreatedAt: jobSources.createdAt,
         isFavorited: normalizedJobs.isFavorited,
         currentStage: normalizedJobs.currentStage,
       })
