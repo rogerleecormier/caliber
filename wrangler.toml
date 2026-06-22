@@ -6,9 +6,6 @@ main = "worker.ts"
 [build]
 command = "npm run build"
 
-[build.upload]
-format = "service-worker"
-
 [vars]
 BETTER_AUTH_URL = "https://caliber.rcormier.dev"
 
