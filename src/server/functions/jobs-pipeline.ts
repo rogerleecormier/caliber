@@ -551,6 +551,15 @@ export const getCatalogJobs = createServerFn({ method: "GET" })
       ));
     const total = Number(countRows[0]?.total ?? 0);
 
+    // Debug logging
+    if (data.query?.trim()) {
+      console.log('[getCatalogJobs] Query:', {
+        query: data.query.trim(),
+        total,
+        conditionsCount: conditions.length,
+      });
+    }
+
     // Fetch page — get only distinct canonical jobs by using a subquery
     // This avoids the LEFT JOIN duplication issue
     // Include both user-specific and global (userId = NULL) normalized_jobs entries
