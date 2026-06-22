@@ -6,6 +6,10 @@ main = "worker.ts"
 [build]
 command = "npm run build"
 
+[define]
+"import.meta.env.DEV" = "false"
+"import.meta.env.PROD" = "true"
+
 [vars]
 BETTER_AUTH_URL = "https://caliber.rcormier.dev"
 
