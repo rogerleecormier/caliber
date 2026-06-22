@@ -1303,7 +1303,6 @@ function CatalogBrowser({
                   job={{
                     ...cardJob,
                     firstSeenAt: job.discoveryTimestamp || job.createdAt,
-                    snippet: job.snippet || (job.description ? job.description.substring(0, 300) : ''),
                   }}
                   isRecommendation={true}
                   isHorizontal={true}
@@ -1361,11 +1360,7 @@ function CatalogBrowser({
                 return (
                   <JobResultCard
                     key={job.id}
-                    job={{
-                      ...cardJob,
-                      firstSeenAt: job.firstSeenAt,
-                      snippet: job.descriptionPlain ? job.descriptionPlain.substring(0, 300) : null,
-                    }}
+                    job={cardJob}
                     isNew={false}
                     showSelection={false}
                     onAnalyzeClick={async () => {
