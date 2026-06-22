@@ -1,10 +1,7 @@
 name = "caliber"
 compatibility_date = "2025-11-30"
 compatibility_flags = ["nodejs_compat"]
-main = "worker.ts"
-
-[build]
-command = "npm run build"
+main = "dist/caliber/index.js"
 
 [vars]
 BETTER_AUTH_URL = "https://caliber.rcormier.dev"

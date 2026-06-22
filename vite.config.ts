@@ -46,6 +46,9 @@ const config = defineConfig({
       external: ["cloudflare:workers"],
     },
   },
+  esbuild: {
+    target: "esnext",
+  },
   ssr: {
     noExternal: ["drizzle-orm"],
     external: ["node:sqlite", "blake3-wasm", "miniflare", "wrangler", "cloudflare:workers"],
