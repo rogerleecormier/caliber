@@ -14,7 +14,7 @@ import { getCloudflareEnvAsync } from "@/lib/cloudflare";
 import type { PipelineStatus } from "@/lib/pipeline-constants";
 import { getDb } from "@/db/db";
 import { user as userTable, canonicalJobs, masterResume, normalizedJobs, jobSources } from "@/db/schema";
-import { eq, and, inArray, or, gte, isNull, like, desc, asc, sql, count, ne } from "drizzle-orm";
+import { eq, and, inArray, or, gte, isNull, desc, asc, sql, count, ne } from "drizzle-orm";
 import { scoreJobAgainstProfile } from "@/lib/ai/job-score";
 import { canonicalizeJobUrl } from "@/lib/normalized-jobs-persistence";
 import {
@@ -454,6 +454,7 @@ export const getCatalogJobs = createServerFn({ method: "GET" })
     salaryMin?: number;
     page?: number;
     pageSize?: number;
+    useVectorSearch?: boolean;
   }) => data)
   .handler(async (ctx: any) => { const { data } = ctx;
     const user = await resolveSessionUser((ctx as any)?.request);
@@ -469,17 +470,53 @@ export const getCatalogJobs = createServerFn({ method: "GET" })
     // Build where conditions for canonical_jobs
     const conditions: any[] = [eq(canonicalJobs.isListed, true)];
 
-    if (data.query?.trim()) {
-      const q = `%${data.query.trim().toLowerCase()}%`;
+    // Try vector search first if enabled and query exists
+    let vectorJobIds: string[] | null = null;
+    if (data.useVectorSearch && data.query?.trim() && env.VECTORIZE && env.AI) {
+      try {
+        const { embedJob } = await import('@/server/dedup/embedding');
+        const queryVector = await embedJob(env, {
+          titleDisplay: data.query.trim(),
+          companyDisplay: '',
+          titleNorm: '',
+          companyNorm: '',
+          remote: false,
+          dedupKey: '',
+          rawHash: '',
+        });
+
+        const results = await env.VECTORIZE.query(queryVector, {
+          returnMetadata: 'all',
+          returnValues: false,
+          topK: 100,
+        });
+
+        vectorJobIds = results.matches?.map(m => String(m.metadata?.canonical_id || m.id)) || [];
+
+        // If we have vector results, use those IDs as the search filter
+        if (vectorJobIds.length > 0) {
+          conditions.push(inArray(canonicalJobs.id, vectorJobIds));
+        }
+      } catch (error) {
+        // Fall back to keyword search if vector search fails
+        console.warn('[getCatalogJobs] Vector search failed, falling back to keyword search:', error);
+      }
+    }
+
+    // Fall back to keyword search if vector search wasn't used or failed
+    if (!vectorJobIds && data.query?.trim()) {
+      const q = data.query.trim().toLowerCase();
+      // Use instr for SQLite substring matching (case-insensitive)
       conditions.push(or(
-        like(canonicalJobs.titleNorm, q),
-        like(canonicalJobs.companyNorm, q),
+        sql`instr(${canonicalJobs.titleNorm}, ${q}) > 0`,
+        sql`instr(${canonicalJobs.companyNorm}, ${q}) > 0`,
       ));
     }
     if (data.remote === true) conditions.push(eq(canonicalJobs.remote, true));
     if (data.remote === false) conditions.push(eq(canonicalJobs.remote, false));
     if (data.company?.trim()) {
-      conditions.push(like(canonicalJobs.companyNorm, `%${data.company.trim().toLowerCase()}%`));
+      const companyQ = data.company.trim().toLowerCase();
+      conditions.push(sql`instr(${canonicalJobs.companyNorm}, ${companyQ}) > 0`);
     }
     if (data.salaryMin) {
       conditions.push(or(

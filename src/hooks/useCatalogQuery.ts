@@ -12,6 +12,7 @@ export interface CatalogFilters {
   ats: string;
   salaryMin: number;
   page: number;
+  useVectorSearch?: boolean;
 }
 
 export type CatalogJob = {
@@ -80,6 +81,7 @@ export function useCatalogQuery(filters: CatalogFilters) {
           salaryMin: effectiveFilters.salaryMin || undefined,
           page: effectiveFilters.page,
           pageSize: PAGE_SIZE,
+          useVectorSearch: effectiveFilters.useVectorSearch ?? true, // Enable vector search by default
         },
       }) as Promise<CatalogData>,
     staleTime: 1000 * 60 * 2,       // 2 min — catalog doesn't change fast
@@ -101,6 +103,7 @@ export function useCatalogQuery(filters: CatalogFilters) {
             salaryMin: effectiveFilters.salaryMin || undefined,
             page: targetPage,
             pageSize: PAGE_SIZE,
+            useVectorSearch: effectiveFilters.useVectorSearch ?? true,
           },
         }) as Promise<CatalogData>,
       staleTime: 1000 * 60 * 2,
