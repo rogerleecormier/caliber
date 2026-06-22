@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import React, { useEffect, useMemo, useState, type ChangeEvent } from "react";
+import React, { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import { useDebouncedValue } from "@tanstack/react-pacer";
 import { toast } from "sonner";
 import {
@@ -19,6 +19,7 @@ import {
   Table2,
   Trash2,
   Sparkles,
+  X,
 } from "lucide-react";
 import {
   Button,
@@ -77,7 +78,8 @@ type JobSearchInput = {
   analyzedOnly?: boolean | string;
   analyze?: boolean | string;
   url?: string;
-  view?: 'my-jobs' | 'all-jobs' | 'quick-search';
+  view?: 'my-jobs' | 'all-jobs' | 'quick-search' | 'search';
+  catalogQuery?: string;
 };
 
 export type JobSearchParams = {
@@ -89,7 +91,8 @@ export type JobSearchParams = {
   analyzedOnly: boolean;
   analyze?: boolean;
   url?: string;
-  view: 'my-jobs' | 'all-jobs' | 'quick-search';
+  view: 'my-jobs' | 'all-jobs' | 'quick-search' | 'search';
+  catalogQuery: string;
 };
 
 type HubJob = Awaited<ReturnType<typeof getPipelineJobHistory>>["rows"][number] & {
@@ -116,9 +119,10 @@ export const Route = createFileRoute("/jobs")({
     analyzedOnly: search.analyzedOnly === true || search.analyzedOnly === "true",
     analyze: search.analyze === true || search.analyze === "true" ? true : undefined,
     url: typeof search.url === "string" && search.url.trim() !== "" ? search.url.trim() : undefined,
-    view: (['my-jobs', 'all-jobs', 'quick-search'].includes(search.view as string)
+    view: (['my-jobs', 'all-jobs', 'quick-search', 'search'].includes(search.view as string)
       ? search.view
       : "my-jobs") as any,
+    catalogQuery: typeof search.catalogQuery === 'string' ? search.catalogQuery : '',
   }),
   loaderDeps: ({ search }: { search: JobSearchParams }) => search,
   beforeLoad: ({ context }) => {
@@ -159,7 +163,7 @@ export const Route = createFileRoute("/jobs")({
 type ViewMode = "cards" | "table";
 
 function JobsPage() {
-  const { page, query, remote, sortBy, status: activeStatus, analyzedOnly, analyze, url: searchUrl, view } = Route.useSearch();
+  const { page, query, remote, sortBy, status: activeStatus, analyzedOnly, analyze, url: searchUrl, view, catalogQuery } = Route.useSearch();
   const loaderData = Route.useLoaderData() as any;
   const { hasResume, fullName, savedSearches: loaderSavedSearches, cronStartHour, cronFrequency, jobHistory } = loaderData;
   const navigate = Route.useNavigate();
@@ -168,6 +172,17 @@ function JobsPage() {
   const [analysisModalOpen, setAnalysisModalOpen] = useState(false);
   const [selectedJobForAnalysis, setSelectedJobForAnalysis] = useState<HubJob | null>(null);
   const [storedAnalysis, setStoredAnalysis] = useState<any>(null);
+  const catalogRef = useRef<HTMLDivElement>(null);
+  const isSearchMode = view === 'search' && catalogQuery.trim().length > 0;
+
+  // Auto-scroll to catalog when landing in search mode
+  useEffect(() => {
+    if (isSearchMode && catalogRef.current) {
+      setTimeout(() => {
+        catalogRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 150);
+    }
+  }, [isSearchMode, catalogQuery]);
 
   function openAnalysisModal(job: any) {
     setSelectedJobForAnalysis(job);
@@ -259,12 +274,31 @@ function JobsPage() {
         }
       />
 
-      <CatalogBrowser
-        onAnalyzeClick={openAnalysisModal}
-        viewMode={viewMode}
-        setViewMode={setViewMode}
-        recommendedJobs={loaderData.recommendedJobs}
-      />
+      <div ref={catalogRef}>
+        {isSearchMode && (
+          <div className="mb-4 flex items-center gap-3 rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-3">
+            <Search className="h-4 w-4 text-indigo-500 shrink-0" />
+            <p className="flex-1 text-sm font-medium text-indigo-800">
+              Showing results for <span className="font-bold">"{catalogQuery}"</span>
+            </p>
+            <button
+              onClick={() => navigate({ search: (prev: any) => ({ ...prev, view: 'all-jobs', catalogQuery: '' }) })}
+              className="flex items-center gap-1 text-sm font-medium text-indigo-600 hover:text-indigo-800 transition shrink-0"
+            >
+              <X className="h-4 w-4" />
+              Clear search
+            </button>
+          </div>
+        )}
+        <CatalogBrowser
+          onAnalyzeClick={openAnalysisModal}
+          viewMode={viewMode}
+          setViewMode={setViewMode}
+          recommendedJobs={loaderData.recommendedJobs}
+          initialQuery={catalogQuery}
+          isSearchMode={isSearchMode}
+        />
+      </div>
 
       <AnalysisModal
         isOpen={analysisModalOpen}
@@ -1079,15 +1113,19 @@ function CatalogBrowser({
   viewMode,
   setViewMode,
   recommendedJobs,
+  initialQuery = '',
+  isSearchMode = false,
 }: {
   onAnalyzeClick: (job: any) => void;
   viewMode: ViewMode;
   setViewMode: (mode: ViewMode) => void;
   recommendedJobs: any[];
+  initialQuery?: string;
+  isSearchMode?: boolean;
 }) {
   // Local filter state — text inputs are debounced inside useCatalogQuery via @tanstack/react-pacer
   const [filters, setFilters] = useState<CatalogFilters>({
-    query: '',
+    query: initialQuery,
     remote: undefined,
     company: '',
     ats: '',
@@ -1105,6 +1143,11 @@ function CatalogBrowser({
     totalPages,
     isDebouncing,
   } = useCatalogQuery(filters);
+
+  // Sync filter query when initialQuery changes (e.g. new search from header)
+  useEffect(() => {
+    setFilters((prev) => ({ ...prev, query: initialQuery, page: 1 }));
+  }, [initialQuery]);
 
   const hasActiveFilters =
     filters.remote !== undefined || filters.company || filters.ats || filters.salaryMin > 0;

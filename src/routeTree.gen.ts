@@ -54,6 +54,7 @@ import { Route as ApiAiRecommendRouteImport } from './routes/api/ai/recommend'
 import { Route as ApiAiMatchRouteImport } from './routes/api/ai/match'
 import { Route as ApiAiInsightsRouteImport } from './routes/api/ai/insights'
 import { Route as ApiAiGenerateResumeRouteImport } from './routes/api/ai/generate-resume'
+import { Route as ApiAdminSeedVectorsRouteImport } from './routes/api/admin/seed-vectors'
 import { Route as ApiAdminCleanupNonUsJobsRouteImport } from './routes/api/admin/cleanup-non-us-jobs'
 import { Route as ApiV3JobsPruneRouteImport } from './routes/api/v3/jobs/prune'
 import { Route as ApiAuthSignUpEmailRouteImport } from './routes/api/auth/sign-up/email'
@@ -285,6 +286,11 @@ const ApiAiGenerateResumeRoute = ApiAiGenerateResumeRouteImport.update({
   path: '/api/ai/generate-resume',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiAdminSeedVectorsRoute = ApiAdminSeedVectorsRouteImport.update({
+  id: '/api/admin/seed-vectors',
+  path: '/api/admin/seed-vectors',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiAdminCleanupNonUsJobsRoute =
   ApiAdminCleanupNonUsJobsRouteImport.update({
     id: '/api/admin/cleanup-non-us-jobs',
@@ -328,6 +334,7 @@ export interface FileRoutesByFullPath {
   '/api/saved-jobs': typeof ApiSavedJobsRoute
   '/api/test': typeof ApiTestRoute
   '/api/admin/cleanup-non-us-jobs': typeof ApiAdminCleanupNonUsJobsRoute
+  '/api/admin/seed-vectors': typeof ApiAdminSeedVectorsRoute
   '/api/ai/generate-resume': typeof ApiAiGenerateResumeRoute
   '/api/ai/insights': typeof ApiAiInsightsRoute
   '/api/ai/match': typeof ApiAiMatchRoute
@@ -379,6 +386,7 @@ export interface FileRoutesByTo {
   '/api/saved-jobs': typeof ApiSavedJobsRoute
   '/api/test': typeof ApiTestRoute
   '/api/admin/cleanup-non-us-jobs': typeof ApiAdminCleanupNonUsJobsRoute
+  '/api/admin/seed-vectors': typeof ApiAdminSeedVectorsRoute
   '/api/ai/generate-resume': typeof ApiAiGenerateResumeRoute
   '/api/ai/insights': typeof ApiAiInsightsRoute
   '/api/ai/match': typeof ApiAiMatchRoute
@@ -431,6 +439,7 @@ export interface FileRoutesById {
   '/api/saved-jobs': typeof ApiSavedJobsRoute
   '/api/test': typeof ApiTestRoute
   '/api/admin/cleanup-non-us-jobs': typeof ApiAdminCleanupNonUsJobsRoute
+  '/api/admin/seed-vectors': typeof ApiAdminSeedVectorsRoute
   '/api/ai/generate-resume': typeof ApiAiGenerateResumeRoute
   '/api/ai/insights': typeof ApiAiInsightsRoute
   '/api/ai/match': typeof ApiAiMatchRoute
@@ -484,6 +493,7 @@ export interface FileRouteTypes {
     | '/api/saved-jobs'
     | '/api/test'
     | '/api/admin/cleanup-non-us-jobs'
+    | '/api/admin/seed-vectors'
     | '/api/ai/generate-resume'
     | '/api/ai/insights'
     | '/api/ai/match'
@@ -535,6 +545,7 @@ export interface FileRouteTypes {
     | '/api/saved-jobs'
     | '/api/test'
     | '/api/admin/cleanup-non-us-jobs'
+    | '/api/admin/seed-vectors'
     | '/api/ai/generate-resume'
     | '/api/ai/insights'
     | '/api/ai/match'
@@ -586,6 +597,7 @@ export interface FileRouteTypes {
     | '/api/saved-jobs'
     | '/api/test'
     | '/api/admin/cleanup-non-us-jobs'
+    | '/api/admin/seed-vectors'
     | '/api/ai/generate-resume'
     | '/api/ai/insights'
     | '/api/ai/match'
@@ -638,6 +650,7 @@ export interface RootRouteChildren {
   ApiSavedJobsRoute: typeof ApiSavedJobsRoute
   ApiTestRoute: typeof ApiTestRoute
   ApiAdminCleanupNonUsJobsRoute: typeof ApiAdminCleanupNonUsJobsRoute
+  ApiAdminSeedVectorsRoute: typeof ApiAdminSeedVectorsRoute
   ApiAiGenerateResumeRoute: typeof ApiAiGenerateResumeRoute
   ApiAiInsightsRoute: typeof ApiAiInsightsRoute
   ApiAiMatchRoute: typeof ApiAiMatchRoute
@@ -985,6 +998,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiAiGenerateResumeRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/admin/seed-vectors': {
+      id: '/api/admin/seed-vectors'
+      path: '/api/admin/seed-vectors'
+      fullPath: '/api/admin/seed-vectors'
+      preLoaderRoute: typeof ApiAdminSeedVectorsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/admin/cleanup-non-us-jobs': {
       id: '/api/admin/cleanup-non-us-jobs'
       path: '/api/admin/cleanup-non-us-jobs'
@@ -1049,6 +1069,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiSavedJobsRoute: ApiSavedJobsRoute,
   ApiTestRoute: ApiTestRoute,
   ApiAdminCleanupNonUsJobsRoute: ApiAdminCleanupNonUsJobsRoute,
+  ApiAdminSeedVectorsRoute: ApiAdminSeedVectorsRoute,
   ApiAiGenerateResumeRoute: ApiAiGenerateResumeRoute,
   ApiAiInsightsRoute: ApiAiInsightsRoute,
   ApiAiMatchRoute: ApiAiMatchRoute,

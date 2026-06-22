@@ -517,14 +517,18 @@ export const getCatalogJobs = createServerFn({ method: "GET" })
     const conditions: any[] = [eq(canonicalJobs.isListed, true)];
 
     // Try vector search first if enabled and query exists
+    const VECTOR_SCORE_THRESHOLD = 0.30; // minimum cosine similarity to include a result
     let vectorSearchAttempted = false;
     let vectorJobIds: string[] | null = null;
+    let vectorScoreMap = new Map<string, number>(); // id → cosine score for re-ranking
     if (data.useVectorSearch && data.query?.trim() && env.VECTORIZE && env.AI) {
       try {
         vectorSearchAttempted = true;
         const { embedJob } = await import('@/server/dedup/embedding');
+        // Compose a richer embedding text than just the raw query title
+        const embeddingText = `${data.query.trim()} job position`;
         const queryVector = await embedJob(env, {
-          titleDisplay: data.query.trim(),
+          titleDisplay: embeddingText,
           companyDisplay: '',
           titleNorm: '',
           companyNorm: '',
@@ -536,22 +540,33 @@ export const getCatalogJobs = createServerFn({ method: "GET" })
         const results = await env.VECTORIZE.query(queryVector, {
           returnMetadata: 'all',
           returnValues: false,
-          topK: 100,
+          topK: 50,
         });
 
-        vectorJobIds = results.matches?.map(m => String(m.metadata?.canonical_id || m.id)) || [];
+        // Log top matches for tuning
+        const topMatches = (results.matches || []).slice(0, 5);
+        console.log('[getCatalogJobs] Vector top-5 matches:', topMatches.map(m => ({
+          id: String(m.metadata?.canonical_id || m.id),
+          score: m.score,
+        })));
 
-        // If we have vector results, use those IDs as the search filter
+        // Apply minimum score threshold
+        const aboveThreshold = (results.matches || []).filter(m => m.score >= VECTOR_SCORE_THRESHOLD);
+        console.log(`[getCatalogJobs] Vector matches above threshold (${VECTOR_SCORE_THRESHOLD}): ${aboveThreshold.length} of ${results.matches?.length ?? 0}`);
+
+        vectorJobIds = aboveThreshold.map(m => String(m.metadata?.canonical_id || m.id));
+        aboveThreshold.forEach(m => {
+          vectorScoreMap.set(String(m.metadata?.canonical_id || m.id), m.score);
+        });
+
         if (vectorJobIds.length > 0) {
           conditions.push(inArray(canonicalJobs.id, vectorJobIds));
           console.log('[getCatalogJobs] Vector search found', vectorJobIds.length, 'results');
         } else {
-          // Vector search returned 0 results - fall back to keyword search
-          console.warn('[getCatalogJobs] Vector search returned 0 results, falling back to keyword search');
+          console.warn('[getCatalogJobs] Vector search returned 0 results above threshold, falling back to keyword search');
           vectorJobIds = null;
         }
       } catch (error) {
-        // Fall back to keyword search if vector search fails
         console.warn('[getCatalogJobs] Vector search failed, falling back to keyword search:', error);
         vectorJobIds = null;
       }
@@ -685,7 +700,26 @@ export const getCatalogJobs = createServerFn({ method: "GET" })
       return true;
     });
 
-    const jobs = uniqueRows.map((r) => ({
+    // Weighted hybrid re-rank: blend vector cosine score + keyword presence
+    const q = (data.query || '').trim().toLowerCase();
+    const scoredRows = uniqueRows.map((r) => {
+      const vectorScore = vectorScoreMap.get(r.id) ?? 0;
+      const keywordMatch =
+        q && (
+          r.titleDisplay?.toLowerCase().includes(q) ||
+          r.companyDisplay?.toLowerCase().includes(q)
+        ) ? 1 : 0;
+      const finalScore = vectorScore > 0
+        ? 0.7 * vectorScore + 0.3 * keywordMatch
+        : keywordMatch * 0.3; // keyword-only fallback gets lower weight
+      return { row: r, finalScore };
+    });
+
+    if (vectorScoreMap.size > 0) {
+      scoredRows.sort((a, b) => b.finalScore - a.finalScore);
+    }
+
+    const jobs = scoredRows.map(({ row: r }) => ({
       ...r,
       isSaved: r.currentStage !== null && r.currentStage !== undefined,
       isFavorited: r.isFavorited === true || r.isFavorited === 1,

@@ -22,6 +22,8 @@
     "db:migrate:local": "wrangler d1 migrations apply DB --local",
     "db:migrate:prod": "wrangler d1 migrations apply DB --remote",
     "data:migrate:job-analyzer": "node scripts/migrate-job-analyzer-data.mjs",
+    "seed:vectors": "node scripts/seed-vector-index.mjs",
+    "seed:vectors:prod": "node scripts/seed-vector-index.mjs --prod",
     "db:studio": "drizzle-kit studio",
     "deploy:sync": "wrangler deploy --config wrangler.sync.toml",
     "deploy:ats": "wrangler deploy --config wrangler.ats.toml",

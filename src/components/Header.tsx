@@ -1,9 +1,10 @@
 import { Link, useLocation, useRouter } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { AppHeader } from "@caliber/ui-kit";
+import { AppHeader, type AppHeaderSearchResult } from "@caliber/ui-kit";
 import type { SessionUser } from "@/lib/cloudflare";
 import { authClient } from "@/auth/client";
 import { getSessionUser } from "@/server/functions/auth";
+import { getCatalogJobs } from "@/server/functions/jobs-pipeline";
 
 interface HeaderProps {
   user?: SessionUser | null;
@@ -41,6 +42,16 @@ export default function Header({ user }: HeaderProps) {
     window.location.href = "/";
   }
 
+  async function handleSearch(query: string): Promise<AppHeaderSearchResult[]> {
+    console.log('[HeaderSearch] query:', query);
+    const result = await getCatalogJobs({
+      data: { query, useVectorSearch: true, page: 1, pageSize: 10 },
+    });
+    const jobs = (result as any)?.jobs ?? [];
+    console.log('[HeaderSearch] results:', jobs);
+    return jobs as AppHeaderSearchResult[];
+  }
+
   return (
     <AppHeader
       app="jobs"
@@ -49,6 +60,7 @@ export default function Header({ user }: HeaderProps) {
       Link={Link}
       user={resolvedUser}
       onLogout={handleLogout}
+      onSearch={handleSearch}
     />
   );
 }
