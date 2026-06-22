@@ -4,7 +4,6 @@ import { createFileRoute, redirect } from '@tanstack/react-router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Briefcase,
-  Search,
   Globe,
   RefreshCw,
   AlertCircle,
@@ -42,8 +41,6 @@ function CrawlerDashboard() {
   // Local/UI states
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [activeTab, setActiveTab] = useState<'jobs' | 'boards' | 'logs' | 'docs'>('jobs');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [searchLocation, setSearchLocation] = useState('');
   
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [newBoardAts, setNewBoardAts] = useState<'greenhouse' | 'lever' | 'ashby'>('greenhouse');
@@ -61,8 +58,6 @@ function CrawlerDashboard() {
   const [expandedLogs, setExpandedLogs] = useState<Record<string, boolean>>({});
   const [expandedBoards, setExpandedBoards] = useState<Record<string, boolean>>({});
 
-  // Overriding search results list
-  const [searchedJobs, setSearchedJobs] = useState<any[] | null>(null);
   const [statusMessage, setStatusMessage] = useState<{ text: string; type: 'success' | 'error' | 'info' } | null>(null);
   const [loading, setLoading] = useState<string | null>(null); // tracks manual crawl or scheduler run status
 
@@ -252,35 +247,6 @@ function CrawlerDashboard() {
     }
   };
 
-  // Search Jobs
-  const handleSearch = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!searchQuery.trim() && !searchLocation.trim()) {
-      setSearchedJobs(null); // Reset search to default live jobs list
-      return;
-    }
-    setLoading('search');
-    try {
-      const url = new URL('/api/jobs/crawler-search', window.location.origin);
-      if (searchQuery) url.searchParams.set('q', searchQuery);
-      if (searchLocation) url.searchParams.set('location', searchLocation);
-      
-      const res = await fetch(url.toString());
-      const data = await res.json() as any;
-      if (data.success) {
-        setSearchedJobs(data.jobs);
-        showStatus(`Found ${data.jobs.length} jobs matching criteria.`, 'success');
-      } else {
-        showStatus(data.error || 'Search failed', 'error');
-      }
-    } catch (err: any) {
-      showStatus(err.message || 'Error performing search', 'error');
-    } finally {
-      setLoading(null);
-    }
-  };
-
-  const jobsToDisplay = searchedJobs !== null ? searchedJobs : jobs;
 
   return (
     <div className="spx-page space-y-8">
@@ -384,37 +350,6 @@ function CrawlerDashboard() {
         {/* Tab Panel: Jobs */}
         {activeTab === 'jobs' && (
           <div className="space-y-6">
-            
-            {/* Search Form */}
-            <form onSubmit={handleSearch} className="flex flex-col sm:flex-row gap-3 bg-white/60 p-4 border border-slate-200 rounded-2xl shadow-sm">
-              <div className="flex-1 flex items-center gap-2 bg-white/80 border border-slate-200 rounded-xl px-3 h-11">
-                <Search className="h-4 w-4 text-slate-400 shrink-0" />
-                <input
-                  type="text"
-                  placeholder="Title or company keywords..."
-                  value={searchQuery}
-                  onChange={e => setSearchQuery(e.target.value)}
-                  className="bg-transparent border-0 outline-none text-sm text-slate-800 placeholder-slate-400 w-full"
-                />
-              </div>
-              <div className="flex-1 flex items-center gap-2 bg-white/80 border border-slate-200 rounded-xl px-3 h-11">
-                <Globe className="h-4 w-4 text-slate-400 shrink-0" />
-                <input
-                  type="text"
-                  placeholder="Location filter..."
-                  value={searchLocation}
-                  onChange={e => setSearchLocation(e.target.value)}
-                  className="bg-transparent border-0 outline-none text-sm text-slate-800 placeholder-slate-400 w-full"
-                />
-              </div>
-              <button
-                type="submit"
-                disabled={loading === 'search'}
-                className="bg-primary-600 hover:bg-primary-700 transition px-5 h-11 text-sm font-semibold text-white rounded-xl shadow-sm disabled:opacity-50 cursor-pointer"
-              >
-                Search
-              </button>
-            </form>
 
             {/* Jobs table list */}
             <div className="bg-white/50 border border-slate-200 rounded-xl overflow-hidden shadow-sm">
@@ -431,14 +366,14 @@ function CrawlerDashboard() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-200">
-                    {jobsToDisplay.length === 0 ? (
+                    {jobs.length === 0 ? (
                       <tr>
                         <td colSpan={6} className="px-5 py-12 text-center text-slate-400">
                           No canonical jobs found matching search criteria.
                         </td>
                       </tr>
                     ) : (
-                      jobsToDisplay.map((job: any) => {
+                      jobs.map((job: any) => {
                         const isExpanded = !!expandedJobs[job.id];
                         return (
                           <React.Fragment key={job.id}>

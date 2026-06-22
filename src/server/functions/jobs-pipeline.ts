@@ -492,13 +492,17 @@ export const getCatalogJobs = createServerFn({ method: "GET" })
     const atsFilter = data.ats?.trim();
 
     // Count total — use DISTINCT to avoid counting duplicates from LEFT JOINs
+    // Exclude jobs that are archived (either for this user or globally)
     const countRows = await db
       .select({ total: count(canonicalJobs.id, { distinct: true }) })
       .from(canonicalJobs)
       .leftJoin(jobSources, eq(jobSources.canonicalId, canonicalJobs.id))
       .leftJoin(normalizedJobs, and(
         eq(normalizedJobs.canonicalJobId, canonicalJobs.id),
-        eq(normalizedJobs.userId, user.id)
+        or(
+          eq(normalizedJobs.userId, user.id),
+          isNull(normalizedJobs.userId)
+        )
       ))
       .where(and(
         ...conditions,
@@ -512,13 +516,17 @@ export const getCatalogJobs = createServerFn({ method: "GET" })
 
     // Fetch page — get only distinct canonical jobs by using a subquery
     // This avoids the LEFT JOIN duplication issue
+    // Include both user-specific and global (userId = NULL) normalized_jobs entries
     const jobIds = await db
       .selectDistinct({ id: canonicalJobs.id })
       .from(canonicalJobs)
       .leftJoin(jobSources, eq(jobSources.canonicalId, canonicalJobs.id))
       .leftJoin(normalizedJobs, and(
         eq(normalizedJobs.canonicalJobId, canonicalJobs.id),
-        eq(normalizedJobs.userId, user.id)
+        or(
+          eq(normalizedJobs.userId, user.id),
+          isNull(normalizedJobs.userId)
+        )
       ))
       .where(and(
         ...conditions,
@@ -556,7 +564,10 @@ export const getCatalogJobs = createServerFn({ method: "GET" })
       .leftJoin(jobSources, eq(jobSources.canonicalId, canonicalJobs.id))
       .leftJoin(normalizedJobs, and(
         eq(normalizedJobs.canonicalJobId, canonicalJobs.id),
-        eq(normalizedJobs.userId, user.id)
+        or(
+          eq(normalizedJobs.userId, user.id),
+          isNull(normalizedJobs.userId)
+        )
       ))
       .where(inArray(canonicalJobs.id, jobIds.map(j => j.id)));
 
