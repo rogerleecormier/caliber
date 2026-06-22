@@ -1,29 +1,14 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
-import React, { useEffect, useMemo, useState, type ChangeEvent } from "react";
-import { useDebouncedValue } from "@tanstack/react-pacer";
+import { createFileRoute } from "@tanstack/react-router";
+import { useMemo, useState, type ChangeEvent } from "react";
 import { toast } from "sonner";
 import {
-  Archive,
   BookMarked,
-  Briefcase,
-  BarChart3,
-  Building2,
-  ChevronLeft,
-  ChevronRight,
   Grid3x3,
-  Globe,
   Loader2,
   Search,
-  SlidersHorizontal,
-  Star,
   Table2,
-  Trash2,
-  Sparkles,
 } from "lucide-react";
 import {
-  Button,
-  Input,
-  PageActionBar,
   PageHero,
   PageSection,
   Pagination,
@@ -34,19 +19,14 @@ import {
   type JobStatus,
 } from "@/components/features/job-result-card";
 import { AnalysisModal } from "@/components/features/analysis-modal";
-import type { AnalysisData } from "@/components/features/analysis-form";
 import { JobTableView } from "@/components/features/job-table-view";
 import {
   getPipelineJobHistory,
   setPipelineJobStatus,
   togglePipelineJobFavorite,
 } from "@/server/functions/jobs-pipeline";
-import {
-  PIPELINE_STATUSES,
-  STATUS_TONES,
-} from "@/lib/pipeline-constants";
+import { PIPELINE_STATUSES } from "@/lib/pipeline-constants";
 import { useJobsQuery } from "@/hooks/useJobsQuery";
-import type { CatalogFilters } from "@/hooks/useCatalogQuery";
 import { useQueryClient } from "@tanstack/react-query";
 
 type SortOption = "posted-date" | "title" | "score" | "company" | "location";
@@ -95,10 +75,7 @@ export const Route = createFileRoute("/my-jobs")({
         isFavorited: true,
       },
     });
-
-    return {
-      jobHistory,
-    };
+    return { jobHistory };
   },
   component: MyJobsPage,
 });
@@ -106,15 +83,15 @@ export const Route = createFileRoute("/my-jobs")({
 type ViewMode = "cards" | "table";
 
 function MyJobsPage() {
-  const { page, query, sortBy, status: activeStatus } = Route.useSearch();
+  const { page, query, sortBy } = Route.useSearch();
   const loaderData = Route.useLoaderData() as any;
-  const { jobHistory } = loaderData;
   const navigate = Route.useNavigate();
 
   const [viewMode, setViewMode] = useState<ViewMode>("cards");
   const [analysisModalOpen, setAnalysisModalOpen] = useState(false);
   const [selectedJobForAnalysis, setSelectedJobForAnalysis] = useState<HubJob | null>(null);
   const [storedAnalysis, setStoredAnalysis] = useState<any>(null);
+  const [pendingStatusId, setPendingStatusId] = useState<number | null>(null);
 
   const queryClient = useQueryClient();
 
@@ -122,48 +99,83 @@ function MyJobsPage() {
     page,
     query,
     sortBy,
-    status: activeStatus,
+    status: "",
     remote: false,
     analyzedOnly: false,
     view: "my-jobs" as const,
-    catalogQuery: '',
-    isFavorited: true,
-    pageSize: PAGE_SIZE,
+    catalogQuery: "",
   };
 
-  const jobsQuery = useJobsQuery({ searchParams, initialData: jobHistory });
-  const { data: jobs, isLoading } = jobsQuery;
+  const jobsQuery = useJobsQuery({ searchParams, initialData: loaderData.jobHistory });
+  const jobs = (jobsQuery.data?.rows ?? []) as HubJob[];
+  const totalCount = jobsQuery.data?.total ?? 0;
+  const isLoading = jobsQuery.isLoading;
 
-  const handleStatusChange = async (jobId: string, newStatus: JobStatus) => {
+  const sortedJobs = useMemo(() => {
+    const copy = [...jobs];
+    switch (sortBy) {
+      case "title": return copy.sort((a, b) => (a.title || "").localeCompare(b.title || ""));
+      case "score": return copy.sort((a, b) => (b.matchScore ?? 0) - (a.matchScore ?? 0));
+      case "company": return copy.sort((a, b) => (a.company || "").localeCompare(b.company || ""));
+      case "location": return copy.sort((a, b) => (a.location || "").localeCompare(b.location || ""));
+      default: return copy.sort((a, b) => new Date(b.firstSeenAt || 0).getTime() - new Date(a.firstSeenAt || 0).getTime());
+    }
+  }, [jobs, sortBy]);
+
+  const analyzedJobIds = useMemo(
+    () => new Set(jobs.filter((j) => j.analyzedAt).map((j) => j.id).filter((id): id is number => !!id)),
+    [jobs],
+  );
+
+  async function handleStatusChange(id: number, status: JobStatus) {
+    setPendingStatusId(id);
+    jobsQuery.updateJobsOptimistically((data) => {
+      if (!data) return data;
+      return {
+        ...data,
+        rows: data.rows.map((job) => (job.id === id ? { ...job, currentStage: status as any } : job)),
+      };
+    });
     try {
-      await setPipelineJobStatus({
-        data: { jobId, status: newStatus },
-      });
-      toast.success(`Job status updated to ${newStatus}`);
-      void queryClient.invalidateQueries({ queryKey: ["jobs"] });
+      await setPipelineJobStatus({ data: { id, status: status as any } });
+      await jobsQuery.invalidateJobs();
     } catch {
       toast.error("Failed to update job status");
+      jobsQuery.invalidateJobs();
+    } finally {
+      setPendingStatusId(null);
     }
-  };
+  }
 
-  const handleFavoriteToggle = async (jobId: string, isFavorited: boolean) => {
-    try {
-      await togglePipelineJobFavorite({
-        data: { jobId, isFavorited: !isFavorited },
+  async function handleToggleFavorite(id: number, nextFavorited: boolean) {
+    jobsQuery.updateJobsOptimistically((data) => {
+      if (!data) return data;
+      const filtered = data.rows.filter((job) => {
+        if (job.id === id && !nextFavorited) return false;
+        return true;
       });
-      toast.success(isFavorited ? "Removed from favorites" : "Added to favorites");
-      void queryClient.invalidateQueries({ queryKey: ["jobs"] });
+      return {
+        ...data,
+        rows: filtered,
+        total: Math.max(0, data.total - (!nextFavorited ? 1 : 0)),
+      };
+    });
+    try {
+      await togglePipelineJobFavorite({ data: { id, isFavorited: nextFavorited } });
+      await jobsQuery.invalidateJobs();
+      void queryClient.invalidateQueries({ queryKey: ["catalog"] });
     } catch {
       toast.error("Failed to update favorite status");
+      jobsQuery.invalidateJobs();
     }
-  };
+  }
 
-  function openAnalysisModal(job: any) {
+  function openAnalysisModal(job: HubJob) {
     setSelectedJobForAnalysis(job);
     setStoredAnalysis(null);
 
     if (job.analyzedAt || job.currentStage === "Analyzed") {
-      const analysis = {
+      setStoredAnalysis({
         id: job.id,
         jobTitle: job.title || job.jobTitle,
         company: job.company || job.employerName,
@@ -184,8 +196,7 @@ function MyJobsPage() {
         jobUrl: job.sourceUrl,
         jdText: job.jdText,
         createdAt: job.analyzedAt ?? job.createdAt,
-      };
-      setStoredAnalysis(analysis);
+      });
     }
 
     setAnalysisModalOpen(true);
@@ -200,98 +211,152 @@ function MyJobsPage() {
         description="Manage and track your saved and favorited jobs."
       />
 
-      {/* Search and Filters */}
-      <PageActionBar>
-        <Input
-          type="search"
-          placeholder="Search jobs..."
-          value={query}
-          onChange={(e: ChangeEvent<HTMLInputElement>) =>
-            navigate({ search: (prev) => ({ ...prev, query: e.target.value, page: 1 }) })
-          }
-          prefix={<Search className="h-4 w-4" />}
-        />
+      {/* Search + controls */}
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="flex h-10 flex-1 min-w-[200px] items-center rounded-md border border-input bg-transparent px-3 text-sm shadow-sm focus-within:ring-1 focus-within:ring-ring">
+          <Search className="h-4 w-4 shrink-0 text-slate-400" />
+          <input
+            type="search"
+            value={query}
+            onChange={(e: ChangeEvent<HTMLInputElement>) =>
+              navigate({ search: (prev) => ({ ...prev, query: e.target.value, page: 1 }) })
+            }
+            placeholder="Search saved jobs..."
+            className="h-auto flex-1 border-0 bg-transparent px-2 py-0 shadow-none outline-none focus:ring-0"
+          />
+        </div>
 
-        <div className="flex items-center gap-2">
+        <div className="inline-flex items-center rounded-lg border border-slate-200 bg-slate-50 p-1 gap-1">
           <button
-            onClick={() => setViewMode(viewMode === "cards" ? "table" : "cards")}
-            className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white/80 px-3 py-2 text-sm font-semibold text-slate-700 transition hover:bg-white hover:border-slate-300"
+            type="button"
+            onClick={() => setViewMode("cards")}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+              viewMode === "cards"
+                ? "bg-white border border-slate-200 text-slate-900 shadow-sm"
+                : "text-slate-600 hover:text-slate-900"
+            }`}
+            title="Card view"
           >
-            {viewMode === "cards" ? (
-              <>
-                <Table2 className="h-4 w-4" />
-                Table
-              </>
-            ) : (
-              <>
-                <Grid3x3 className="h-4 w-4" />
-                Cards
-              </>
-            )}
+            <Grid3x3 className="h-4 w-4" />
+          </button>
+          <button
+            type="button"
+            onClick={() => setViewMode("table")}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+              viewMode === "table"
+                ? "bg-white border border-slate-200 text-slate-900 shadow-sm"
+                : "text-slate-600 hover:text-slate-900"
+            }`}
+            title="Table view"
+          >
+            <Table2 className="h-4 w-4" />
           </button>
         </div>
-      </PageActionBar>
 
-      {/* Jobs Display */}
+        <select
+          value={sortBy}
+          onChange={(e: ChangeEvent<HTMLSelectElement>) =>
+            navigate({ search: (prev) => ({ ...prev, sortBy: e.target.value as SortOption, page: 1 }) })
+          }
+          className="h-10 rounded-full border border-slate-200 bg-white px-4 text-sm font-medium text-slate-600 shadow-sm"
+          aria-label="Sort jobs"
+        >
+          <option value="posted-date">Sort: Posted date</option>
+          <option value="title">Sort: Job title</option>
+          <option value="score">Sort: Match Score</option>
+          <option value="company">Sort: Company</option>
+          <option value="location">Sort: Location</option>
+        </select>
+      </div>
+
       <PageSection>
         {isLoading ? (
           <div className="flex justify-center items-center py-12">
             <Loader2 className="h-8 w-8 animate-spin text-slate-400" />
           </div>
-        ) : !jobs || jobs.rows.length === 0 ? (
+        ) : sortedJobs.length === 0 ? (
           <div className="text-center py-12">
             <BookMarked className="h-12 w-12 text-slate-300 mx-auto mb-3" />
             <h3 className="text-lg font-semibold text-slate-900 mb-1">No saved jobs yet</h3>
             <p className="text-slate-600">Star your favorite jobs from All Jobs to see them here.</p>
           </div>
-        ) : (
+        ) : viewMode === "cards" ? (
           <>
-            {viewMode === "cards" ? (
-              <div className="grid grid-cols-1 gap-4">
-                {jobs.rows.map((job: HubJob) => (
-                  <JobResultCard
-                    key={job.id}
-                    job={job}
-                    onViewAnalysis={() => openAnalysisModal(job)}
-                    onStatusChange={(status) => handleStatusChange(job.id, status)}
-                    onFavoriteToggle={(isFavorited) => handleFavoriteToggle(job.id, isFavorited)}
-                    selectedStatus={job.currentStage}
-                  />
-                ))}
-              </div>
-            ) : (
-              <JobTableView
-                jobs={jobs.rows}
-                onViewAnalysis={(job) => openAnalysisModal(job)}
-                onStatusChange={(jobId, status) => handleStatusChange(jobId, status)}
-                onFavoriteToggle={(jobId, isFavorited) => handleFavoriteToggle(jobId, isFavorited)}
-              />
-            )}
-
-            {jobs.totalCount > PAGE_SIZE && (
+            <div className="grid gap-4 grid-cols-1 lg:grid-cols-2">
+              {sortedJobs.map((job) => (
+                <JobResultCard
+                  key={job.id ?? job.sourceUrl}
+                  job={{ ...job, resultSource: "history" } as any}
+                  isNew={!!job.isNew}
+                  showSelection={false}
+                  statusOptions={JOB_STATUSES}
+                  onStatusChange={job.id ? (status) => handleStatusChange(job.id!, status) : undefined}
+                  statusPending={job.id ? pendingStatusId === job.id : false}
+                  isAnalyzed={!!job.analyzedAt}
+                  onAnalyzeClick={job.id ? () => openAnalysisModal(job) : undefined}
+                  isFavorited={!!job.isFavorited}
+                  onToggleFavorite={job.id ? () => handleToggleFavorite(job.id!, !job.isFavorited) : undefined}
+                />
+              ))}
+            </div>
+            {totalCount > PAGE_SIZE && (
               <Pagination
-                current={page}
-                pageSize={PAGE_SIZE}
-                total={jobs.totalCount}
-                onChange={(newPage) =>
+                page={page}
+                totalPages={Math.ceil(totalCount / PAGE_SIZE)}
+                onPageChange={(newPage) =>
                   navigate({ search: (prev) => ({ ...prev, page: newPage }) })
                 }
+                className="mt-8"
+              />
+            )}
+          </>
+        ) : (
+          <>
+            <JobTableView
+              jobs={sortedJobs.map((job) => ({ ...job, resultSource: "history" } as any))}
+              selectedIds={new Set<number>()}
+              onSelect={() => {}}
+              onSelectAll={() => {}}
+              onStatusChange={(id, status) => handleStatusChange(id, status)}
+              statusOptions={JOB_STATUSES}
+              statusPending={pendingStatusId}
+              onAnalyze={(jobUrl) => {
+                const job = sortedJobs.find((j) => j.sourceUrl === jobUrl);
+                if (job) openAnalysisModal(job);
+              }}
+              analyzedJobIds={analyzedJobIds}
+            />
+            {totalCount > PAGE_SIZE && (
+              <Pagination
+                page={page}
+                totalPages={Math.ceil(totalCount / PAGE_SIZE)}
+                onPageChange={(newPage) =>
+                  navigate({ search: (prev) => ({ ...prev, page: newPage }) })
+                }
+                className="mt-8"
               />
             )}
           </>
         )}
       </PageSection>
 
-      {analysisModalOpen && (
+      {analysisModalOpen && selectedJobForAnalysis && (
         <AnalysisModal
-          open={analysisModalOpen}
-          onOpenChange={setAnalysisModalOpen}
-          selectedJob={selectedJobForAnalysis}
-          storedAnalysis={storedAnalysis}
-          onSave={async (analysis: AnalysisData) => {
-            await queryClient.invalidateQueries({ queryKey: ["jobs"] });
+          isOpen={analysisModalOpen}
+          jobTitle={selectedJobForAnalysis.title}
+          jobUrl={selectedJobForAnalysis.sourceUrl}
+          onClose={() => {
             setAnalysisModalOpen(false);
+            setSelectedJobForAnalysis(null);
+            setStoredAnalysis(null);
           }}
+          isFromExistingJob={true}
+          storedAnalysis={storedAnalysis}
+          pipelineJobId={selectedJobForAnalysis.id}
+          onAnalysisComplete={() => {
+            void jobsQuery.invalidateJobs();
+          }}
+          onDocumentGenerated={() => {}}
         />
       )}
     </div>
