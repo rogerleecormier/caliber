@@ -503,7 +503,7 @@ function CrawlerDashboard() {
             </div>
 
             {/* Pagination Controls */}
-            {searchedJobs === null && totalJobs > limit && (
+            {totalJobs > limit && (
               <div className="flex items-center justify-between border-t border-slate-200 bg-white/40 px-4 py-3 sm:px-6 rounded-2xl shadow-sm">
                 <div className="flex flex-1 justify-between sm:hidden">
                   <button
