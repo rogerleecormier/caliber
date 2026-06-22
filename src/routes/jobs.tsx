@@ -1220,7 +1220,7 @@ function CatalogBrowser({
           }`}
         >
           <SlidersHorizontal className="h-4 w-4" />
-          Filters
+          {isSearchMode ? 'Refine Results' : 'Filters'}
           {hasActiveFilters && <span className="ml-1 h-2 w-2 rounded-full bg-amber-400" />}
         </button>
         </div>
@@ -1233,9 +1233,10 @@ function CatalogBrowser({
           type="text"
           value={filters.query}
           onChange={(e) => setFilter('query', e.target.value)}
-          placeholder="Search by title or company…"
-          className="w-full pl-10 pr-10 py-2.5 border border-slate-200 rounded-xl bg-white text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition"
+          placeholder="Search jobs by title, skills, or keywords…"
+          className="w-full pl-10 pr-36 py-2.5 border border-slate-200 rounded-xl bg-white text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition"
         />
+        <span className="absolute right-10 top-1/2 -translate-y-1/2 text-[10px] font-semibold text-indigo-400 pointer-events-none select-none">✦ AI-powered</span>
         {spinning && (
           <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-indigo-400 animate-spin" />
         )}
