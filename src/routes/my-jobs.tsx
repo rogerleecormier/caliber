@@ -126,11 +126,12 @@ function MyJobsPage() {
     remote: false,
     analyzedOnly: false,
     view: "my-jobs" as const,
+    catalogQuery: '',
     isFavorited: true,
     pageSize: PAGE_SIZE,
   };
 
-  const jobsQuery = useJobsQuery({ searchParams });
+  const jobsQuery = useJobsQuery({ searchParams, initialData: jobHistory });
   const { data: jobs, isLoading } = jobsQuery;
 
   const handleStatusChange = async (jobId: string, newStatus: JobStatus) => {

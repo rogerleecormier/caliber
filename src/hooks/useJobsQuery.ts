@@ -21,13 +21,14 @@ export const jobsQueryKeys = {
     ] as const,
 };
 
-interface UseJobsQueryOptions {
-  searchParams: JobSearchParams;
-}
-
 type JobsData = Awaited<ReturnType<typeof getPipelineJobHistory>>;
 
-export function useJobsQuery({ searchParams }: UseJobsQueryOptions) {
+interface UseJobsQueryOptions {
+  searchParams: JobSearchParams;
+  initialData?: JobsData;
+}
+
+export function useJobsQuery({ searchParams, initialData }: UseJobsQueryOptions) {
   const queryClient = useQueryClient();
 
   const query = useQuery<JobsData>({
@@ -43,6 +44,8 @@ export function useJobsQuery({ searchParams }: UseJobsQueryOptions) {
       });
       return result;
     },
+    initialData,
+    initialDataUpdatedAt: initialData ? Date.now() - 1000 * 30 : undefined,
     staleTime: 1000 * 60, // 1 minute
     gcTime: 1000 * 60 * 5, // 5 minutes
   });

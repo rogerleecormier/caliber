@@ -382,7 +382,7 @@ function JobsListContentWrapper({
   const total = jobHistoryPromise.total;
   const statusCounts = jobHistoryPromise.statusCounts;
 
-  const searchParams = { page, query, remote, sortBy, status: activeStatus, analyzedOnly, view };
+  const searchParams = { page, query, remote, sortBy, status: activeStatus, analyzedOnly, view, catalogQuery: '' };
   const jobsQuery = useJobsQuery({ searchParams });
 
   const [inputValue, setInputValue] = useState(query);
@@ -1236,9 +1236,19 @@ function CatalogBrowser({
           placeholder="Search jobs by title, skills, or keywords…"
           className="w-full pl-10 pr-36 py-2.5 border border-slate-200 rounded-xl bg-white text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition"
         />
-        <span className="absolute right-10 top-1/2 -translate-y-1/2 text-[10px] font-semibold text-indigo-400 pointer-events-none select-none">✦ AI-powered</span>
-        {spinning && (
+        {filters.query && !spinning && (
+          <button
+            onClick={() => setFilter('query', '')}
+            className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 hover:text-slate-700 transition"
+            aria-label="Clear search"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        )}
+        {spinning ? (
           <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-indigo-400 animate-spin" />
+        ) : !filters.query && (
+          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-semibold text-indigo-400 pointer-events-none select-none">✦ AI</span>
         )}
       </div>
 
