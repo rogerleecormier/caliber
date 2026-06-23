@@ -63,8 +63,8 @@ export const Route = createFileRoute('/api/saved-jobs')({
 
           // Link source
           await linkJobSource(env as any, canonicalId, {
-            ats: job.source || 'quick_search',
-            boardToken: 'quick_search',
+            ats: job.source || 'unknown',
+            boardToken: job.source || 'unknown',
             sourceJobId: job.id || crypto.randomUUID(),
             sourceUrl: job.jobUrl || job.sourceUrl || `https://caliber.internal/jobs/canonical/${canonicalId}`,
             applyUrl: job.jobUrl || job.sourceUrl || `https://caliber.internal/jobs/canonical/${canonicalId}`,
@@ -142,7 +142,7 @@ export const Route = createFileRoute('/api/saved-jobs')({
               userId: user.id,
               canonicalJobId: canonicalId,
               isFavorited: true,
-              sourceOrigin: job.source || 'quick_search',
+              sourceOrigin: job.source || 'unknown',
               jobTitle: job.title || '',
               employerName: job.company || '',
               location: job.location || null,

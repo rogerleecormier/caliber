@@ -29,7 +29,7 @@ export function AnalysisModal({
   if (!isOpen) return null;
 
   const isViewingStored = !!storedAnalysis;
-  const hasApplyUrl = !!jobUrl && /^https?:\/\//i.test(jobUrl);
+  const hasApplyUrl = !!jobUrl && jobUrl !== "manual" && /^https?:\/\//i.test(jobUrl);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">

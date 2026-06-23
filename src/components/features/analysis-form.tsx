@@ -25,7 +25,7 @@ export function AnalysisForm({
   onAnalysisComplete,
   onDocumentGenerated,
 }: AnalysisFormProps = {}) {
-  const isUrlTextInput = initialUrl === "text-input";
+  const isUrlTextInput = initialUrl === "text-input" || initialUrl === "manual";
   const [mode, setMode] = useState<InputMode>(initialJd || !initialUrl || isUrlTextInput ? "text" : "url");
   const [url, setUrl] = useState(initialUrl && !isUrlTextInput ? initialUrl : "");
   const [jdText, setJdText] = useState(initialJd ?? "");
@@ -80,7 +80,7 @@ export function AnalysisForm({
       await submitAnalysis({ url: url.trim() });
     } else {
       await submitAnalysis({
-        url: url.trim() && url.trim() !== "text-input" ? url.trim() : undefined,
+        url: url.trim() && url.trim() !== "text-input" && url.trim() !== "manual" ? url.trim() : undefined,
         jdText: jdText.trim(),
       });
     }

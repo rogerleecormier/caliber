@@ -34,20 +34,24 @@ export const Route = createFileRoute('/agent-insights')({
 const PAGE_SIZE = 25;
 
 const SOURCE_LABELS: Record<string, string> = {
+  // ATS platforms
   greenhouse: 'Greenhouse',
   lever: 'Lever',
   workable: 'Workable',
   ashby: 'Ashby',
+  // Aggregators & crawlers
   adzuna: 'Adzuna',
   jooble: 'Jooble',
   remotive: 'Remotive',
   remoteok: 'RemoteOK',
   himalayas: 'Himalayas',
-  linkedin: 'LinkedIn',
+  jobicy: 'Jobicy',
+  // User-added
   manual: 'Manual Entry',
-  'text-input': 'Text Input',
-  quick_search: 'Quick Search',
-  search_agent: 'Search Agent',
+  // Legacy values (still in DB, display gracefully)
+  'text-input': 'Manual Entry',
+  quick_search: 'Manual Entry',
+  search_agent: 'Unknown',
   unknown: 'Unknown',
 };
 

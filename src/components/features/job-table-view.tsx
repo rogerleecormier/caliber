@@ -178,7 +178,7 @@ export function JobTableView({
       cell: ({ row }) => {
         const job = row.original;
         const isAnalyzed = job.id ? analyzedJobIds.has(job.id) : false;
-        const hasUrl = !!(job.sourceUrl && job.sourceUrl !== "text-input");
+        const hasUrl = !!(job.sourceUrl && job.sourceUrl !== "text-input" && job.sourceUrl !== "manual");
         return (
           <div className="flex items-center justify-center gap-1.5">
             <button

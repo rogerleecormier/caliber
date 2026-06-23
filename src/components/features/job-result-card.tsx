@@ -111,29 +111,36 @@ function formatScore(value: number | null | undefined): string {
 }
 
 const SOURCE_BADGE_CLASS: Record<string, string> = {
-  linkedin:     'bg-sky-600',
-  greenhouse:   'bg-emerald-600',
-  lever:        'bg-indigo-600',
-  workable:     'bg-violet-600',
-  ashby:        'bg-purple-600',
-  adzuna:       'bg-orange-500',
-  jooble:       'bg-yellow-500',
-  remotive:     'bg-teal-600',
-  remoteok:     'bg-pink-600',
-  himalayas:    'bg-cyan-600',
-  search_agent: 'bg-purple-500',
+  greenhouse: 'bg-emerald-600',
+  lever:      'bg-indigo-600',
+  workable:   'bg-violet-600',
+  ashby:      'bg-purple-600',
+  adzuna:     'bg-orange-500',
+  jooble:     'bg-yellow-500',
+  remotive:   'bg-teal-600',
+  remoteok:   'bg-pink-600',
+  himalayas:  'bg-cyan-600',
+  jobicy:     'bg-lime-600',
+  manual:     'bg-slate-500',
+  // legacy fallbacks
+  'text-input':   'bg-slate-500',
+  quick_search:   'bg-slate-500',
+  search_agent:   'bg-slate-500',
 };
 
 function sourceBadgeClass(source: string): string {
   return SOURCE_BADGE_CLASS[source.toLowerCase()] ?? 'bg-slate-500';
 }
 
+const SOURCE_DISPLAY_LABELS: Record<string, string> = {
+  manual: 'Manual', 'text-input': 'Manual', quick_search: 'Manual',
+  search_agent: 'Unknown', unknown: 'Unknown',
+  remoteok: 'RemoteOK', himalayas: 'Himalayas', jobicy: 'Jobicy',
+};
+
 function sourceLabel(sourceName?: string | null, sourceOrigin?: string | null): string {
-  const raw = sourceName || sourceOrigin || '';
-  const labels: Record<string, string> = {
-    manual: 'Manual', 'text-input': 'Manual', quick_search: 'Search', search_agent: 'Agent',
-  };
-  return labels[raw.toLowerCase()] ?? (raw ? raw.charAt(0).toUpperCase() + raw.slice(1) : '');
+  const raw = (sourceName || sourceOrigin || '').toLowerCase();
+  return SOURCE_DISPLAY_LABELS[raw] ?? (raw ? raw.charAt(0).toUpperCase() + raw.slice(1) : '');
 }
 
 export function JobResultCard({
@@ -154,7 +161,7 @@ export function JobResultCard({
   isHorizontal = false,
 }: JobResultCardProps) {
   const score = getScore(job);
-  const hasUrl = !!(job.sourceUrl && job.sourceUrl !== "text-input");
+  const hasUrl = !!(job.sourceUrl && job.sourceUrl !== "text-input" && job.sourceUrl !== "manual");
   const [downloadingKey, setDownloadingKey] = useState<string | null>(null);
   const cleanedSnippet = useMemo(() => {
     const text = job.snippet || job.descriptionPruned || job.description;

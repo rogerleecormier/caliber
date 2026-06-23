@@ -262,23 +262,20 @@ function JobsPage() {
 
 const ATS_OPTIONS = [
   { value: '', label: 'All Sources' },
-  // ATS platforms (canonical job catalog)
+  // ATS platforms (company job boards)
   { value: 'greenhouse', label: 'Greenhouse' },
   { value: 'lever', label: 'Lever' },
   { value: 'workable', label: 'Workable' },
   { value: 'ashby', label: 'Ashby' },
-  // Job aggregators
+  // Job aggregators & crawlers
   { value: 'adzuna', label: 'Adzuna' },
   { value: 'jooble', label: 'Jooble' },
   { value: 'remotive', label: 'Remotive' },
   { value: 'remoteok', label: 'RemoteOK' },
   { value: 'himalayas', label: 'Himalayas' },
-  { value: 'linkedin', label: 'LinkedIn' },
-  // Manual / agent entries
+  { value: 'jobicy', label: 'Jobicy' },
+  // User-added
   { value: 'manual', label: 'Manual Entry' },
-  { value: 'text-input', label: 'Text Input' },
-  { value: 'quick_search', label: 'Quick Search' },
-  { value: 'search_agent', label: 'Search Agent' },
 ];
 
 const SALARY_OPTIONS = [
@@ -301,11 +298,8 @@ const atsBadgeClass: Record<string, string> = {
   remotive: 'bg-teal-100 text-teal-700',
   remoteok: 'bg-pink-100 text-pink-700',
   himalayas: 'bg-cyan-100 text-cyan-700',
-  linkedin: 'bg-blue-100 text-blue-700',
+  jobicy: 'bg-lime-100 text-lime-700',
   manual: 'bg-slate-100 text-slate-600',
-  'text-input': 'bg-slate-100 text-slate-600',
-  quick_search: 'bg-slate-100 text-slate-600',
-  search_agent: 'bg-purple-100 text-purple-700',
 };
 
 function formatSalary(min?: number | null, max?: number | null) {

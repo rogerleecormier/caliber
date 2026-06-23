@@ -30,7 +30,7 @@ export const analyzeJob = createServerFn({ method: "POST" })
     const user = await resolveSessionUser((ctx as any)?.request);
     if (!user) throw new Error("Not authenticated");
 
-    const cleanedUrl = data.url ? cleanJobUrl(data.url) : "text-input";
+    const cleanedUrl = data.url ? cleanJobUrl(data.url) : "manual";
 
     let jdText: string;
     if (data.jdText?.trim()) {
@@ -73,7 +73,7 @@ export const analyzeJob = createServerFn({ method: "POST" })
     let normalizedJobId = data.pipelineJobId ?? null;
     const canonicalSourceUrl = canonicalizeJobUrl(cleanedUrl);
 
-    if (!normalizedJobId && cleanedUrl !== 'text-input') {
+    if (!normalizedJobId && cleanedUrl !== 'manual') {
       const [existing] = await db
         .select({ id: normalizedJobs.id })
         .from(normalizedJobs)
@@ -131,7 +131,7 @@ export const analyzeJob = createServerFn({ method: "POST" })
           industry: analysis.industry ?? null,
           sourceUrl: cleanedUrl,
           canonicalSourceUrl,
-          sourceOrigin: cleanedUrl === 'text-input' ? 'text-input' : 'manual',
+          sourceOrigin: 'manual',
           jdText,
           matchScore: analysis.matchScore,
           atsScore: scoreResult.atsScore,

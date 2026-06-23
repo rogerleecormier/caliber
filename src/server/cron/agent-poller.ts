@@ -152,8 +152,8 @@ export async function runAgentPoller(env: CloudflareEnv): Promise<void> {
 
           // Link job source
           await linkJobSource(env as any, canonicalId, {
-            ats: job.sourceName || 'search_agent',
-            boardToken: 'search_agent',
+            ats: job.sourceName || 'unknown',
+            boardToken: job.sourceName || 'unknown',
             sourceJobId: job.id,
             sourceUrl: job.sourceUrl,
             applyUrl: job.sourceUrl,
