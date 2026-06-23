@@ -235,12 +235,46 @@ export function looksLikePromptEcho(value: any): boolean {
   return PROMPT_ECHO_MARKERS.some((m) => haystack.includes(m));
 }
 
+/** Extract the first balanced JSON object or array from a raw string. */
+function extractJson(raw: string): string | null {
+  // Strip markdown code fences
+  const stripped = raw.replace(/```(?:json)?\s*/gi, "").replace(/```/g, "").trim();
+
+  // Try direct parse first (clean response)
+  try {
+    JSON.parse(stripped);
+    return stripped;
+  } catch {}
+
+  // Find the first { or [ and walk to its matching closer
+  const start = stripped.search(/[{[]/);
+  if (start === -1) return null;
+  const opener = stripped[start];
+  const closer = opener === "{" ? "}" : "]";
+  let depth = 0;
+  let inString = false;
+  let escape = false;
+  for (let i = start; i < stripped.length; i++) {
+    const ch = stripped[i];
+    if (escape) { escape = false; continue; }
+    if (ch === "\\") { escape = true; continue; }
+    if (ch === '"') { inString = !inString; continue; }
+    if (inString) continue;
+    if (ch === opener) depth++;
+    else if (ch === closer) {
+      depth--;
+      if (depth === 0) return stripped.slice(start, i + 1);
+    }
+  }
+  return null;
+}
+
 export function parseSectionResponse<T extends SectionType>(raw: string, sectionType: T): SectionContent[T] {
   try {
     console.log(`[parseSectionResponse] Parsing ${sectionType}, raw response:`, raw.substring(0, 500));
 
-    const jsonMatch = raw.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) {
+    const jsonStr = extractJson(raw);
+    if (!jsonStr) {
       console.warn(`[parseSectionResponse] No JSON found in ${sectionType} response, attempting plaintext parse`);
       const plaintext = parsePlaintextSection(raw, sectionType);
       if (plaintext !== null) {
@@ -251,11 +285,11 @@ export function parseSectionResponse<T extends SectionType>(raw: string, section
 
     let parsed: any;
     try {
-      parsed = JSON.parse(jsonMatch[0]);
+      parsed = JSON.parse(jsonStr);
     } catch (e) {
       console.log(`[parseSectionResponse] JSON parse failed, attempting repair for ${sectionType}`);
       try {
-        parsed = JSON.parse(jsonrepair(jsonMatch[0]));
+        parsed = JSON.parse(jsonrepair(jsonStr));
       } catch (repairErr) {
         console.warn(`[parseSectionResponse] JSON repair failed for ${sectionType}, attempting plaintext parse`);
         const plaintext = parsePlaintextSection(raw, sectionType);

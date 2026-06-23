@@ -3,7 +3,6 @@ import {
   Packer,
   Paragraph,
   TextRun,
-  HeadingLevel,
   AlignmentType,
   BorderStyle,
   SectionType,
@@ -29,23 +28,15 @@ function cleanInline(text: string): string {
   return (text ?? "").replace(/\\([-.*_#+()\[\]`])/g, "$1");
 }
 
-function sectionDivider(): Paragraph {
-  return new Paragraph({
-    border: {
-      bottom: { style: BorderStyle.SINGLE, size: 6, color: "333333", space: 2 },
-    },
-    spacing: { after: 80 },
-  });
-}
-
 function sectionHeading(title: string): Paragraph[] {
   return [
     new Paragraph({
       children: [new TextRun({ text: title.toUpperCase(), bold: true, size: 22, font: "Calibri" })],
-      spacing: { before: 200, after: 40 },
-      heading: HeadingLevel.HEADING_2,
+      border: {
+        bottom: { style: BorderStyle.SINGLE, size: 6, color: "333333", space: 1 },
+      },
+      spacing: { before: 200, after: 80 },
     }),
-    sectionDivider(),
   ];
 }
 
