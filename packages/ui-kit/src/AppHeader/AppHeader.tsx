@@ -469,6 +469,17 @@ export function AppHeader({
       tone: "primary",
       appScope: "jobs",
     },
+    {
+      type: "link",
+      key: "agent-insights",
+      label: "Agent Insights",
+      sublabel: "Catalog analytics",
+      href: `${appOrigin}/agent-insights`,
+      path: "/agent-insights",
+      icon: BarChart3,
+      tone: "success",
+      appScope: "jobs",
+    },
   ];
 
   const userMenuEntries: MenuEntry[] = [

@@ -49,7 +49,6 @@ export const getCrawlerStats = createServerFn({ method: "GET" })
     const { results: jobs } = await db.prepare(`
       SELECT c.* FROM canonical_jobs c
       WHERE c.is_listed = 1
-      AND c.id IN (SELECT DISTINCT canonical_id FROM job_sources)
       AND NOT EXISTS (
         SELECT 1 FROM normalized_jobs n
         WHERE n.canonical_job_id = c.id
@@ -62,7 +61,6 @@ export const getCrawlerStats = createServerFn({ method: "GET" })
     const totalJobsRes = await db.prepare(`
       SELECT COUNT(*) as total FROM canonical_jobs c
       WHERE c.is_listed = 1
-      AND c.id IN (SELECT DISTINCT canonical_id FROM job_sources)
       AND NOT EXISTS (
         SELECT 1 FROM normalized_jobs n
         WHERE n.canonical_job_id = c.id
@@ -85,7 +83,6 @@ export const getCrawlerStats = createServerFn({ method: "GET" })
         (
           SELECT COUNT(*) FROM canonical_jobs c
           WHERE c.is_listed = 1
-          AND c.id IN (SELECT DISTINCT canonical_id FROM job_sources)
           AND NOT EXISTS (
             SELECT 1 FROM normalized_jobs n
             WHERE n.canonical_job_id = c.id
