@@ -2,7 +2,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { Button, Textarea } from "@caliber/ui-kit";
 import { FileText, Mail, Loader2, Download, RefreshCw, Wand2, FileType2 } from "lucide-react";
 import { toast } from "sonner";
-import { useState, useRef } from "react";
+import { useState } from "react";
 import { generateResume } from "@/server/functions/generate-resume";
 import { generateCoverLetter } from "@/server/functions/generate-cover-letter";
 import { getDocumentDownload, getDocumentsForAnalysis } from "@/server/functions/get-history";
@@ -35,8 +35,6 @@ export function DocumentActions({ analysisId, applied = false, onDocumentGenerat
   // Tracks the locally-generated result for the current format session.
   // Cleared when format switches so the user must regenerate in the new format.
   const [localResumeResult, setLocalResumeResult] = useState<DocResult | null>(null);
-  const lastGeneratedFormat = useRef<ResumeFormat>("pdf");
-
   // ── Fetch existing documents ──────────────────────────────────────
   const { data: docs } = useQuery({
     queryKey: ["documents", analysisId],
@@ -53,7 +51,6 @@ export function DocumentActions({ analysisId, applied = false, onDocumentGenerat
     // Clear local result so the user regenerates in the new format.
     // The DB result may be a different format — don't show it as usable.
     setLocalResumeResult(null);
-    lastGeneratedFormat.current = fmt;
   }
 
   // ── Generate resume ───────────────────────────────────────────────
