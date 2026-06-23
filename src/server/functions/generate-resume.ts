@@ -10,6 +10,7 @@ import {
 } from "@/lib/ai-gateway";
 import { type AtsResumeContent } from "@/lib/ats-format";
 import { generateResumePdf } from "@/lib/pdf";
+import { generateResumeDocx } from "@/lib/docx";
 import {
   type SectionType,
   type SectionContent,
@@ -93,7 +94,7 @@ async function tailorSection(
 }
 
 export const generateResume = createServerFn({ method: "POST" })
-  .inputValidator((data: { analysisId: number; extraGuidance?: string }) => data)
+  .inputValidator((data: { analysisId: number; extraGuidance?: string; format?: "pdf" | "docx" }) => data)
   .handler(async (ctx: any) => { const { data } = ctx;
     try {
       const env = await getCloudflareEnvAsync();
@@ -237,7 +238,10 @@ export const generateResume = createServerFn({ method: "POST" })
         certifications: (tailoredSections[6] as string[]) || [],
       };
 
-      const pdfBytes = await generateResumePdf(resumeContent);
+      const format = data.format ?? "pdf";
+      const docBytes = format === "docx"
+        ? await generateResumeDocx(resumeContent)
+        : await generateResumePdf(resumeContent);
 
       const resumeKeywords: string[] = [];
       if (resumeContent.coreCompetencies) resumeKeywords.push(...resumeContent.coreCompetencies);
@@ -251,12 +255,16 @@ export const generateResume = createServerFn({ method: "POST" })
         .filter((k) => k.length > 0)
         .slice(0, 50);
 
+      const ext = format === "docx" ? "docx" : "pdf";
+      const contentType = format === "docx"
+        ? "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        : "application/pdf";
       const timestamp = Date.now();
-      const r2Key = `documents/${data.analysisId}/resume_${timestamp}.pdf`;
-      const fileName = `Resume_${(company).replace(/\s+/g, "_")}_${(jobTitle).replace(/\s+/g, "_")}.pdf`;
+      const r2Key = `documents/${data.analysisId}/resume_${timestamp}.${ext}`;
+      const fileName = `Resume_${(company).replace(/\s+/g, "_")}_${(jobTitle).replace(/\s+/g, "_")}.${ext}`;
 
-      await env.R2.put(r2Key, pdfBytes, {
-        httpMetadata: { contentType: "application/pdf" },
+      await env.R2.put(r2Key, docBytes, {
+        httpMetadata: { contentType },
         customMetadata: { fileName },
       });
 

@@ -317,6 +317,7 @@ export const searchConfigurations = sqliteTable('search_configurations', {
   isActive: integer('is_active').notNull().default(1),
   runIntervalHours: integer('run_interval_hours').notNull().default(24), // customizable interval in hours (e.g. 1, 2, 4, 8, 12, 24)
   sources: text('sources').notNull().default('["adzuna", "greenhouse", "lever"]'), // target sources for this search agent
+  employmentType: text('employment_type'), // JSON array e.g. '["full-time","contract"]'
   lastRunAt: text('last_run_at'),
   createdAt: text('created_at').notNull(),
   updatedAt: text('updated_at').notNull(),

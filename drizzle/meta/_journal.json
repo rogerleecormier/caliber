@@ -120,6 +120,13 @@
       "when": 1782008725793,
       "tag": "0033_broad_apocalypse",
       "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "6",
+      "when": 1782226922136,
+      "tag": "0034_little_living_mummy",
+      "breakpoints": true
     }
   ]
 }

@@ -1,12 +1,14 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Button, Textarea } from "@caliber/ui-kit";
-import { FileText, Mail, Loader2, Download, RefreshCw, Wand2 } from "lucide-react";
+import { FileText, Mail, Loader2, Download, RefreshCw, Wand2, FileType2 } from "lucide-react";
 import { toast } from "sonner";
 import { useState, cloneElement } from "react";
 import { generateResume } from "@/server/functions/generate-resume";
 import { generateCoverLetter } from "@/server/functions/generate-cover-letter";
 import { getDocumentDownload, getDocumentsForAnalysis } from "@/server/functions/get-history";
 import { AppliedToggle } from "./applied-toggle";
+
+type ResumeFormat = "pdf" | "docx";
 
 interface DocumentActionsProps {
   analysisId: number;
@@ -29,6 +31,7 @@ async function triggerDownload(r2Key: string, fileName: string) {
 
 export function DocumentActions({ analysisId, applied = false, onDocumentGenerated }: DocumentActionsProps) {
   const [extraGuidance, setExtraGuidance] = useState("");
+  const [resumeFormat, setResumeFormat] = useState<ResumeFormat>("pdf");
 
   // ── Fetch existing documents ──────────────────────────────────────
   const { data: docs } = useQuery({
@@ -42,11 +45,11 @@ export function DocumentActions({ analysisId, applied = false, onDocumentGenerat
 
   // ── Generate resume ───────────────────────────────────────────────
   const resumeMutation = useMutation({
-    mutationFn: () => {
+    mutationFn: (format: ResumeFormat) => {
       const toastId = toast.loading("Generating your resume…", {
         description: "Tailoring to the job description. You can leave this page.",
       });
-      return generateResume({ data: { analysisId, extraGuidance: extraGuidance.trim() || undefined } })
+      return generateResume({ data: { analysisId, extraGuidance: extraGuidance.trim() || undefined, format } })
         .then((result) => {
           toast.success("Resume ready!", {
             id: toastId,
@@ -79,7 +82,7 @@ export function DocumentActions({ analysisId, applied = false, onDocumentGenerat
 
   // ── Download (fire-and-forget, no cache needed) ───────────────────
   const resumeDownloadMutation = useMutation({
-    mutationFn: (doc: DocResult) => triggerDownload(doc.r2Key, doc.fileName ?? "resume.pdf"),
+    mutationFn: (doc: DocResult) => triggerDownload(doc.r2Key, doc.fileName ?? `resume.${resumeFormat}`),
     onError: (error) => {
       console.error("Resume download failed:", error);
     },
@@ -149,11 +152,31 @@ export function DocumentActions({ analysisId, applied = false, onDocumentGenerat
           generating={resumeMutation.isPending}
           downloading={resumeDownloadMutation.isPending}
           busy={busy}
-          onGenerate={() => resumeMutation.mutate()}
+          onGenerate={() => resumeMutation.mutate(resumeFormat)}
           onDownload={() => resolvedResume && resumeDownloadMutation.mutate(resolvedResume)}
           generateLabel="Create Resume"
           accentClass="text-emerald-700"
           buttonVariant="default"
+          formatSelector={
+            <div className="flex items-center gap-1 rounded-md border border-slate-200 bg-white overflow-hidden text-xs font-medium">
+              <button
+                onClick={() => setResumeFormat("pdf")}
+                disabled={busy}
+                className={`flex items-center gap-1 px-2 py-1 transition-colors ${resumeFormat === "pdf" ? "bg-emerald-600 text-white" : "text-slate-500 hover:text-slate-700 hover:bg-slate-50"}`}
+              >
+                <FileText className="h-3 w-3" />
+                PDF
+              </button>
+              <button
+                onClick={() => setResumeFormat("docx")}
+                disabled={busy}
+                className={`flex items-center gap-1 px-2 py-1 transition-colors ${resumeFormat === "docx" ? "bg-emerald-600 text-white" : "text-slate-500 hover:text-slate-700 hover:bg-slate-50"}`}
+              >
+                <FileType2 className="h-3 w-3" />
+                DOCX
+              </button>
+            </div>
+          }
         />
         <DocPanel
           icon={<Mail className="h-4 w-4 text-sky-600" />}
@@ -193,6 +216,7 @@ interface DocPanelProps {
   generateLabel: string;
   accentClass: string;
   buttonVariant: "default" | "secondary";
+  formatSelector?: React.ReactNode;
 }
 
 function DocPanel({
@@ -208,6 +232,7 @@ function DocPanel({
   generateLabel,
   accentClass,
   buttonVariant,
+  formatSelector,
 }: DocPanelProps) {
   return (
     <div className="rounded-2xl border border-slate-200 bg-white overflow-hidden">
@@ -225,7 +250,13 @@ function DocPanel({
       </div>
 
       {/* Panel body */}
-      <div className="px-4 py-3">
+      <div className="px-4 py-3 space-y-2">
+        {formatSelector && (
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-slate-400">Format</span>
+            {formatSelector}
+          </div>
+        )}
         {result ? (
           <div className="flex gap-2">
             <Button onClick={onDownload} disabled={downloading} size="sm" className="flex-1">

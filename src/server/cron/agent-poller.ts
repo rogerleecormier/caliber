@@ -13,7 +13,7 @@ import type { LinkedInScrapedJob, LinkedInSearchParams } from '@/lib/linkedin-se
 import type { AtsJobResponse } from '@/types/crawler';
 import { normalizeJob } from '@/lib/normalization';
 import { dedupPipeline } from '@/server/dedup/deterministic';
-import { insertCanonicalJob, linkJobSource } from '@/server/db/queries';
+import { insertCanonicalJob, linkJobSource, logAudit } from '@/server/db/queries';
 import { scoreJobAgainstProfile } from '@/lib/ai/job-score';
 
 const DEFAULT_LIMIT = 25;
@@ -98,6 +98,10 @@ export async function runAgentPoller(env: CloudflareEnv): Promise<void> {
       });
       jobs.push(...atsJobs);
     }
+
+    const agentStartMs = Date.now();
+    let agentJobsNew = 0;
+    let agentError: string | null = null;
 
     if (jobs.length > 0) {
       // 1. Fetch user resume
@@ -215,6 +219,7 @@ export async function runAgentPoller(env: CloudflareEnv): Promise<void> {
             })
             .where(eq(normalizedJobs.id, existing.id));
         } else {
+          agentJobsNew++;
           await db.insert(normalizedJobs).values({
             userId: config.userId,
             savedSearchId: config.id,
@@ -256,5 +261,34 @@ export async function runAgentPoller(env: CloudflareEnv): Promise<void> {
       .update(searchConfigurations)
       .set({ lastRunAt: new Date().toISOString() })
       .where(eq(searchConfigurations.id, config.id));
+
+    // Audit log: record the agent run result
+    try {
+      const sourceSummary: Record<string, number> = {};
+      for (const j of jobs) {
+        const src = j.sourceName || 'unknown';
+        sourceSummary[src] = (sourceSummary[src] ?? 0) + 1;
+      }
+      await logAudit(env as any, {
+        eventType: 'agent_search_run',
+        ats: null,
+        boardToken: null,
+        canonicalId: null,
+        sourceId: null,
+        actor: `user:${config.userId}`,
+        details: {
+          savedSearchId: config.id,
+          agentName: config.name,
+          keywords: criteria.keywords,
+          jobsFound: jobs.length,
+          jobsNew: agentJobsNew,
+          sources: sourceSummary,
+          durationMs: Date.now() - agentStartMs,
+          error: agentError,
+        },
+      });
+    } catch (auditErr) {
+      console.error(`[agent-poller] Failed to write audit log for agent ${config.id}:`, auditErr);
+    }
   }
 }

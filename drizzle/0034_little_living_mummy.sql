@@ -1,0 +1,1 @@
+ALTER TABLE `search_configurations` ADD `employment_type` text;

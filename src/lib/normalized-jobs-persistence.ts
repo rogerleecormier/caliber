@@ -52,6 +52,7 @@ export type SearchConfigurationRow = {
   isActive: boolean;
   runIntervalHours: number;
   sources: string[];
+  employmentTypes: string[];
   lastRunAt: string | null;
   createdAt: string;
   updatedAt: string;
@@ -738,6 +739,13 @@ export async function listSearchConfigurations(userId: string): Promise<SearchCo
         isRunning = running === 'true';
       }
 
+      let parsedEmploymentTypes: string[] = [];
+      try {
+        if (row.employmentType) parsedEmploymentTypes = JSON.parse(row.employmentType) as string[];
+      } catch {
+        // fallback
+      }
+
       return {
         id: row.id,
         userId: row.userId,
@@ -746,6 +754,7 @@ export async function listSearchConfigurations(userId: string): Promise<SearchCo
         isActive: row.isActive === 1,
         runIntervalHours: row.runIntervalHours,
         sources: parsedSources,
+        employmentTypes: parsedEmploymentTypes,
         lastRunAt: row.lastRunAt ?? null,
         createdAt: row.createdAt,
         updatedAt: row.updatedAt,
@@ -763,6 +772,7 @@ export async function saveSearchConfiguration(args: {
   isActive?: boolean;
   runIntervalHours?: number;
   sources?: string[];
+  employmentTypes?: string[];
 }) {
   const env = getCloudflareEnv();
   if (!env.DB) throw new Error('Database unavailable');
@@ -775,6 +785,7 @@ export async function saveSearchConfiguration(args: {
     isActive: args.isActive === false ? 0 : 1,
     runIntervalHours: args.runIntervalHours ?? 24,
     sources: JSON.stringify(args.sources ?? ['adzuna', 'greenhouse', 'lever']),
+    employmentType: args.employmentTypes && args.employmentTypes.length > 0 ? JSON.stringify(args.employmentTypes) : null,
     updatedAt: now,
   };
 
