@@ -8,8 +8,6 @@ import { generateCoverLetter } from "@/server/functions/generate-cover-letter";
 import { getDocumentDownload, getDocumentsForAnalysis } from "@/server/functions/get-history";
 import { AppliedToggle } from "./applied-toggle";
 
-type ResumeFormat = "pdf" | "docx";
-
 interface DocumentActionsProps {
   analysisId: number;
   applied?: boolean;
@@ -31,44 +29,35 @@ async function triggerDownload(r2Key: string, fileName: string) {
 
 export function DocumentActions({ analysisId, applied = false, onDocumentGenerated }: DocumentActionsProps) {
   const [extraGuidance, setExtraGuidance] = useState("");
-  const [resumeFormat, setResumeFormat] = useState<ResumeFormat>("pdf");
-  // Tracks the locally-generated result for the current format session.
-  // Cleared when format switches so the user must regenerate in the new format.
-  const [localResumeResult, setLocalResumeResult] = useState<DocResult | null>(null);
-  // ── Fetch existing documents ──────────────────────────────────────
+  const [localResumePdf, setLocalResumePdf] = useState<DocResult | null>(null);
+  const [localResumeDocx, setLocalResumeDocx] = useState<DocResult | null>(null);
+  const [localCoverPdf, setLocalCoverPdf] = useState<DocResult | null>(null);
+  const [localCoverDocx, setLocalCoverDocx] = useState<DocResult | null>(null);
+
   const { data: docs } = useQuery({
     queryKey: ["documents", analysisId],
     queryFn: () => getDocumentsForAnalysis({ data: { analysisId } }),
     staleTime: 0,
   });
 
-  const resumeResultFromDb: DocResult | null = docs?.resume ?? null;
-  const coverResult: DocResult | null = docs?.coverLetter ?? null;
+  const resumePdf: DocResult | null = localResumePdf ?? docs?.resumePdf ?? null;
+  const resumeDocx: DocResult | null = localResumeDocx ?? docs?.resumeDocx ?? null;
+  const coverPdf: DocResult | null = localCoverPdf ?? docs?.coverPdf ?? null;
+  const coverDocx: DocResult | null = localCoverDocx ?? docs?.coverDocx ?? null;
+  const hasResume = !!(resumePdf || resumeDocx);
+  const hasCover = !!(coverPdf || coverDocx);
 
-  function handleFormatChange(fmt: ResumeFormat) {
-    if (fmt === resumeFormat) return;
-    setResumeFormat(fmt);
-    // Clear local result so the user regenerates in the new format.
-    // The DB result may be a different format — don't show it as usable.
-    setLocalResumeResult(null);
-  }
-
-  // ── Generate resume ───────────────────────────────────────────────
   const resumeMutation = useMutation({
-    mutationFn: (format: ResumeFormat) => {
+    mutationFn: () => {
       const toastId = toast.loading("Generating your resume…", {
-        description: "Tailoring to the job description. You can leave this page.",
+        description: "Creating PDF and DOCX versions.",
       });
-      return generateResume({ data: { analysisId, extraGuidance: extraGuidance.trim() || undefined, format } })
+      return generateResume({ data: { analysisId, extraGuidance: extraGuidance.trim() || undefined } })
         .then((result) => {
           toast.success("Resume ready!", {
             id: toastId,
-            description: result.fileName ?? "Your tailored resume has been generated.",
-            action: {
-              label: "Download",
-              onClick: () => triggerDownload(result.r2Key, result.fileName ?? `resume.${format}`),
-            },
-            duration: 10000,
+            description: result.pdf.fileName ?? "Both formats are ready to download.",
+            duration: 8000,
           });
           return result;
         })
@@ -81,51 +70,54 @@ export function DocumentActions({ analysisId, applied = false, onDocumentGenerat
         });
     },
     onSuccess: (result) => {
-      setLocalResumeResult(result);
+      setLocalResumePdf(result.pdf);
+      setLocalResumeDocx(result.docx);
       onDocumentGenerated?.();
     },
   });
 
-  // ── Generate cover letter ─────────────────────────────────────────
   const coverMutation = useMutation({
-    mutationFn: () =>
-      generateCoverLetter({ data: { analysisId, extraGuidance: extraGuidance.trim() || undefined } }),
-    onSuccess: () => onDocumentGenerated?.(),
-  });
-
-  // ── Download (fire-and-forget, no cache needed) ───────────────────
-  const resumeDownloadMutation = useMutation({
-    mutationFn: (doc: DocResult) => triggerDownload(doc.r2Key, doc.fileName ?? `resume.${resumeFormat}`),
-    onError: (error) => {
-      console.error("Resume download failed:", error);
+    mutationFn: () => {
+      const toastId = toast.loading("Generating your cover letter…");
+      return generateCoverLetter({ data: { analysisId, extraGuidance: extraGuidance.trim() || undefined } })
+        .then((result) => {
+          toast.success("Cover letter ready!", { id: toastId, duration: 8000 });
+          return result;
+        })
+        .catch((err) => {
+          toast.error("Cover letter generation failed", {
+            id: toastId,
+            description: err instanceof Error ? err.message : "Something went wrong.",
+          });
+          throw err;
+        });
+    },
+    onSuccess: (result) => {
+      setLocalCoverPdf(result.pdf);
+      setLocalCoverDocx(result.docx);
+      onDocumentGenerated?.();
     },
   });
 
-  const coverDownloadMutation = useMutation({
-    mutationFn: (doc: DocResult) => triggerDownload(doc.r2Key, doc.fileName ?? "cover-letter.pdf"),
-    onError: (error) => {
-      console.error("Cover letter download failed:", error);
-    },
-  });
+  const resumePdfDownload = useMutation({ mutationFn: (doc: DocResult) => triggerDownload(doc.r2Key, doc.fileName ?? "resume.pdf") });
+  const resumeDocxDownload = useMutation({ mutationFn: (doc: DocResult) => triggerDownload(doc.r2Key, doc.fileName ?? "resume.docx") });
+  const coverPdfDownload = useMutation({ mutationFn: (doc: DocResult) => triggerDownload(doc.r2Key, doc.fileName ?? "cover-letter.pdf") });
+  const coverDocxDownload = useMutation({ mutationFn: (doc: DocResult) => triggerDownload(doc.r2Key, doc.fileName ?? "cover-letter.docx") });
 
   const busy = resumeMutation.isPending || coverMutation.isPending;
-
-  // Use local result (format-aware) first; fall back to DB result only when
-  // the format hasn't been switched (i.e. the DB result is the same format).
-  const dbResumeMatchesFormat = resumeResultFromDb?.fileName?.endsWith(`.${resumeFormat}`) ?? false;
-  const resolvedResume = localResumeResult ?? (dbResumeMatchesFormat ? resumeResultFromDb : null);
-  const resolvedCover = coverMutation.data ?? coverResult;
 
   const error =
     resumeMutation.error?.message ??
     coverMutation.error?.message ??
-    resumeDownloadMutation.error?.message ??
-    coverDownloadMutation.error?.message ??
+    resumePdfDownload.error?.message ??
+    resumeDocxDownload.error?.message ??
+    coverPdfDownload.error?.message ??
+    coverDocxDownload.error?.message ??
     null;
 
   return (
     <div className="space-y-4">
-      {/* Header row */}
+      {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Wand2 className="h-4 w-4 text-violet-500" />
@@ -134,7 +126,7 @@ export function DocumentActions({ analysisId, applied = false, onDocumentGenerat
         <AppliedToggle analysisId={analysisId} initialApplied={applied} />
       </div>
 
-      {/* Guidance input */}
+      {/* Guidance */}
       <Textarea
         value={extraGuidance}
         onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setExtraGuidance(e.target.value)}
@@ -146,55 +138,48 @@ export function DocumentActions({ analysisId, applied = false, onDocumentGenerat
 
       {/* Document panels */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+
         {/* ATS Resume */}
         <div className="rounded-xl border border-slate-200 bg-white p-4 space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <FileText className="h-4 w-4 text-emerald-600" />
-              <span className="text-sm font-semibold text-slate-800">ATS Resume</span>
+              <span className="text-sm font-semibold text-slate-800">Resume</span>
             </div>
-            {resolvedResume && (
+            {hasResume && (
               <span className="text-[10px] font-medium text-emerald-700 bg-emerald-50 border border-emerald-100 px-2 py-0.5 rounded-full">
                 Ready
               </span>
             )}
           </div>
 
-          {/* Format toggle */}
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-slate-400 shrink-0">Format</span>
-            <div className="flex rounded-md border border-slate-200 overflow-hidden text-xs font-medium">
-              <button
-                onClick={() => handleFormatChange("pdf")}
-                disabled={busy}
-                className={`flex items-center gap-1 px-2.5 py-1 transition-colors ${resumeFormat === "pdf" ? "bg-slate-800 text-white" : "text-slate-500 hover:bg-slate-50"}`}
-              >
-                <FileText className="h-3 w-3" />PDF
-              </button>
-              <button
-                onClick={() => handleFormatChange("docx")}
-                disabled={busy}
-                className={`flex items-center gap-1 px-2.5 py-1 transition-colors border-l border-slate-200 ${resumeFormat === "docx" ? "bg-slate-800 text-white" : "text-slate-500 hover:bg-slate-50"}`}
-              >
-                <FileType2 className="h-3 w-3" />DOCX
-              </button>
-            </div>
-          </div>
-
-          {/* Action */}
-          {resolvedResume ? (
+          {hasResume ? (
             <div className="flex gap-2">
+              {resumePdf && (
+                <Button
+                  onClick={() => resumePdfDownload.mutate(resumePdf)}
+                  disabled={resumePdfDownload.isPending}
+                  size="sm"
+                  className="flex-1"
+                >
+                  {resumePdfDownload.isPending ? <Loader2 className="animate-spin h-3.5 w-3.5" /> : <Download className="h-3.5 w-3.5" />}
+                  PDF
+                </Button>
+              )}
+              {resumeDocx && (
+                <Button
+                  onClick={() => resumeDocxDownload.mutate(resumeDocx)}
+                  disabled={resumeDocxDownload.isPending}
+                  size="sm"
+                  variant="secondary"
+                  className="flex-1"
+                >
+                  {resumeDocxDownload.isPending ? <Loader2 className="animate-spin h-3.5 w-3.5" /> : <FileType2 className="h-3.5 w-3.5" />}
+                  DOCX
+                </Button>
+              )}
               <Button
-                onClick={() => resumeDownloadMutation.mutate(resolvedResume)}
-                disabled={resumeDownloadMutation.isPending}
-                size="sm"
-                className="flex-1"
-              >
-                {resumeDownloadMutation.isPending ? <Loader2 className="animate-spin h-3.5 w-3.5" /> : <Download className="h-3.5 w-3.5" />}
-                Download {resumeFormat.toUpperCase()}
-              </Button>
-              <Button
-                onClick={() => resumeMutation.mutate(resumeFormat)}
+                onClick={() => resumeMutation.mutate()}
                 disabled={busy}
                 variant="ghost"
                 size="icon"
@@ -206,7 +191,7 @@ export function DocumentActions({ analysisId, applied = false, onDocumentGenerat
             </div>
           ) : (
             <Button
-              onClick={() => resumeMutation.mutate(resumeFormat)}
+              onClick={() => resumeMutation.mutate()}
               disabled={busy}
               size="sm"
               className="w-full"
@@ -224,27 +209,39 @@ export function DocumentActions({ analysisId, applied = false, onDocumentGenerat
               <Mail className="h-4 w-4 text-sky-600" />
               <span className="text-sm font-semibold text-slate-800">Cover Letter</span>
             </div>
-            {resolvedCover && (
+            {hasCover && (
               <span className="text-[10px] font-medium text-sky-700 bg-sky-50 border border-sky-100 px-2 py-0.5 rounded-full">
                 Ready
               </span>
             )}
           </div>
 
-          <div className="h-[1.75rem]" />
-
-          {resolvedCover ? (
+          {hasCover ? (
             <div className="flex gap-2">
-              <Button
-                onClick={() => coverDownloadMutation.mutate(resolvedCover)}
-                disabled={coverDownloadMutation.isPending}
-                size="sm"
-                className="flex-1"
-                variant="secondary"
-              >
-                {coverDownloadMutation.isPending ? <Loader2 className="animate-spin h-3.5 w-3.5" /> : <Download className="h-3.5 w-3.5" />}
-                Download PDF
-              </Button>
+              {coverPdf && (
+                <Button
+                  onClick={() => coverPdfDownload.mutate(coverPdf)}
+                  disabled={coverPdfDownload.isPending}
+                  size="sm"
+                  variant="secondary"
+                  className="flex-1"
+                >
+                  {coverPdfDownload.isPending ? <Loader2 className="animate-spin h-3.5 w-3.5" /> : <Download className="h-3.5 w-3.5" />}
+                  PDF
+                </Button>
+              )}
+              {coverDocx && (
+                <Button
+                  onClick={() => coverDocxDownload.mutate(coverDocx)}
+                  disabled={coverDocxDownload.isPending}
+                  size="sm"
+                  variant="ghost"
+                  className="flex-1"
+                >
+                  {coverDocxDownload.isPending ? <Loader2 className="animate-spin h-3.5 w-3.5" /> : <FileType2 className="h-3.5 w-3.5" />}
+                  DOCX
+                </Button>
+              )}
               <Button
                 onClick={() => coverMutation.mutate()}
                 disabled={busy}
@@ -269,6 +266,7 @@ export function DocumentActions({ analysisId, applied = false, onDocumentGenerat
             </Button>
           )}
         </div>
+
       </div>
 
       {error && (
@@ -277,4 +275,3 @@ export function DocumentActions({ analysisId, applied = false, onDocumentGenerat
     </div>
   );
 }
-

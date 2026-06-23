@@ -193,3 +193,107 @@ export async function generateResumeDocx(content: AtsResumeContent): Promise<Uin
   const buffer = await Packer.toBuffer(doc);
   return new Uint8Array(buffer);
 }
+
+export async function generateCoverLetterDocx(content: {
+  greeting: string;
+  opening: string;
+  bullets?: string[];
+  body?: string;
+  closing: string;
+  signoff: string;
+  candidateName: string;
+  nameHeader?: string;
+  contactInfo?: string;
+}): Promise<Uint8Array> {
+  const paragraphs: Paragraph[] = [];
+
+  if (content.nameHeader) {
+    paragraphs.push(
+      new Paragraph({
+        children: [new TextRun({ text: content.nameHeader, bold: true, size: 36, font: "Calibri" })],
+        alignment: AlignmentType.CENTER,
+        spacing: { after: 80 },
+      }),
+    );
+  }
+
+  if (content.contactInfo) {
+    paragraphs.push(
+      new Paragraph({
+        children: [new TextRun({ text: content.contactInfo, size: 18, color: "444444", font: "Calibri" })],
+        alignment: AlignmentType.CENTER,
+        border: { bottom: { style: BorderStyle.SINGLE, size: 6, color: "333333", space: 2 } },
+        spacing: { after: 200 },
+      }),
+    );
+  }
+
+  paragraphs.push(
+    new Paragraph({
+      children: [new TextRun({ text: content.greeting, bold: true, size: 22, font: "Calibri" })],
+      spacing: { after: 160 },
+    }),
+  );
+
+  paragraphs.push(
+    new Paragraph({
+      children: [new TextRun({ text: content.opening, size: 22, font: "Calibri" })],
+      spacing: { after: 160 },
+    }),
+  );
+
+  if (content.bullets?.length) {
+    paragraphs.push(
+      new Paragraph({
+        children: [new TextRun({ text: "Some of my notable achievements include:", size: 22, font: "Calibri" })],
+        spacing: { after: 80 },
+      }),
+    );
+    for (const bullet of content.bullets) {
+      paragraphs.push(
+        new Paragraph({
+          children: [new TextRun({ text: bullet, size: 22, font: "Calibri" })],
+          bullet: { level: 0 },
+          spacing: { after: 80 },
+        }),
+      );
+    }
+    paragraphs.push(new Paragraph({ children: [], spacing: { after: 80 } }));
+  } else if (content.body) {
+    paragraphs.push(
+      new Paragraph({
+        children: [new TextRun({ text: content.body, size: 22, font: "Calibri" })],
+        spacing: { after: 160 },
+      }),
+    );
+  }
+
+  paragraphs.push(
+    new Paragraph({
+      children: [new TextRun({ text: content.closing, size: 22, font: "Calibri" })],
+      spacing: { after: 160 },
+    }),
+  );
+
+  paragraphs.push(
+    new Paragraph({
+      children: [new TextRun({ text: content.signoff, bold: true, size: 22, font: "Calibri" })],
+      spacing: { after: 80 },
+    }),
+  );
+
+  const doc = new Document({
+    sections: [
+      {
+        properties: {
+          type: SectionType.CONTINUOUS,
+          page: { margin: { top: 720, bottom: 720, left: 900, right: 900 } },
+        },
+        children: paragraphs,
+      },
+    ],
+  });
+
+  const buffer = await Packer.toBuffer(doc);
+  return new Uint8Array(buffer);
+}

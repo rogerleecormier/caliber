@@ -302,12 +302,12 @@ export function JobResultCard({
                 >
                   {downloadingKey === doc.r2Key ? (
                     <Loader2 className="h-3.5 w-3.5 animate-spin text-slate-500" />
-                  ) : doc.docType === "resume" ? (
+                  ) : doc.docType.startsWith("resume") ? (
                     <FileText className="h-3.5 w-3.5 text-amber-600" />
                   ) : (
                     <Mail className="h-3.5 w-3.5 text-amber-600" />
                   )}
-                  {doc.docType === "resume" ? "Resume" : "Cover Letter"}
+                  {doc.docType === "resume_docx" ? "Resume (DOCX)" : doc.docType.startsWith("resume") ? "Resume (PDF)" : doc.docType === "cover_letter_docx" ? "Cover Letter (DOCX)" : "Cover Letter (PDF)"}
                 </button>
               ))}
             </div>
@@ -560,12 +560,12 @@ export function JobResultCard({
                 >
                   {downloadingKey === doc.r2Key ? (
                     <Loader2 className="h-3 w-3 animate-spin text-slate-400" />
-                  ) : doc.docType === "resume" ? (
+                  ) : doc.docType.startsWith("resume") ? (
                     <FileText className="h-3 w-3 text-orange-500" />
                   ) : (
                     <Mail className="h-3 w-3 text-orange-500" />
                   )}
-                  {doc.docType === "resume" ? "Resume" : "Cover Letter"}
+                  {doc.docType === "resume_docx" ? "Resume (DOCX)" : doc.docType.startsWith("resume") ? "Resume (PDF)" : doc.docType === "cover_letter_docx" ? "Cover Letter (DOCX)" : "Cover Letter (PDF)"}
                 </button>
               ))}
             </div>

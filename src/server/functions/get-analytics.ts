@@ -241,7 +241,7 @@ export const getAnalytics = createServerFn({ method: "POST" })
       // 4. Resume keywords
       const resumeKeywordMap = new Map<string, number>();
       for (const doc of userDocs) {
-        if (doc.docType === "resume" && doc.resumeKeywords) {
+        if (doc.docType.startsWith("resume") && doc.resumeKeywords) {
           try {
             const keywords: string[] = JSON.parse(doc.resumeKeywords);
             for (const kw of keywords) {
@@ -302,7 +302,7 @@ export const getAnalytics = createServerFn({ method: "POST" })
       const averageMatchScore =
         scores.length > 0 ? scores.reduce((a, b) => a + b, 0) / scores.length : 0;
 
-      const totalResumesGenerated = userDocs.filter((d) => d.docType === "resume").length;
+      const totalResumesGenerated = userDocs.filter((d) => d.docType === "resume_pdf" || d.docType === "resume").length;
       const totalApplied = filteredJobs.filter((a) =>
         ["Applied", "Interviewed", "Hired", "Not Hired"].includes(a.status)
       ).length;

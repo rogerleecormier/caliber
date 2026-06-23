@@ -202,12 +202,18 @@ export const getDocumentsForAnalysis = createServerFn({ method: "GET" })
       .where(sql`${generatedDocuments.pipelineJobId} = ${data.analysisId} OR ${generatedDocuments.jobAnalysisId} = ${data.analysisId}`)
       .orderBy(desc(generatedDocuments.id));
 
-    const resume = docs.find((d) => d.docType === "resume");
-    const coverLetter = docs.find((d) => d.docType === "cover_letter");
+    const resumePdf = docs.find((d) => d.docType === "resume_pdf") ?? docs.find((d) => d.docType === "resume");
+    const resumeDocx = docs.find((d) => d.docType === "resume_docx");
+    const coverPdf = docs.find((d) => d.docType === "cover_letter_pdf") ?? docs.find((d) => d.docType === "cover_letter");
+    const coverDocx = docs.find((d) => d.docType === "cover_letter_docx");
+
+    const toDoc = (d: typeof docs[0]) => ({ documentId: d.id, fileName: d.fileName, r2Key: d.r2Key });
 
     return {
-      resume: resume ? { documentId: resume.id, fileName: resume.fileName, r2Key: resume.r2Key } : null,
-      coverLetter: coverLetter ? { documentId: coverLetter.id, fileName: coverLetter.fileName, r2Key: coverLetter.r2Key } : null,
+      resumePdf: resumePdf ? toDoc(resumePdf) : null,
+      resumeDocx: resumeDocx ? toDoc(resumeDocx) : null,
+      coverPdf: coverPdf ? toDoc(coverPdf) : null,
+      coverDocx: coverDocx ? toDoc(coverDocx) : null,
     };
   });
 

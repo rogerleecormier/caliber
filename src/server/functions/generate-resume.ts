@@ -94,7 +94,7 @@ async function tailorSection(
 }
 
 export const generateResume = createServerFn({ method: "POST" })
-  .inputValidator((data: { analysisId: number; extraGuidance?: string; format?: "pdf" | "docx" }) => data)
+  .inputValidator((data: { analysisId: number; extraGuidance?: string }) => data)
   .handler(async (ctx: any) => { const { data } = ctx;
     try {
       const env = await getCloudflareEnvAsync();
@@ -238,11 +238,6 @@ export const generateResume = createServerFn({ method: "POST" })
         certifications: (tailoredSections[6] as string[]) || [],
       };
 
-      const format = data.format ?? "pdf";
-      const docBytes = format === "docx"
-        ? await generateResumeDocx(resumeContent)
-        : await generateResumePdf(resumeContent);
-
       const resumeKeywords: string[] = [];
       if (resumeContent.coreCompetencies) resumeKeywords.push(...resumeContent.coreCompetencies);
       if (resumeContent.technicalSkills) {
@@ -255,33 +250,58 @@ export const generateResume = createServerFn({ method: "POST" })
         .filter((k) => k.length > 0)
         .slice(0, 50);
 
-      const ext = format === "docx" ? "docx" : "pdf";
-      const contentType = format === "docx"
-        ? "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-        : "application/pdf";
       const timestamp = Date.now();
-      const r2Key = `documents/${data.analysisId}/resume_${timestamp}.${ext}`;
-      const fileName = `Resume_${(company).replace(/\s+/g, "_")}_${(jobTitle).replace(/\s+/g, "_")}.${ext}`;
-
-      await env.R2.put(r2Key, docBytes, {
-        httpMetadata: { contentType },
-        customMetadata: { fileName },
-      });
-
+      const baseName = `Resume_${company.replace(/\s+/g, "_")}_${jobTitle.replace(/\s+/g, "_")}`;
       const now = new Date().toISOString();
-      const [doc] = await db
+
+      // Generate both formats in parallel
+      const [pdfBytes, docxBytes] = await Promise.all([
+        generateResumePdf(resumeContent),
+        generateResumeDocx(resumeContent),
+      ]);
+
+      const pdfKey = `documents/${data.analysisId}/resume_${timestamp}.pdf`;
+      const docxKey = `documents/${data.analysisId}/resume_${timestamp}.docx`;
+      const pdfName = `${baseName}.pdf`;
+      const docxName = `${baseName}.docx`;
+
+      await Promise.all([
+        env.R2.put(pdfKey, pdfBytes, {
+          httpMetadata: { contentType: "application/pdf" },
+          customMetadata: { fileName: pdfName },
+        }),
+        env.R2.put(docxKey, docxBytes, {
+          httpMetadata: { contentType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document" },
+          customMetadata: { fileName: docxName },
+        }),
+      ]);
+
+      const [pdfDoc, docxDoc] = await db
         .insert(generatedDocuments)
-        .values({
-          pipelineJobId: data.analysisId,
-          docType: "resume",
-          r2Key,
-          fileName,
-          resumeKeywords: JSON.stringify(uniqueKeywords),
-          createdAt: now,
-        })
+        .values([
+          {
+            pipelineJobId: data.analysisId,
+            docType: "resume_pdf",
+            r2Key: pdfKey,
+            fileName: pdfName,
+            resumeKeywords: JSON.stringify(uniqueKeywords),
+            createdAt: now,
+          },
+          {
+            pipelineJobId: data.analysisId,
+            docType: "resume_docx",
+            r2Key: docxKey,
+            fileName: docxName,
+            resumeKeywords: JSON.stringify(uniqueKeywords),
+            createdAt: now,
+          },
+        ])
         .returning();
 
-      return { documentId: doc.id, fileName, r2Key };
+      return {
+        pdf: { documentId: pdfDoc.id, fileName: pdfName, r2Key: pdfKey },
+        docx: { documentId: docxDoc.id, fileName: docxName, r2Key: docxKey },
+      };
     } catch (error) {
       console.error("generateResume error:", error);
       throw error;

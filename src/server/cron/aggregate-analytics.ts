@@ -1,6 +1,6 @@
 import { getDb } from "@/db/db";
 import { normalizedJobs, analyticsSummary, generatedDocuments } from "@/db/schema";
-import { eq, and, sql } from "drizzle-orm";
+import { eq, and, sql, inArray } from "drizzle-orm";
 import type { CloudflareEnv } from "@/lib/cloudflare";
 
 interface KeywordCount { keyword: string; count: number }
@@ -127,7 +127,7 @@ export async function aggregateAnalytics(env: CloudflareEnv, userId?: string): P
 
   // Resume keywords (from generated docs for this user's analyses)
   const jobIds = allAnalyses.map((a) => a.id);
-  const allResumeDocs = (await db.select().from(generatedDocuments).where(eq(generatedDocuments.docType, "resume")))
+  const allResumeDocs = (await db.select().from(generatedDocuments).where(inArray(generatedDocuments.docType, ["resume", "resume_pdf"])))
     .filter((d) => (d.pipelineJobId && jobIds.includes(d.pipelineJobId)) || (d.jobAnalysisId && jobIds.includes(d.jobAnalysisId)));
 
   const resumeKeywordMap = new Map<string, number>();

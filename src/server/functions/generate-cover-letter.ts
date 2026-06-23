@@ -13,6 +13,7 @@ import {
 } from "@/lib/ai-gateway";
 import { COVER_LETTER_PROMPT, type CoverLetterContent } from "@/lib/ats-format";
 import { generateCoverLetterPdf } from "@/lib/pdf";
+import { generateCoverLetterDocx } from "@/lib/docx";
 import { matchJobDescriptionToResume, formatGroundTruthContext } from "@/lib/resume-matching";
 import type { ResumeEmbedding } from "@/lib/resume-embedding";
 import { createZeroHallucinationSystemPrompt } from "@/lib/zero-hallucination-prompt";
@@ -150,34 +151,57 @@ export const generateCoverLetter = createServerFn({ method: "POST" })
       const contactParts = [resume.email, resume.phone, resume.linkedin, resume.website].filter(Boolean);
       const contactInfo = contactParts.join(" | ");
 
-      const pdfBytes = await generateCoverLetterPdf({
-        ...letterContent,
-        nameHeader: resume.fullName,
-        contactInfo,
-      });
+      const coverContent = { ...letterContent, nameHeader: resume.fullName, contactInfo };
 
       const timestamp = Date.now();
-      const r2Key = `documents/${data.analysisId}/cover_letter_${timestamp}.pdf`;
-      const fileName = `CoverLetter_${(analysis.employerName ?? "Company").replace(/\s+/g, "_")}_${(analysis.jobTitle ?? "Position").replace(/\s+/g, "_")}.pdf`;
-
-      await env.R2.put(r2Key, pdfBytes, {
-        httpMetadata: { contentType: "application/pdf" },
-        customMetadata: { fileName },
-      });
-
+      const baseName = `CoverLetter_${(analysis.employerName ?? "Company").replace(/\s+/g, "_")}_${(analysis.jobTitle ?? "Position").replace(/\s+/g, "_")}`;
       const now = new Date().toISOString();
-      const [doc] = await db
+
+      const [pdfBytes, docxBytes] = await Promise.all([
+        generateCoverLetterPdf(coverContent),
+        generateCoverLetterDocx(coverContent),
+      ]);
+
+      const pdfKey = `documents/${data.analysisId}/cover_letter_${timestamp}.pdf`;
+      const docxKey = `documents/${data.analysisId}/cover_letter_${timestamp}.docx`;
+      const pdfName = `${baseName}.pdf`;
+      const docxName = `${baseName}.docx`;
+
+      await Promise.all([
+        env.R2.put(pdfKey, pdfBytes, {
+          httpMetadata: { contentType: "application/pdf" },
+          customMetadata: { fileName: pdfName },
+        }),
+        env.R2.put(docxKey, docxBytes, {
+          httpMetadata: { contentType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document" },
+          customMetadata: { fileName: docxName },
+        }),
+      ]);
+
+      const [pdfDoc, docxDoc] = await db
         .insert(generatedDocuments)
-        .values({
-          pipelineJobId: data.analysisId,
-          docType: "cover_letter",
-          r2Key,
-          fileName,
-          createdAt: now,
-        })
+        .values([
+          {
+            pipelineJobId: data.analysisId,
+            docType: "cover_letter_pdf",
+            r2Key: pdfKey,
+            fileName: pdfName,
+            createdAt: now,
+          },
+          {
+            pipelineJobId: data.analysisId,
+            docType: "cover_letter_docx",
+            r2Key: docxKey,
+            fileName: docxName,
+            createdAt: now,
+          },
+        ])
         .returning();
 
-      return { documentId: doc.id, fileName, r2Key };
+      return {
+        pdf: { documentId: pdfDoc.id, fileName: pdfName, r2Key: pdfKey },
+        docx: { documentId: docxDoc.id, fileName: docxName, r2Key: docxKey },
+      };
     } catch (error) {
       console.error("generateCoverLetter error:", error);
       throw error;
