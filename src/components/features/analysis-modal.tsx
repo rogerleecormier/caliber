@@ -29,6 +29,7 @@ export function AnalysisModal({
   if (!isOpen) return null;
 
   const isViewingStored = !!storedAnalysis;
+  const hasApplyUrl = !!jobUrl && /^https?:\/\//i.test(jobUrl);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
@@ -39,7 +40,7 @@ export function AnalysisModal({
             {jobTitle && <p className="mt-0.5 text-sm text-slate-600 truncate">{jobTitle}</p>}
           </div>
           <div className="flex items-center gap-2">
-            {jobUrl && (
+            {hasApplyUrl && (
               <a
                 href={jobUrl}
                 target="_blank"

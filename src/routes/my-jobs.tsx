@@ -294,8 +294,6 @@ function MyJobsPage() {
                   statusPending={job.id ? pendingStatusId === job.id : false}
                   isAnalyzed={!!job.analyzedAt}
                   onAnalyzeClick={job.id ? () => openAnalysisModal(job) : undefined}
-                  isFavorited={!!job.isFavorited}
-                  onToggleFavorite={job.id ? () => handleToggleFavorite(job.id!, !job.isFavorited) : undefined}
                 />
               ))}
             </div>
