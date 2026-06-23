@@ -110,6 +110,31 @@ function formatScore(value: number | null | undefined): string {
   return `${value}%`;
 }
 
+const SOURCE_BADGE_CLASS: Record<string, string> = {
+  linkedin:     'bg-sky-600',
+  greenhouse:   'bg-emerald-600',
+  lever:        'bg-indigo-600',
+  workable:     'bg-violet-600',
+  ashby:        'bg-purple-600',
+  adzuna:       'bg-orange-500',
+  jooble:       'bg-yellow-500',
+  remotive:     'bg-teal-600',
+  remoteok:     'bg-pink-600',
+  himalayas:    'bg-cyan-600',
+  search_agent: 'bg-purple-500',
+};
+
+function sourceBadgeClass(source: string): string {
+  return SOURCE_BADGE_CLASS[source.toLowerCase()] ?? 'bg-slate-500';
+}
+
+function sourceLabel(sourceName?: string | null, sourceOrigin?: string | null): string {
+  const raw = sourceName || sourceOrigin || '';
+  const labels: Record<string, string> = {
+    manual: 'Manual', 'text-input': 'Manual', quick_search: 'Search', search_agent: 'Agent',
+  };
+  return labels[raw.toLowerCase()] ?? (raw ? raw.charAt(0).toUpperCase() + raw.slice(1) : '');
+}
 
 export function JobResultCard({
   job,
@@ -208,13 +233,8 @@ export function JobResultCard({
             {/* Badges row */}
             <div className="flex flex-wrap items-center gap-2">
               {(job.sourceName || job.sourceOrigin) && (
-                <Badge className={`border-0 px-2 py-0 text-[10px] text-white ${
-                  (job.sourceName || job.sourceOrigin)!.toLowerCase() === 'linkedin' ? 'bg-sky-600' :
-                  (job.sourceName || job.sourceOrigin)!.toLowerCase() === 'greenhouse' ? 'bg-emerald-600' :
-                  (job.sourceName || job.sourceOrigin)!.toLowerCase() === 'lever' ? 'bg-indigo-600' :
-                  (job.sourceName || job.sourceOrigin)!.toLowerCase() === 'workable' ? 'bg-violet-600' : 'bg-slate-600'
-                }`}>
-                  {job.sourceName || (job.sourceOrigin ? job.sourceOrigin.charAt(0).toUpperCase() + job.sourceOrigin.slice(1) : '')}
+                <Badge className={`border-0 px-2 py-0 text-[10px] text-white ${sourceBadgeClass(job.sourceName || job.sourceOrigin || '')}`}>
+                  {sourceLabel(job.sourceName, job.sourceOrigin)}
                 </Badge>
               )}
               {job.resultSource === "history" ? (

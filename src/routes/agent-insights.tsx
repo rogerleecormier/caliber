@@ -41,7 +41,14 @@ const SOURCE_LABELS: Record<string, string> = {
   adzuna: 'Adzuna',
   jooble: 'Jooble',
   remotive: 'Remotive',
+  remoteok: 'RemoteOK',
+  himalayas: 'Himalayas',
   linkedin: 'LinkedIn',
+  manual: 'Manual Entry',
+  'text-input': 'Text Input',
+  quick_search: 'Quick Search',
+  search_agent: 'Search Agent',
+  unknown: 'Unknown',
 };
 
 function BoardsTable({ boards, total, page, setPage }: { boards: any[]; total: number; page: number; setPage: (p: number) => void }) {
