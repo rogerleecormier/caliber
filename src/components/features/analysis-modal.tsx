@@ -32,7 +32,7 @@ export function AnalysisModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="relative max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white shadow-2xl">
+      <div className="relative max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-2xl bg-white shadow-2xl">
         <div className="sticky top-0 flex items-center justify-between border-b border-slate-200 bg-white px-6 py-4">
           <div>
             <h2 className="font-semibold text-slate-900">{isViewingStored ? "View Analysis" : "Analyze Job"}</h2>
