@@ -542,12 +542,12 @@ function AgentInsightsDashboard() {
   const tier2Config: { title: string; entries: { label: string; value: string; count: number }[] } | null = (() => {
     if (activeFilter === 'crawler' || activeFilter === 'total' || activeFilter === 'active' || activeFilter === 'expired') {
       const map = activeFilter === 'crawler' ? d.crawlerByAts : d.jobsByAts;
-      const entries = Object.entries(map).map(([k, v]) => ({ label: SOURCE_LABELS[k] || k, value: k, count: v }));
+      const entries = (Object.entries(map) as [string, number][]).map(([k, v]) => ({ label: SOURCE_LABELS[k] || k, value: k, count: v }));
       if (entries.length === 0) return null;
       return { title: 'Breakdown by ATS', entries };
     }
     if (activeFilter === 'boards') {
-      const entries = Object.entries(d.boardsByAts).map(([k, v]) => ({ label: SOURCE_LABELS[k] || k, value: k, count: v }));
+      const entries = (Object.entries(d.boardsByAts) as [string, number][]).map(([k, v]) => ({ label: SOURCE_LABELS[k] || k, value: k, count: v }));
       if (entries.length === 0) return null;
       return { title: 'Boards by ATS', entries };
     }
@@ -622,6 +622,53 @@ function AgentInsightsDashboard() {
                 </span>
               </button>
             ))}
+          </div>
+        </div>
+      )}
+
+      {/* Crawl Health (24 h) */}
+      {Object.keys(d.crawlsByAts || {}).length > 0 && (
+        <div className="bg-white/70 border border-slate-200 rounded-xl p-5 shadow-sm space-y-3">
+          <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500">Crawl Health — Last 24 h</h3>
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs border-collapse">
+              <thead>
+                <tr className="text-[10px] font-bold uppercase tracking-wider text-slate-400 border-b border-slate-100">
+                  <th className="pb-2 text-left w-32">Source</th>
+                  <th className="pb-2 text-right pr-6">Crawls</th>
+                  <th className="pb-2 text-right pr-6">Errors</th>
+                  <th className="pb-2 text-right">Error Rate</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-50">
+                {Object.entries(d.crawlsByAts || {})
+                  .sort(([, a], [, b]) => b - a)
+                  .map(([ats, crawls]) => {
+                    const errors = (d.errorsByAts || {})[ats] || 0;
+                    const rate = crawls > 0 ? Math.round((errors / crawls) * 100) : 0;
+                    return (
+                      <tr key={ats}>
+                        <td className="py-2 pr-2">
+                          <span className="inline-block bg-slate-100 text-slate-700 text-[10px] font-extrabold uppercase px-2 py-0.5 rounded border border-slate-200 capitalize">
+                            {SOURCE_LABELS[ats] || ats}
+                          </span>
+                        </td>
+                        <td className="py-2 pr-6 text-right font-bold text-slate-800 tabular-nums">{crawls}</td>
+                        <td className="py-2 pr-6 text-right tabular-nums">
+                          {errors > 0
+                            ? <span className="font-bold text-red-600">{errors}</span>
+                            : <span className="text-slate-300">—</span>}
+                        </td>
+                        <td className="py-2 text-right tabular-nums">
+                          {errors > 0
+                            ? <span className={`font-bold ${rate >= 20 ? 'text-red-600' : rate >= 5 ? 'text-amber-600' : 'text-slate-500'}`}>{rate}%</span>
+                            : <span className="text-emerald-600 font-bold">0%</span>}
+                        </td>
+                      </tr>
+                    );
+                  })}
+              </tbody>
+            </table>
           </div>
         </div>
       )}

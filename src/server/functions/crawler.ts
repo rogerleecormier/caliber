@@ -92,8 +92,48 @@ export const getCrawlerStats = createServerFn({ method: "GET" })
         (SELECT COUNT(*) FROM job_sources) as source_count,
         (SELECT COUNT(*) FROM boards WHERE is_active = 1) as active_boards,
         (SELECT COUNT(*) FROM audit_log WHERE event_type = 'error' AND created_at > datetime('now', '-24 hours')) as errors_24h,
-        (SELECT COUNT(*) FROM audit_log WHERE event_type = 'llm_call' AND created_at > datetime('now', '-24 hours')) as llm_calls_24h
+        (SELECT COUNT(*) FROM audit_log WHERE event_type = 'llm_call' AND created_at > datetime('now', '-24 hours')) as llm_calls_24h,
+        (SELECT COUNT(*) FROM audit_log WHERE event_type = 'crawl_complete' AND created_at > datetime('now', '-24 hours')) as crawls_24h
     `).first() as any;
+
+    // Per-ATS breakdowns for the source health panel
+    const [jobsByAtsRows, boardsByAtsRows, crawlsByAtsRows, errorsByAtsRows] = await Promise.all([
+      db.prepare(`
+        SELECT js.ats, COUNT(DISTINCT js.canonical_id) as cnt
+        FROM job_sources js
+        JOIN canonical_jobs c ON c.id = js.canonical_id
+        WHERE c.is_listed = 1
+        GROUP BY js.ats ORDER BY cnt DESC
+      `).all<{ ats: string; cnt: number }>(),
+
+      db.prepare(`
+        SELECT ats, COUNT(*) as cnt FROM boards WHERE is_active = 1 GROUP BY ats ORDER BY cnt DESC
+      `).all<{ ats: string; cnt: number }>(),
+
+      db.prepare(`
+        SELECT ats, COUNT(*) as cnt FROM audit_log
+        WHERE event_type = 'crawl_complete' AND created_at > datetime('now', '-24 hours')
+        GROUP BY ats ORDER BY cnt DESC
+      `).all<{ ats: string; cnt: number }>(),
+
+      db.prepare(`
+        SELECT ats, COUNT(*) as cnt FROM audit_log
+        WHERE event_type = 'error' AND created_at > datetime('now', '-24 hours')
+        GROUP BY ats ORDER BY cnt DESC
+      `).all<{ ats: string; cnt: number }>(),
+    ]);
+
+    const jobsByAts: Record<string, number> = {};
+    for (const r of jobsByAtsRows.results || []) jobsByAts[r.ats] = r.cnt;
+
+    const boardsByAts: Record<string, number> = {};
+    for (const r of boardsByAtsRows.results || []) boardsByAts[r.ats] = r.cnt;
+
+    const crawlsByAts: Record<string, number> = {};
+    for (const r of crawlsByAtsRows.results || []) crawlsByAts[r.ats] = r.cnt;
+
+    const errorsByAts: Record<string, number> = {};
+    for (const r of errorsByAtsRows.results || []) errorsByAts[r.ats] = r.cnt;
 
     // Fetch sources and job-specific audit logs
     let jobsWithSources = jobs || [];
@@ -122,6 +162,10 @@ export const getCrawlerStats = createServerFn({ method: "GET" })
       totalJobs,
       auditLogs: auditLogs || [],
       totalAuditLogs,
-      stats: stats || { canonical_count: 0, source_count: 0, active_boards: 0, errors_24h: 0, llm_calls_24h: 0 }
+      stats: stats || { canonical_count: 0, source_count: 0, active_boards: 0, errors_24h: 0, llm_calls_24h: 0, crawls_24h: 0 },
+      jobsByAts,
+      boardsByAts,
+      crawlsByAts,
+      errorsByAts,
     };
   });

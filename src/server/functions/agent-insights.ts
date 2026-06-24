@@ -25,6 +25,10 @@ export interface AgentInsightsData {
   crawlerByAts: Record<string, number>;   // job_sources GROUP BY ats
   boardsByAts: Record<string, number>;    // boards GROUP BY ats (active only)
   jobsByAts: Record<string, number>;      // canonical jobs per ATS via job_sources
+
+  // Crawl health (24 h window)
+  crawlsByAts: Record<string, number>;    // audit_log crawl_complete events grouped by ats
+  errorsByAts: Record<string, number>;    // audit_log error events grouped by ats
 }
 
 export interface JobDetailRow {
@@ -78,6 +82,7 @@ export const getAgentInsights = createServerFn({ method: "GET" })
         totalJobs: 0, activeJobs: 0, expiredJobs: 0, crawlerJobs: 0,
         manualJobs: 0, activeBoards: 0,
         crawlerByAts: {}, boardsByAts: {}, jobsByAts: {},
+        crawlsByAts: {}, errorsByAts: {},
       } satisfies AgentInsightsData;
     }
 
@@ -91,6 +96,8 @@ export const getAgentInsights = createServerFn({ method: "GET" })
       crawlerByAtsRows,
       boardsByAtsRows,
       jobsByAtsRows,
+      crawlsByAtsRows,
+      errorsByAtsRows,
     ] = await Promise.all([
       db.prepare(`SELECT COUNT(*) as cnt FROM canonical_jobs WHERE is_listed = 1`).first<{ cnt: number }>(),
 
@@ -135,6 +142,18 @@ export const getAgentInsights = createServerFn({ method: "GET" })
         GROUP BY js.ats
         ORDER BY cnt DESC
       `).all<{ ats: string; cnt: number }>(),
+
+      db.prepare(`
+        SELECT ats, COUNT(*) as cnt FROM audit_log
+        WHERE event_type = 'crawl_complete' AND created_at > datetime('now', '-24 hours')
+        GROUP BY ats ORDER BY cnt DESC
+      `).all<{ ats: string; cnt: number }>(),
+
+      db.prepare(`
+        SELECT ats, COUNT(*) as cnt FROM audit_log
+        WHERE event_type = 'error' AND created_at > datetime('now', '-24 hours')
+        GROUP BY ats ORDER BY cnt DESC
+      `).all<{ ats: string; cnt: number }>(),
     ]);
 
     const crawlerByAts: Record<string, number> = {};
@@ -146,6 +165,12 @@ export const getAgentInsights = createServerFn({ method: "GET" })
     const jobsByAts: Record<string, number> = {};
     for (const row of jobsByAtsRows.results || []) jobsByAts[row.ats] = row.cnt;
 
+    const crawlsByAts: Record<string, number> = {};
+    for (const row of crawlsByAtsRows.results || []) crawlsByAts[row.ats] = row.cnt;
+
+    const errorsByAts: Record<string, number> = {};
+    for (const row of errorsByAtsRows.results || []) errorsByAts[row.ats] = row.cnt;
+
     return {
       totalJobs: totalRes?.cnt || 0,
       activeJobs: activeRes?.cnt || 0,
@@ -156,6 +181,8 @@ export const getAgentInsights = createServerFn({ method: "GET" })
       crawlerByAts,
       boardsByAts,
       jobsByAts,
+      crawlsByAts,
+      errorsByAts,
     } satisfies AgentInsightsData;
   });
 

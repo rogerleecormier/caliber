@@ -21,6 +21,111 @@ import { PageHero, PageSection } from '@caliber/ui-kit';
 import { getCrawlerStats } from '@/server/functions/crawler';
 import { cleanJobDescription } from '@/lib/html-utils';
 
+const SOURCE_LABELS: Record<string, string> = {
+  greenhouse: 'Greenhouse',
+  lever: 'Lever',
+  ashby: 'Ashby',
+  workable: 'Workable',
+  remoteok: 'RemoteOK',
+  himalayas: 'Himalayas',
+  jobicy: 'Jobicy',
+  adzuna: 'Adzuna',
+  jooble: 'Jooble',
+  remotive: 'Remotive',
+};
+
+const SOURCE_COLORS: Record<string, { bg: string; text: string; bar: string }> = {
+  greenhouse: { bg: 'bg-teal-50', text: 'text-teal-700', bar: 'bg-teal-500' },
+  lever:      { bg: 'bg-blue-50', text: 'text-blue-700', bar: 'bg-blue-500' },
+  ashby:      { bg: 'bg-purple-50', text: 'text-purple-700', bar: 'bg-purple-500' },
+  workable:   { bg: 'bg-amber-50', text: 'text-amber-700', bar: 'bg-amber-500' },
+  remoteok:   { bg: 'bg-rose-50', text: 'text-rose-700', bar: 'bg-rose-500' },
+  himalayas:  { bg: 'bg-sky-50', text: 'text-sky-700', bar: 'bg-sky-500' },
+  jobicy:     { bg: 'bg-lime-50', text: 'text-lime-700', bar: 'bg-lime-500' },
+  adzuna:     { bg: 'bg-orange-50', text: 'text-orange-700', bar: 'bg-orange-500' },
+  jooble:     { bg: 'bg-violet-50', text: 'text-violet-700', bar: 'bg-violet-500' },
+  remotive:   { bg: 'bg-emerald-50', text: 'text-emerald-700', bar: 'bg-emerald-500' },
+};
+
+const DEFAULT_COLOR = { bg: 'bg-slate-50', text: 'text-slate-700', bar: 'bg-slate-400' };
+
+function SourceHealthPanel({
+  jobsByAts,
+  boardsByAts,
+  crawlsByAts,
+  errorsByAts,
+}: {
+  jobsByAts: Record<string, number>;
+  boardsByAts: Record<string, number>;
+  crawlsByAts: Record<string, number>;
+  errorsByAts: Record<string, number>;
+}) {
+  const allAts = Array.from(new Set([
+    ...Object.keys(jobsByAts),
+    ...Object.keys(boardsByAts),
+  ])).sort((a, b) => (jobsByAts[b] || 0) - (jobsByAts[a] || 0));
+
+  const maxJobs = Math.max(...allAts.map(a => jobsByAts[a] || 0), 1);
+
+  return (
+    <div className="rounded-xl border border-slate-200 bg-white/80 shadow-sm p-5 space-y-4">
+      <div className="flex items-center justify-between">
+        <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500">Source Health</h3>
+        <span className="text-[10px] text-slate-400 font-medium">{allAts.length} active sources</span>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="w-full text-xs border-collapse">
+          <thead>
+            <tr className="text-[10px] font-bold uppercase tracking-wider text-slate-400 border-b border-slate-100">
+              <th className="pb-2 text-left w-28">Source</th>
+              <th className="pb-2 text-right pr-4">Jobs</th>
+              <th className="pb-2 text-left pl-2" style={{ width: '40%' }}></th>
+              <th className="pb-2 text-right pr-4">Boards</th>
+              <th className="pb-2 text-right pr-4">Crawls 24h</th>
+              <th className="pb-2 text-right">Errors 24h</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-50">
+            {allAts.map(ats => {
+              const c = SOURCE_COLORS[ats] || DEFAULT_COLOR;
+              const jobs = jobsByAts[ats] || 0;
+              const boards = boardsByAts[ats] || 0;
+              const crawls = crawlsByAts[ats] || 0;
+              const errors = errorsByAts[ats] || 0;
+              const barPct = Math.round((jobs / maxJobs) * 100);
+              return (
+                <tr key={ats} className="group">
+                  <td className="py-2 pr-2">
+                    <span className={`inline-block px-2 py-0.5 rounded border text-[10px] font-extrabold uppercase ${c.bg} ${c.text} border-current/20`}>
+                      {SOURCE_LABELS[ats] || ats}
+                    </span>
+                  </td>
+                  <td className="py-2 pr-4 text-right font-bold text-slate-800 tabular-nums">
+                    {jobs.toLocaleString()}
+                  </td>
+                  <td className="py-2 pl-2 pr-4">
+                    <div className="h-2 rounded-full bg-slate-100 overflow-hidden">
+                      <div className={`h-full rounded-full ${c.bar} transition-all`} style={{ width: `${barPct}%` }} />
+                    </div>
+                  </td>
+                  <td className="py-2 pr-4 text-right text-slate-500 tabular-nums">{boards}</td>
+                  <td className="py-2 pr-4 text-right text-slate-500 tabular-nums">{crawls || '—'}</td>
+                  <td className="py-2 text-right tabular-nums">
+                    {errors > 0
+                      ? <span className="font-bold text-red-600">{errors}</span>
+                      : <span className="text-slate-300">—</span>
+                    }
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
 // Server loader runs queries directly on D1 via server function
 export const Route = createFileRoute('/crawler')({
   beforeLoad: ({ context }) => {
@@ -57,6 +162,7 @@ function CrawlerDashboard() {
   const [expandedJobs, setExpandedJobs] = useState<Record<string, boolean>>({});
   const [expandedLogs, setExpandedLogs] = useState<Record<string, boolean>>({});
   const [expandedBoards, setExpandedBoards] = useState<Record<string, boolean>>({});
+  const [logAtsFilter, setLogAtsFilter] = useState<string | null>(null);
 
   const [statusMessage, setStatusMessage] = useState<{ text: string; type: 'success' | 'error' | 'info' } | null>(null);
   const [loading, setLoading] = useState<string | null>(null); // tracks manual crawl or scheduler run status
@@ -69,14 +175,18 @@ function CrawlerDashboard() {
     refetchInterval: autoRefresh ? 10000 : false,
   });
 
-  const { boards, totalBoards, jobs, totalJobs, auditLogs, totalAuditLogs, stats } = data || {
+  const { boards, totalBoards, jobs, totalJobs, auditLogs, totalAuditLogs, stats, jobsByAts, boardsByAts, crawlsByAts, errorsByAts } = data || {
     boards: [],
     totalBoards: 0,
     jobs: [],
     totalJobs: 0,
     auditLogs: [],
     totalAuditLogs: 0,
-    stats: { canonical_count: 0, source_count: 0, active_boards: 0, errors_24h: 0, llm_calls_24h: 0 }
+    stats: { canonical_count: 0, source_count: 0, active_boards: 0, errors_24h: 0, llm_calls_24h: 0, crawls_24h: 0 },
+    jobsByAts: {} as Record<string, number>,
+    boardsByAts: {} as Record<string, number>,
+    crawlsByAts: {} as Record<string, number>,
+    errorsByAts: {} as Record<string, number>,
   };
 
   const showStatus = (text: string, type: 'success' | 'error' | 'info' = 'info') => {
@@ -309,12 +419,13 @@ function CrawlerDashboard() {
         </div>
       )}
 
-      {/* Metrics — single card, 5 tiles */}
-      <div className="rounded-lg border border-slate-200 bg-white/80 shadow-sm overflow-hidden grid grid-cols-2 sm:grid-cols-5 divide-x divide-slate-100">
+      {/* Metrics — single card, 6 tiles */}
+      <div className="rounded-lg border border-slate-200 bg-white/80 shadow-sm overflow-hidden grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 divide-x divide-slate-100">
         {[
           { title: 'Canonical Jobs', val: stats.canonical_count, desc: 'Deduplicated postings' },
           { title: 'Job Sources', val: stats.source_count, desc: 'Source mappings' },
           { title: 'Active Boards', val: stats.active_boards, desc: 'Crawling targets' },
+          { title: 'Crawls (24h)', val: (stats as any).crawls_24h, desc: 'Completed crawls' },
           { title: 'LLM Runs (24h)', val: stats.llm_calls_24h, desc: 'Fuzzy match checks' },
           { title: 'Errors (24h)', val: stats.errors_24h, desc: 'Crawl failures', accent: stats.errors_24h > 0 ? 'text-red-600' : '' },
         ].map(m => (
@@ -325,6 +436,16 @@ function CrawlerDashboard() {
           </div>
         ))}
       </div>
+
+      {/* Source Health Panel */}
+      {Object.keys(jobsByAts || {}).length > 0 && (
+        <SourceHealthPanel
+          jobsByAts={jobsByAts || {}}
+          boardsByAts={boardsByAts || {}}
+          crawlsByAts={crawlsByAts || {}}
+          errorsByAts={errorsByAts || {}}
+        />
+      )}
 
       {/* Main Content Area */}
       <div className="space-y-6">
@@ -744,6 +865,47 @@ function CrawlerDashboard() {
         {activeTab === 'logs' && (
           <PageSection title="Audit Logs" description="Webcrawler ingestion and deduplication logs.">
             <div className="space-y-4">
+
+            {/* ATS filter chips */}
+            {Object.keys(crawlsByAts || {}).length > 0 && (
+              <div className="flex flex-wrap gap-2 items-center">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Filter by source:</span>
+                {logAtsFilter && (
+                  <button
+                    type="button"
+                    onClick={() => setLogAtsFilter(null)}
+                    className="inline-flex items-center gap-1 text-[10px] font-semibold text-slate-400 hover:text-slate-600 transition cursor-pointer"
+                  >
+                    <X className="h-3 w-3" /> Clear
+                  </button>
+                )}
+                {(Object.entries(crawlsByAts || {}) as [string, number][])
+                  .sort(([, a], [, b]) => b - a)
+                  .map(([ats, cnt]) => {
+                    const c = SOURCE_COLORS[ats] || DEFAULT_COLOR;
+                    const hasErrors = ((errorsByAts || {}) as Record<string, number>)[ats] > 0;
+                    return (
+                      <button
+                        key={ats}
+                        type="button"
+                        onClick={() => setLogAtsFilter(prev => prev === ats ? null : ats)}
+                        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-[10px] font-bold transition cursor-pointer ${
+                          logAtsFilter === ats
+                            ? 'bg-orange-600 text-white border-orange-600'
+                            : `${c.bg} ${c.text} border-current/20 hover:opacity-80`
+                        }`}
+                      >
+                        {SOURCE_LABELS[ats] || ats}
+                        <span className={`text-[9px] px-1 py-0.5 rounded-full font-extrabold ${logAtsFilter === ats ? 'bg-orange-500 text-white' : 'bg-white/60'}`}>
+                          {cnt}
+                        </span>
+                        {hasErrors ? <span className="text-[9px] text-red-500 font-extrabold">!</span> : null}
+                      </button>
+                    );
+                  })}
+              </div>
+            )}
+
             <div className="bg-white/50 border border-slate-200 rounded-xl overflow-hidden shadow-sm">
               <div className="overflow-x-auto">
                 <table className="w-full text-left border-collapse text-xs">
@@ -757,14 +919,18 @@ function CrawlerDashboard() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-200 font-mono text-slate-600">
-                    {auditLogs.length === 0 ? (
-                      <tr>
-                        <td colSpan={5} className="px-5 py-12 text-center text-slate-400">
-                          No audit logs available.
-                        </td>
-                      </tr>
-                    ) : (
-                      auditLogs.map((log: any) => {
+                    {(() => {
+                      const filteredLogs = logAtsFilter
+                        ? auditLogs.filter((l: any) => l.ats === logAtsFilter)
+                        : auditLogs;
+                      if (filteredLogs.length === 0) return (
+                        <tr>
+                          <td colSpan={5} className="px-5 py-12 text-center text-slate-400">
+                            {logAtsFilter ? `No logs for ${SOURCE_LABELS[logAtsFilter] || logAtsFilter} in current page.` : 'No audit logs available.'}
+                          </td>
+                        </tr>
+                      );
+                      return filteredLogs.map((log: any) => {
                         const isExpanded = !!expandedLogs[log.id];
                         let parsedDetails: any = null;
                         let detailsSummary = '';
@@ -798,8 +964,15 @@ function CrawlerDashboard() {
                                   {log.event_type}
                                 </span>
                               </td>
-                              <td className="px-5 py-3 text-slate-800">
-                                {log.ats ? `${log.ats}/${log.board_token}` : '-'}
+                              <td className="px-5 py-3">
+                                {log.ats ? (
+                                  <span className="inline-flex items-center gap-1">
+                                    <span className={`inline-block px-1.5 py-0.5 rounded border text-[9px] font-extrabold uppercase ${(SOURCE_COLORS[log.ats] || DEFAULT_COLOR).bg} ${(SOURCE_COLORS[log.ats] || DEFAULT_COLOR).text}`}>
+                                      {SOURCE_LABELS[log.ats] || log.ats}
+                                    </span>
+                                    <span className="text-slate-400 font-mono text-[10px] truncate max-w-[80px]">{log.board_token}</span>
+                                  </span>
+                                ) : <span className="text-slate-300">—</span>}
                               </td>
                               <td className="px-5 py-3 text-slate-500 max-w-xs truncate">
                                 {detailsSummary}
@@ -819,8 +992,8 @@ function CrawlerDashboard() {
                             )}
                           </React.Fragment>
                         );
-                      })
-                    )}
+                      });
+                    })()}
                   </tbody>
                 </table>
               </div>
