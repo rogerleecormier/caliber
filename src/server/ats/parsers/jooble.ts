@@ -2,7 +2,7 @@ import { z } from 'zod';
 import type { AtsJobResponse } from '@/types/crawler';
 
 const JoobleJobSchema = z.object({
-  id: z.string(),
+  id: z.number(),  // API returns numeric id
   title: z.string(),
   company: z.string().nullable().optional(),
   location: z.string().nullable().optional(),
@@ -10,7 +10,7 @@ const JoobleJobSchema = z.object({
   snippet: z.string().nullable().optional(),
   salary: z.string().nullable().optional(),
   type: z.string().nullable().optional(),
-  updated: z.number().nullable().optional(),
+  updated: z.string().nullable().optional(),  // ISO date string, not unix timestamp
 });
 
 const JoobleApiResponseSchema = z.object({
@@ -45,19 +45,16 @@ export async function fetchJoobleJobs(
   const data = await response.json();
   const parsed = JoobleApiResponseSchema.parse(data);
 
-  return parsed.jobs.map((job) => {
-    const publishedAt = job.updated ? new Date(job.updated * 1000).toISOString() : undefined;
-    return {
-      id: `jooble-${job.id}`,
-      title: job.title,
-      company: job.company ?? undefined,
-      location: job.location || 'Remote',
-      description: job.snippet ?? undefined,
-      employmentType: job.type ?? undefined,
-      absoluteUrl: job.link,
-      applyUrl: job.link,
-      publishedAt,
-      raw: job as any,
-    };
-  });
+  return parsed.jobs.map((job) => ({
+    id: `jooble-${job.id}`,
+    title: job.title,
+    company: job.company ?? undefined,
+    location: job.location || 'Remote',
+    description: job.snippet ?? undefined,
+    employmentType: job.type ?? undefined,
+    absoluteUrl: job.link,
+    applyUrl: job.link,
+    publishedAt: job.updated ?? undefined,
+    raw: job as any,
+  }));
 }

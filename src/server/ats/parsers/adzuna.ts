@@ -22,17 +22,22 @@ const AdzunaApiResponseSchema = z.object({
 export async function fetchAdzunaJobs(
   boardToken: string,
   _companyName: string | undefined,
-  env: { ADZUNA_API_KEY?: string },
+  env: { ADZUNA_APP_ID?: string; ADZUNA_APP_KEY?: string; ADZUNA_API_KEY?: string },
 ): Promise<AtsJobResponse[]> {
-  const apiKey = env.ADZUNA_API_KEY;
-  if (!apiKey) {
-    console.warn('[adzuna-parser] ADZUNA_API_KEY not set, skipping');
-    return [];
+  // Support both ADZUNA_APP_ID+ADZUNA_APP_KEY (separate secrets) and
+  // the legacy ADZUNA_API_KEY combined "app_id:app_key" format
+  let appId: string | undefined;
+  let appKey: string | undefined;
+
+  if (env.ADZUNA_APP_ID && env.ADZUNA_APP_KEY) {
+    appId = env.ADZUNA_APP_ID;
+    appKey = env.ADZUNA_APP_KEY;
+  } else if (env.ADZUNA_API_KEY) {
+    [appId, appKey] = env.ADZUNA_API_KEY.split(':');
   }
 
-  const [appId, appKey] = apiKey.split(':');
   if (!appId || !appKey) {
-    console.warn('[adzuna-parser] ADZUNA_API_KEY malformed (expected app_id:app_key)');
+    console.warn('[adzuna-parser] Missing ADZUNA_APP_ID/ADZUNA_APP_KEY, skipping');
     return [];
   }
 
@@ -40,8 +45,8 @@ export async function fetchAdzunaJobs(
   const url = new URL('https://api.adzuna.com/v1/api/jobs/us/search/1');
   url.searchParams.set('app_id', appId);
   url.searchParams.set('app_key', appKey);
-  url.searchParams.set('what', keywords);
-  url.searchParams.set('where', 'remote');
+  // Append "remote" to the keyword query — Adzuna doesn't understand where=remote as a location
+  url.searchParams.set('what', `${keywords} remote`);
   url.searchParams.set('results_per_page', '50');
   url.searchParams.set('content-type', 'application/json');
 

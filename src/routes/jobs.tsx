@@ -423,10 +423,7 @@ function CatalogBrowser({
                   isHorizontal={true}
                   isFavorited={job.isFavorited === 1 || job.isFavorited === true}
                   onToggleFavorite={() => handleStar(job)}
-                  onAnalyzeClick={async () => {
-                    if (!job.isSaved && !job.isFavorited) {
-                      await starMutation.mutateAsync({ canonicalJobId: job.canonicalJobId || String(job.id), star: true });
-                    }
+                  onAnalyzeClick={() => {
                     onAnalyzeClick({
                       ...job,
                       title: job.jobTitle || job.title,
@@ -434,11 +431,7 @@ function CatalogBrowser({
                       sourceUrl: job.sourceUrl,
                     });
                   }}
-                  onApplyClick={async () => {
-                    if (!job.isSaved && !job.isFavorited) {
-                      await starMutation.mutateAsync({ canonicalJobId: job.canonicalJobId || String(job.id), star: true });
-                    }
-                  }}
+                  onApplyClick={() => {}}
                 />
               );
             })}
@@ -478,10 +471,7 @@ function CatalogBrowser({
                     job={cardJob}
                     isNew={false}
                     showSelection={false}
-                    onAnalyzeClick={async () => {
-                      if (!job.isSaved || !job.isFavorited) {
-                        await starMutation.mutateAsync({ canonicalJobId: job.id, star: true });
-                      }
+                    onAnalyzeClick={() => {
                       onAnalyzeClick({
                         ...job,
                         title: job.titleDisplay,
@@ -491,11 +481,7 @@ function CatalogBrowser({
                     }}
                     isFavorited={job.isFavorited}
                     onToggleFavorite={() => handleStar(job)}
-                    onApplyClick={async () => {
-                      if (!job.isSaved || !job.isFavorited) {
-                        await starMutation.mutateAsync({ canonicalJobId: job.id, star: true });
-                      }
-                    }}
+                    onApplyClick={() => {}}
                   />
                 );
               })}
@@ -569,21 +555,14 @@ function CatalogBrowser({
                           href={job.applyUrl ?? job.sourceUrl ?? '#'}
                           target="_blank"
                           rel="noopener noreferrer"
-                          onClick={async () => {
-                            if (!job.isSaved || !job.isFavorited) {
-                              await starMutation.mutateAsync({ canonicalJobId: job.id, star: true });
-                            }
-                          }}
+                          onClick={() => {}}
                           className="px-2.5 py-1 text-[12px] font-semibold bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition"
                         >
                           Apply
                         </a>
                       )}
                       <button
-                        onClick={async () => {
-                          if (!job.isSaved || !job.isFavorited) {
-                            await starMutation.mutateAsync({ canonicalJobId: job.id, star: true });
-                          }
+                        onClick={() => {
                           onAnalyzeClick({
                             ...job,
                             title: job.titleDisplay,

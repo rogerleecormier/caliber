@@ -3,7 +3,7 @@ import type { AtsJobResponse } from '@/types/crawler';
 import { decodeHtmlEntities } from '@/lib/html-utils';
 
 const JobicyJobSchema = z.object({
-  id: z.union([z.number(), z.string()]),
+  id: z.number(),  // API returns numeric id
   jobTitle: z.string(),
   companyName: z.string().nullable().optional(),
   url: z.string(),
@@ -13,7 +13,7 @@ const JobicyJobSchema = z.object({
   annualSalaryMin: z.number().nullable().optional(),
   annualSalaryMax: z.number().nullable().optional(),
   salaryCurrency: z.string().nullable().optional(),
-  jobType: z.string().nullable().optional(),
+  jobType: z.union([z.string(), z.array(z.string())]).nullable().optional(),  // API returns string[]
 });
 
 const JobicyApiResponseSchema = z.object({
@@ -41,9 +41,13 @@ export async function fetchJobicyJobs(
     const title = decodeHtmlEntities(job.jobTitle);
     const company = job.companyName ? decodeHtmlEntities(job.companyName) : undefined;
     const description = job.jobDescription || job.jobExcerpt || undefined;
+    // Normalise jobType — could be string or string[]
+    const jobType = Array.isArray(job.jobType)
+      ? job.jobType[0] ?? undefined
+      : job.jobType ?? undefined;
 
     return {
-      id: String(job.id),
+      id: `jobicy-${job.id}`,
       title,
       company,
       location: 'Remote',
@@ -53,7 +57,7 @@ export async function fetchJobicyJobs(
         max: job.annualSalaryMax ?? undefined,
         currency: job.salaryCurrency ?? 'USD',
       } : undefined,
-      employmentType: job.jobType ?? undefined,
+      employmentType: jobType,
       absoluteUrl: job.url,
       applyUrl: job.url,
       publishedAt: job.pubDate ?? undefined,

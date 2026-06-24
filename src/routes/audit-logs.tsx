@@ -112,32 +112,41 @@ function parseApiIntegrationData(logs: any[]): {
 }
 
 const PLATFORM_LABELS: Record<string, string> = {
-  linkedin: "LinkedIn",
+  // ATS platforms
   greenhouse: "Greenhouse",
   lever: "Lever",
+  ashby: "Ashby",
   workable: "Workable",
+  // Catalog aggregators
   remoteok: "RemoteOK",
   himalayas: "Himalayas",
   jobicy: "Jobicy",
+  // Search aggregators
+  adzuna: "Adzuna",
+  jooble: "Jooble",
+  remotive: "Remotive",
+  // Legacy
+  linkedin: "LinkedIn",
   manual: "Manual",
 };
 
 const EVENT_TYPE_LABELS: Record<string, string> = {
+  // Crawler pipeline events (from audit_log)
+  crawl_start: "Crawl Started",
+  crawl_complete: "Crawl Complete",
+  dedup_merge: "Dedup Merge",
+  vector_insert: "Vector Indexed",
+  error: "Error",
+  board_discovered: "Board Discovered",
+  board_validation_failed: "Validation Failed",
+  // Agent search events
+  agent_search_run: "Agent Search Run",
+  // Legacy
   search_started: "Search Started",
   search_completed: "Search Completed",
   job_found: "Job Found",
-  job_skipped_duplicate: "Skipped (Duplicate)",
-  job_skipped_filtered: "Skipped (Filtered)",
-  ats_search_started: "ATS Search Started",
-  ats_search_completed: "ATS Search Completed",
-  analysis_started: "Analysis Started",
-  analysis_completed: "Analysis Completed",
-  analysis_error: "Analysis Error",
-  cron_triggered: "Cron Triggered",
-  manual_search: "Manual Search",
   job_sync: "Job Ingestion Sync",
   discovery_sync: "Company Discovery Sync",
-  error: "System Error",
 };
 
 function CopyButton({ text }: { text: string }) {

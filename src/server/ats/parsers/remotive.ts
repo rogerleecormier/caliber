@@ -10,11 +10,15 @@ const RemotiveJobSchema = z.object({
   publication_date: z.string().nullable().optional(),
   job_type: z.string().nullable().optional(),
   description: z.string().nullable().optional(),
-  salary: z.object({
-    from: z.number().nullable().optional(),
-    to: z.number().nullable().optional(),
-    currency: z.string().nullable().optional(),
-  }).nullable().optional(),
+  // API returns salary as a plain string like "$80k - $100k", not an object
+  salary: z.union([
+    z.string(),
+    z.object({
+      from: z.number().nullable().optional(),
+      to: z.number().nullable().optional(),
+      currency: z.string().nullable().optional(),
+    }),
+  ]).nullable().optional(),
 });
 
 const RemotiveApiResponseSchema = z.object({
@@ -39,21 +43,26 @@ export async function fetchRemotiveJobs(
   const data = await response.json();
   const parsed = RemotiveApiResponseSchema.parse(data);
 
-  return parsed.jobs.map((job) => ({
-    id: `remotive-${job.id}`,
-    title: job.title,
-    company: job.company_name,
-    location: job.location || 'Remote',
-    description: job.description ?? undefined,
-    compensation: job.salary?.from || job.salary?.to ? {
-      min: job.salary?.from ?? undefined,
-      max: job.salary?.to ?? undefined,
-      currency: job.salary?.currency ?? 'USD',
-    } : undefined,
-    employmentType: job.job_type ?? undefined,
-    absoluteUrl: job.url,
-    applyUrl: job.url,
-    publishedAt: job.publication_date ?? undefined,
-    raw: job as any,
-  }));
+  return parsed.jobs.map((job) => {
+    // Salary may be a string ("$80k - $100k") or an object — pass string as-is to compensation-less path
+    const salaryObj = typeof job.salary === 'object' && job.salary !== null ? job.salary : null;
+
+    return {
+      id: `remotive-${job.id}`,
+      title: job.title,
+      company: job.company_name,
+      location: job.location || 'Remote',
+      description: job.description ?? undefined,
+      compensation: salaryObj?.from || salaryObj?.to ? {
+        min: salaryObj.from ?? undefined,
+        max: salaryObj.to ?? undefined,
+        currency: salaryObj.currency ?? 'USD',
+      } : undefined,
+      employmentType: job.job_type ?? undefined,
+      absoluteUrl: job.url,
+      applyUrl: job.url,
+      publishedAt: job.publication_date ?? undefined,
+      raw: job as any,
+    };
+  });
 }
