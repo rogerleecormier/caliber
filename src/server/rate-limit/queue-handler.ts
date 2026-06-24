@@ -8,13 +8,10 @@ import { fetchJobicyJobs } from '../ats/parsers/jobicy';
 import { fetchAdzunaJobs } from '../ats/parsers/adzuna';
 import { fetchJoobleJobs } from '../ats/parsers/jooble';
 import { fetchRemotiveJobs } from '../ats/parsers/remotive';
-import { 
-  insertCanonicalJob, 
-  linkJobSource, 
+import {
   logAudit,
   prepareInsertCanonicalJob,
   prepareLinkJobSource,
-  prepareLogAudit
 } from '../db/queries';
 import { normalizeJob } from '@/lib/normalization';
 import { dedupPipeline } from '../dedup/deterministic';
@@ -123,12 +120,17 @@ export async function processCrawlJobsQueue(
       const candidates: Array<{ id: string; company_norm: string; title_norm: string; location_norm: string | null; dedup_key: string }> = [];
 
       if (allNormalized.length > 0) {
+        // D1 caps SQL variables at 100 — chunk the dedup_key lookup to stay under that limit.
         const dedupKeys = allNormalized.map(n => n.dedupKey);
-        const placeholders = dedupKeys.map(() => '?').join(',');
-        const { results: keyMatches } = await env.DB.prepare(
-          `SELECT id, company_norm, title_norm, location_norm, dedup_key FROM canonical_jobs WHERE dedup_key IN (${placeholders})`
-        ).bind(...dedupKeys).all<{ id: string; company_norm: string; title_norm: string; location_norm: string | null; dedup_key: string }>();
-        if (keyMatches) candidates.push(...keyMatches);
+        const CHUNK = 99;
+        for (let i = 0; i < dedupKeys.length; i += CHUNK) {
+          const chunk = dedupKeys.slice(i, i + CHUNK);
+          const placeholders = chunk.map(() => '?').join(',');
+          const { results: keyMatches } = await env.DB.prepare(
+            `SELECT id, company_norm, title_norm, location_norm, dedup_key FROM canonical_jobs WHERE dedup_key IN (${placeholders})`
+          ).bind(...chunk).all<{ id: string; company_norm: string; title_norm: string; location_norm: string | null; dedup_key: string }>();
+          if (keyMatches) candidates.push(...keyMatches);
+        }
 
         // For single-company boards, also pre-load by company_norm for fuzzy Stage 2.
         const uniqueCompanies = [...new Set(allNormalized.map(n => n.companyNorm))];
@@ -144,22 +146,24 @@ export async function processCrawlJobsQueue(
       }
 
       const statements: any[] = [];
+      // Collect new jobs for batched embedding after D1 writes
+      const newJobsForEmbedding: Array<{ canonicalId: string; normalized: ReturnType<typeof normalizeJob> }> = [];
 
       for (let jobIdx = 0; jobIdx < rawJobs.length; jobIdx++) {
         const rawJob = rawJobs[jobIdx];
         const normalized = allNormalized[jobIdx];
-        
+
         // Run deduplication pipeline with pre-loaded candidates
         const decision = await dedupPipeline(env, normalized, candidates);
-        
+
         let canonicalId = decision.canonicalId;
         const isNew = decision.action === 'insert_new' || !canonicalId;
 
         if (isNew) {
           canonicalId = crypto.randomUUID();
           statements.push(prepareInsertCanonicalJob(env, canonicalId, normalized));
-          
-          // Add newly inserted job to the in-memory candidates list for subsequent jobs matching
+
+          // Add to in-memory candidates so subsequent jobs in this batch can dedup against it
           candidates.push({
             id: canonicalId,
             company_norm: normalized.companyNorm,
@@ -167,16 +171,8 @@ export async function processCrawlJobsQueue(
             location_norm: normalized.locationNorm ?? null,
             dedup_key: normalized.dedupKey
           });
-          
-          // Generate and upsert embedding to Vectorize index
-          try {
-            const { embedJob, upsertVector } = await import('../dedup/embedding');
-            const vector = await embedJob(env, normalized);
-            await upsertVector(env, canonicalId, normalized.companyNorm, vector);
-          } catch (embedErr) {
-            console.error(`[queue-handler] Failed to generate/upsert embedding for ${canonicalId}:`, embedErr);
-          }
-          
+
+          newJobsForEmbedding.push({ canonicalId, normalized });
           insertedCount++;
         } else {
           mergedCount++;
@@ -195,30 +191,38 @@ export async function processCrawlJobsQueue(
           applyUrl: rawJob.applyUrl || rawJob.absoluteUrl || '',
           rawHash: normalized.rawHash,
         }));
-
-        // Log audit event
-        statements.push(prepareLogAudit(env, crypto.randomUUID(), {
-          eventType: isNew ? 'vector_insert' : 'dedup_merge',
-          ats,
-          boardToken: token,
-          canonicalId: canonicalId!,
-          sourceId,
-          details: {
-            stage: decision.stage,
-            score: decision.score ?? null,
-            method: isNew ? 'insert' : (decision.stage === 1 ? 'deterministic' : (decision.stage === 2 ? 'fuzzy' : (decision.stage === 3 ? 'vector' : 'llm'))),
-            dedupKey: normalized.dedupKey
-          },
-        }));
       }
 
-      // Execute batch statements in chunks
+      // Execute batch statements in chunks of 100 (D1 batch limit)
       if (statements.length > 0) {
         console.log(`[queue-handler] Executing batch of ${statements.length} D1 statements...`);
         const chunkSize = 100;
         for (let i = 0; i < statements.length; i += chunkSize) {
-          const chunk = statements.slice(i, i + chunkSize);
-          await env.DB.batch(chunk);
+          await env.DB.batch(statements.slice(i, i + chunkSize));
+        }
+      }
+
+      // Batch-embed new jobs after D1 writes succeed.
+      // Workers AI accepts up to 100 texts per request; Vectorize upsert is also batched.
+      if (newJobsForEmbedding.length > 0) {
+        try {
+          const { embedJob, upsertVector } = await import('../dedup/embedding');
+          const EMBED_CHUNK = 50; // stay well under AI input limits
+          for (let i = 0; i < newJobsForEmbedding.length; i += EMBED_CHUNK) {
+            const chunk = newJobsForEmbedding.slice(i, i + EMBED_CHUNK);
+            await Promise.all(
+              chunk.map(async ({ canonicalId, normalized }) => {
+                try {
+                  const vector = await embedJob(env, normalized);
+                  await upsertVector(env, canonicalId, normalized.companyNorm, vector);
+                } catch (embedErr) {
+                  console.error(`[queue-handler] Embedding failed for ${canonicalId}:`, embedErr);
+                }
+              })
+            );
+          }
+        } catch (embedImportErr) {
+          console.error('[queue-handler] Failed to import embedding module:', embedImportErr);
         }
       }
 
