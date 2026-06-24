@@ -199,31 +199,36 @@ export async function scrapeJobInternal(url: string) {
             const cleanText = evalResult.text;
             if (!cleanText) throw new Error("No text content extracted from the page");
 
-            const lowerText = cleanText.toLowerCase();
-            const botSigs = [
-              "security check",
-              "access denied",
-              "verify you are human",
-              "checking your browser",
-              "turnstile",
-              "cloudflare",
-              "datadome",
-              "bot-detection",
-              "authenticating...",
-              "create an account to apply for the job",
-              "create an account or sign in",
-              "sign in to proceed",
-              "sign in to your account",
-              "sign in with google",
-              "sign in with apple",
-              "forgot password",
-              "terms of service",
-              "cookie policy",
-              "privacy policy",
-              "by continuing, you agree"
-            ];
-            if (botSigs.some((sig) => lowerText.includes(sig))) {
-              throw new Error("This request was blocked by the website's bot detection system. Please copy and paste the job description text manually.");
+            // Only check for bot walls when we fell back to full body text.
+            // Targeted selectors (Greenhouse #content, Lever .posting-headline, etc.)
+            // naturally contain footer links like "privacy policy" — not bot walls.
+            if (!evalResult.foundTarget) {
+              const lowerText = cleanText.toLowerCase();
+              const botSigs = [
+                "security check",
+                "access denied",
+                "verify you are human",
+                "checking your browser",
+                "turnstile",
+                "cloudflare",
+                "datadome",
+                "bot-detection",
+                "authenticating...",
+                "create an account to apply for the job",
+                "create an account or sign in",
+                "sign in to proceed",
+                "sign in to your account",
+                "sign in with google",
+                "sign in with apple",
+                "forgot password",
+                "terms of service",
+                "cookie policy",
+                "privacy policy",
+                "by continuing, you agree"
+              ];
+              if (botSigs.some((sig) => lowerText.includes(sig))) {
+                throw new Error("This request was blocked by the website's bot detection system. Please copy and paste the job description text manually.");
+              }
             }
 
             await kvNamespace.put(cacheKey, cleanText, { expirationTtl: 7 * 24 * 60 * 60 });

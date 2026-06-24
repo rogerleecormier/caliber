@@ -22,6 +22,7 @@ import { Route as InsightsRouteImport } from './routes/insights'
 import { Route as DiscoveryRouteImport } from './routes/discovery'
 import { Route as CrawlerRouteImport } from './routes/crawler'
 import { Route as AuditLogsRouteImport } from './routes/audit-logs'
+import { Route as AgentInsightsRouteImport } from './routes/agent-insights'
 import { Route as AdminSetupRouteImport } from './routes/admin-setup'
 import { Route as AdminSettingsRouteImport } from './routes/admin-settings'
 import { Route as IndexRouteImport } from './routes/index'
@@ -123,6 +124,11 @@ const CrawlerRoute = CrawlerRouteImport.update({
 const AuditLogsRoute = AuditLogsRouteImport.update({
   id: '/audit-logs',
   path: '/audit-logs',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AgentInsightsRoute = AgentInsightsRouteImport.update({
+  id: '/agent-insights',
+  path: '/agent-insights',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminSetupRoute = AdminSetupRouteImport.update({
@@ -317,6 +323,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin-settings': typeof AdminSettingsRoute
   '/admin-setup': typeof AdminSetupRoute
+  '/agent-insights': typeof AgentInsightsRoute
   '/audit-logs': typeof AuditLogsRoute
   '/crawler': typeof CrawlerRoute
   '/discovery': typeof DiscoveryRoute
@@ -369,6 +376,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/admin-settings': typeof AdminSettingsRoute
   '/admin-setup': typeof AdminSetupRoute
+  '/agent-insights': typeof AgentInsightsRoute
   '/audit-logs': typeof AuditLogsRoute
   '/crawler': typeof CrawlerRoute
   '/discovery': typeof DiscoveryRoute
@@ -422,6 +430,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/admin-settings': typeof AdminSettingsRoute
   '/admin-setup': typeof AdminSetupRoute
+  '/agent-insights': typeof AgentInsightsRoute
   '/audit-logs': typeof AuditLogsRoute
   '/crawler': typeof CrawlerRoute
   '/discovery': typeof DiscoveryRoute
@@ -476,6 +485,7 @@ export interface FileRouteTypes {
     | '/'
     | '/admin-settings'
     | '/admin-setup'
+    | '/agent-insights'
     | '/audit-logs'
     | '/crawler'
     | '/discovery'
@@ -528,6 +538,7 @@ export interface FileRouteTypes {
     | '/'
     | '/admin-settings'
     | '/admin-setup'
+    | '/agent-insights'
     | '/audit-logs'
     | '/crawler'
     | '/discovery'
@@ -580,6 +591,7 @@ export interface FileRouteTypes {
     | '/'
     | '/admin-settings'
     | '/admin-setup'
+    | '/agent-insights'
     | '/audit-logs'
     | '/crawler'
     | '/discovery'
@@ -633,6 +645,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AdminSettingsRoute: typeof AdminSettingsRoute
   AdminSetupRoute: typeof AdminSetupRoute
+  AgentInsightsRoute: typeof AgentInsightsRoute
   AuditLogsRoute: typeof AuditLogsRoute
   CrawlerRoute: typeof CrawlerRoute
   DiscoveryRoute: typeof DiscoveryRoute
@@ -772,6 +785,13 @@ declare module '@tanstack/react-router' {
       path: '/audit-logs'
       fullPath: '/audit-logs'
       preLoaderRoute: typeof AuditLogsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/agent-insights': {
+      id: '/agent-insights'
+      path: '/agent-insights'
+      fullPath: '/agent-insights'
+      preLoaderRoute: typeof AgentInsightsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin-setup': {
@@ -1052,6 +1072,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminSettingsRoute: AdminSettingsRoute,
   AdminSetupRoute: AdminSetupRoute,
+  AgentInsightsRoute: AgentInsightsRoute,
   AuditLogsRoute: AuditLogsRoute,
   CrawlerRoute: CrawlerRoute,
   DiscoveryRoute: DiscoveryRoute,
