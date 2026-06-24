@@ -13,7 +13,7 @@ Description: {jobDescription}
 Create a summary:
 - MUST be 3-4 sentences, NO MORE, NO FEWER
 - MUST be 70-85 words total (count every word — if under 70, add specific true detail from the current summary; if over 85, remove words)
-- Sentence 1 (~22 words): candidate's actual title/years of experience/core domains, selected from the current summary because they are most relevant to THIS job
+- Sentence 1 (~22 words): LEAD with the title/role from the current summary that BEST MATCHES the target job title — not necessarily the candidate's primary title. For example, if the job is a software engineering role, open with the engineering identity; if it is a PM role, open with the PM identity. The candidate has multiple roles in their background — pick the most relevant one for THIS job.
 - Sentence 2 (~22 words): a specific strength or track record taken directly from the current summary (include a metric only if it appears there)
 - Sentence 3 (~22 words): a second true strength or domain area from the current summary that aligns with the job
 - Sentence 4 (optional, ~22 words): a forward-looking statement connecting the candidate's existing (current summary) background to the role — do not promise skills, tools, or experience not present in the current summary

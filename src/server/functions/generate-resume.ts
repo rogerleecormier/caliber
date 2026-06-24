@@ -82,7 +82,8 @@ async function tailorSection(
     console.log(`[tailorSection] Input content:`, JSON.stringify(currentContent).substring(0, 300));
     // Increase token budget: experience sections may need more tokens for multiple jobs
     const maxTokens = sectionType === "professional_experience" ? 4096 : 2048;
-    const response = await callClaude(env, messages, { maxTokens, temperature: 0.2, model: RESUME_TAILORING_MODEL });
+    const temperature = sectionType === "professional_summary" ? 0.5 : 0.2;
+    const response = await callClaude(env, messages, { maxTokens, temperature, model: RESUME_TAILORING_MODEL });
     console.log(`[tailorSection] Raw response for ${sectionType}:`, response.substring(0, 500));
     const result = parseSectionResponse(response, sectionType);
     console.log(`[tailorSection] ${sectionType} parsed result:`, JSON.stringify(result).substring(0, 300));
