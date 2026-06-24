@@ -72,7 +72,7 @@ export function prepareInsertCanonicalJob(
   normalized: NormalizedJob
 ): any {
   return env.DB.prepare(`
-    INSERT INTO canonical_jobs (
+    INSERT OR IGNORE INTO canonical_jobs (
       id, company_display, company_norm, title_display, title_norm,
       location_display, location_norm, remote, employment_type, experience_level,
       department, team, description_plain, description_html,

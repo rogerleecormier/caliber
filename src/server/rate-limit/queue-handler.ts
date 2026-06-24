@@ -113,27 +113,41 @@ export async function processCrawlJobsQueue(
       let insertedCount = 0;
       let mergedCount = 0;
 
-      // Pre-load candidates for this company to avoid sequential DB queries per job
-      let companyNorm = '';
-      if (rawJobs.length > 0) {
-        const firstNormalized = normalizeJob(rawJobs[0]);
-        companyNorm = firstNormalized.companyNorm;
-      }
+      // Pre-normalise all jobs first so we can build an efficient dedup lookup.
+      // Aggregator boards (remoteok, himalayas, etc.) return jobs from many different
+      // companies, so loading candidates by a single company_norm misses most of them.
+      // Instead: collect all dedup_keys for this batch and check them in one query,
+      // then fall back to a per-company fuzzy candidate load for Stage 2.
+      const allNormalized = rawJobs.map(j => normalizeJob(j));
 
       const candidates: Array<{ id: string; company_norm: string; title_norm: string; location_norm: string | null; dedup_key: string }> = [];
-      if (companyNorm) {
-        const { results } = await env.DB.prepare(
-          'SELECT id, company_norm, title_norm, location_norm, dedup_key FROM canonical_jobs WHERE company_norm = ?'
-        ).bind(companyNorm).all<{ id: string; company_norm: string; title_norm: string; location_norm: string | null; dedup_key: string }>();
-        if (results) {
-          candidates.push(...results);
+
+      if (allNormalized.length > 0) {
+        const dedupKeys = allNormalized.map(n => n.dedupKey);
+        const placeholders = dedupKeys.map(() => '?').join(',');
+        const { results: keyMatches } = await env.DB.prepare(
+          `SELECT id, company_norm, title_norm, location_norm, dedup_key FROM canonical_jobs WHERE dedup_key IN (${placeholders})`
+        ).bind(...dedupKeys).all<{ id: string; company_norm: string; title_norm: string; location_norm: string | null; dedup_key: string }>();
+        if (keyMatches) candidates.push(...keyMatches);
+
+        // For single-company boards, also pre-load by company_norm for fuzzy Stage 2.
+        const uniqueCompanies = [...new Set(allNormalized.map(n => n.companyNorm))];
+        if (uniqueCompanies.length === 1 && uniqueCompanies[0]) {
+          const { results: companyMatches } = await env.DB.prepare(
+            'SELECT id, company_norm, title_norm, location_norm, dedup_key FROM canonical_jobs WHERE company_norm = ?'
+          ).bind(uniqueCompanies[0]).all<{ id: string; company_norm: string; title_norm: string; location_norm: string | null; dedup_key: string }>();
+          if (companyMatches) {
+            const existingIds = new Set(candidates.map(c => c.id));
+            candidates.push(...companyMatches.filter(r => !existingIds.has(r.id)));
+          }
         }
       }
 
       const statements: any[] = [];
 
-      for (const rawJob of rawJobs) {
-        const normalized = normalizeJob(rawJob);
+      for (let jobIdx = 0; jobIdx < rawJobs.length; jobIdx++) {
+        const rawJob = rawJobs[jobIdx];
+        const normalized = allNormalized[jobIdx];
         
         // Run deduplication pipeline with pre-loaded candidates
         const decision = await dedupPipeline(env, normalized, candidates);
