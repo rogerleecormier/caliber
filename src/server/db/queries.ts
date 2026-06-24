@@ -19,10 +19,11 @@ export async function findOrCreateCanonical(
     return { id: existing.id, isNew: false };
   }
 
-  // Insert new
+  // Insert new — OR IGNORE guards against a race where two workers both
+  // SELECT (miss) then both try to INSERT the same dedup_key concurrently.
   const id = crypto.randomUUID();
-  await env.DB.prepare(`
-    INSERT INTO canonical_jobs (
+  const result = await env.DB.prepare(`
+    INSERT OR IGNORE INTO canonical_jobs (
       id, company_display, company_norm, title_display, title_norm,
       location_display, location_norm, remote, employment_type, experience_level,
       department, team, description_plain, description_html,
@@ -54,6 +55,14 @@ export async function findOrCreateCanonical(
     new Date().toISOString(),
     new Date().toISOString()
   ).run();
+
+  // If the INSERT was ignored (race), look up the existing row's id
+  if (result.meta.changes === 0) {
+    const raced = await env.DB.prepare(
+      'SELECT id FROM canonical_jobs WHERE dedup_key = ?'
+    ).bind(dedupKey).first<{ id: string }>();
+    return { id: raced?.id ?? id, isNew: false };
+  }
 
   return { id, isNew: true };
 }

@@ -127,9 +127,10 @@ export function normalizeJob(job: AtsJobResponse): NormalizedJob {
   const titleNorm = normalizeTitle(titleDisplay);
   const { locationDisplay: finalLocDisplay, locationNorm, remote } = normalizeLocation(locationDisplay);
   
-  // Dedup key is: companyNorm + titleNorm + locationNorm + 7-day window
-  const weekEpoch = Math.floor(Date.now() / 604800000);
-  const dedupKey = `${compNorm}::${titleNorm}::${locationNorm}::${weekEpoch}`;
+  // Dedup key is: companyNorm + titleNorm + locationNorm (stable, no time window).
+  // A time window caused weekly key rotation which made the same job look "new"
+  // every 7 days, producing duplicate canonical rows and constraint violations.
+  const dedupKey = `${compNorm}::${titleNorm}::${locationNorm}`;
   
   // For rawHash: SHA-255 of plain description if available, or title + company
   const rawHashContent = descriptionPlain || `${companyDisplay}::${titleDisplay}`;
