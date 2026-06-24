@@ -70,7 +70,7 @@ export interface CanonicalJob {
 export interface JobSource {
   id: string;
   canonicalId: string;
-  ats: 'greenhouse' | 'lever' | 'ashby' | 'smartrecruiters' | 'workable' | 'recruitee' | 'personio';
+  ats: 'greenhouse' | 'lever' | 'ashby' | 'smartrecruiters' | 'workable' | 'recruitee' | 'personio' | 'remoteok' | 'himalayas' | 'jobicy' | 'adzuna' | 'jooble' | 'remotive';
   boardToken: string;
   sourceJobId: string;
   sourceUrl: string;

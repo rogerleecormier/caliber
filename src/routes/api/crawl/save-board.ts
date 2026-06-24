@@ -14,7 +14,7 @@ export const Route = createFileRoute('/api/crawl/save-board')({
             return json({ success: false, error: 'Missing ats or token parameter' }, { status: 400 });
           }
 
-          const validAts = ['greenhouse', 'lever', 'ashby'];
+          const validAts = ['greenhouse', 'lever', 'ashby', 'workable', 'remoteok', 'himalayas', 'jobicy', 'adzuna', 'jooble', 'remotive'];
           if (!validAts.includes(ats.toLowerCase())) {
             return json({ success: false, error: `Invalid ATS: must be one of ${validAts.join(', ')}` }, { status: 400 });
           }

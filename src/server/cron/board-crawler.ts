@@ -1,4 +1,5 @@
 import { logAudit } from '../db/queries';
+import { seedAggregatorBoards } from './seed-aggregator-boards';
 
 export interface CloudflareEnv {
   DB: D1Database;
@@ -18,6 +19,8 @@ export async function runBoardCrawlerCron(
   if (!env.CRAWL_JOBS_QUEUE) {
     throw new Error('Queue binding "CRAWL_JOBS_QUEUE" is not available');
   }
+
+  await seedAggregatorBoards(env);
 
   // Determine current UTC hour
   const utcHour = new Date().getUTCHours();

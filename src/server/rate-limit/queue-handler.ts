@@ -2,6 +2,12 @@ import { fetchGreenhouseJobs } from '../ats/parsers/greenhouse';
 import { fetchLeverJobs } from '../ats/parsers/lever';
 import { fetchAshbyJobs } from '../ats/parsers/ashby';
 import { fetchWorkableJobs } from '../ats/parsers/workable';
+import { fetchRemoteOKJobs } from '../ats/parsers/remoteok';
+import { fetchHimalayasJobs } from '../ats/parsers/himalayas';
+import { fetchJobicyJobs } from '../ats/parsers/jobicy';
+import { fetchAdzunaJobs } from '../ats/parsers/adzuna';
+import { fetchJoobleJobs } from '../ats/parsers/jooble';
+import { fetchRemotiveJobs } from '../ats/parsers/remotive';
 import { 
   insertCanonicalJob, 
   linkJobSource, 
@@ -14,7 +20,7 @@ import { normalizeJob } from '@/lib/normalization';
 import { dedupPipeline } from '../dedup/deterministic';
 
 export interface CrawlMessage {
-  ats: 'greenhouse' | 'lever' | 'ashby' | 'workable';
+  ats: 'greenhouse' | 'lever' | 'ashby' | 'workable' | 'remoteok' | 'himalayas' | 'jobicy' | 'adzuna' | 'jooble' | 'remotive';
   token: string;
   boardId: string;
   companyName?: string;
@@ -42,9 +48,15 @@ export async function processCrawlJobsQueue(
 
       // 1. Acquire rate limit token from DO
       let domain = 'api.greenhouse.io';
-      if (ats === 'lever') domain = 'api.lever.co';
-      if (ats === 'ashby') domain = 'api.ashbyhq.com';
+      if (ats === 'lever')    domain = 'api.lever.co';
+      if (ats === 'ashby')    domain = 'api.ashbyhq.com';
       if (ats === 'workable') domain = 'apply.workable.com';
+      if (ats === 'remoteok') domain = 'remoteok.com';
+      if (ats === 'himalayas') domain = 'himalayas.app';
+      if (ats === 'jobicy')   domain = 'jobicy.com';
+      if (ats === 'adzuna')   domain = 'api.adzuna.com';
+      if (ats === 'jooble')   domain = 'jooble.org';
+      if (ats === 'remotive') domain = 'remotive.com';
 
       const doId = env.RATE_LIMITER.idFromName(domain);
       const doStub = env.RATE_LIMITER.get(doId);
@@ -71,7 +83,7 @@ export async function processCrawlJobsQueue(
         throw new Error(`Rate limit acquisition failed after 5 attempts for ${domain}`);
       }
 
-      // 2. Fetch jobs from ATS
+      // 2. Fetch jobs from ATS or aggregator
       let rawJobs: any[] = [];
       if (ats === 'greenhouse') {
         rawJobs = await fetchGreenhouseJobs(token, companyName);
@@ -81,6 +93,18 @@ export async function processCrawlJobsQueue(
         rawJobs = await fetchAshbyJobs(token, companyName);
       } else if (ats === 'workable') {
         rawJobs = await fetchWorkableJobs(token, companyName);
+      } else if (ats === 'remoteok') {
+        rawJobs = await fetchRemoteOKJobs(token);
+      } else if (ats === 'himalayas') {
+        rawJobs = await fetchHimalayasJobs(token);
+      } else if (ats === 'jobicy') {
+        rawJobs = await fetchJobicyJobs(token);
+      } else if (ats === 'adzuna') {
+        rawJobs = await fetchAdzunaJobs(token, companyName, env);
+      } else if (ats === 'jooble') {
+        rawJobs = await fetchJoobleJobs(token, companyName, env);
+      } else if (ats === 'remotive') {
+        rawJobs = await fetchRemotiveJobs(token);
       }
 
       console.log(`[queue-handler] Fetched ${rawJobs.length} jobs for ${ats}/${token}`);

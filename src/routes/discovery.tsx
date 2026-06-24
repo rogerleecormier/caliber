@@ -318,6 +318,12 @@ function DiscoveryDashboard() {
       case 'lever': return 'bg-blue-50 text-blue-700 border-blue-200';
       case 'ashby': return 'bg-purple-50 text-purple-700 border-purple-200';
       case 'workable': return 'bg-amber-50 text-amber-700 border-amber-200';
+      case 'remoteok': return 'bg-rose-50 text-rose-700 border-rose-200';
+      case 'himalayas': return 'bg-sky-50 text-sky-700 border-sky-200';
+      case 'jobicy': return 'bg-lime-50 text-lime-700 border-lime-200';
+      case 'adzuna': return 'bg-orange-50 text-orange-700 border-orange-200';
+      case 'jooble': return 'bg-violet-50 text-violet-700 border-violet-200';
+      case 'remotive': return 'bg-emerald-50 text-emerald-700 border-emerald-200';
       default: return 'bg-slate-50 text-slate-700 border-slate-200';
     }
   };

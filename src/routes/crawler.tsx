@@ -43,7 +43,7 @@ function CrawlerDashboard() {
   const [activeTab, setActiveTab] = useState<'jobs' | 'boards' | 'logs' | 'docs'>('jobs');
   
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [newBoardAts, setNewBoardAts] = useState<'greenhouse' | 'lever' | 'ashby'>('greenhouse');
+  const [newBoardAts, setNewBoardAts] = useState<'greenhouse' | 'lever' | 'ashby' | 'workable' | 'remoteok' | 'himalayas' | 'jobicy' | 'adzuna' | 'jooble' | 'remotive'>('greenhouse');
   const [newBoardToken, setNewBoardToken] = useState('');
   const [newBoardCompany, setNewBoardCompany] = useState('');
 
@@ -995,9 +995,22 @@ function CrawlerDashboard() {
                     onChange={(e) => setNewBoardAts(e.target.value as any)}
                     className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500"
                   >
-                    <option value="greenhouse">Greenhouse</option>
-                    <option value="lever">Lever</option>
-                    <option value="ashby">Ashby</option>
+                    <optgroup label="ATS Platforms">
+                      <option value="greenhouse">Greenhouse</option>
+                      <option value="lever">Lever</option>
+                      <option value="ashby">Ashby</option>
+                      <option value="workable">Workable</option>
+                    </optgroup>
+                    <optgroup label="Catalog Aggregators">
+                      <option value="remoteok">RemoteOK</option>
+                      <option value="himalayas">Himalayas</option>
+                      <option value="jobicy">Jobicy</option>
+                    </optgroup>
+                    <optgroup label="Search Aggregators">
+                      <option value="adzuna">Adzuna</option>
+                      <option value="jooble">Jooble</option>
+                      <option value="remotive">Remotive</option>
+                    </optgroup>
                   </select>
                 </div>
 
