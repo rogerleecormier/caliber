@@ -132,15 +132,29 @@ export const getSearchLogs = createServerFn({ method: "GET" })
     const pageSize = Math.min(50, Math.max(1, data?.pageSize ?? 25));
     const offset = (page - 1) * pageSize;
 
-    // Build WHERE for audit_log — include all crawler/discovery events plus user agent runs
+    // Build WHERE for audit_log.
+    // By default exclude high-volume internal noise events that aren't meaningful
+    // in a user-facing activity log. A specific eventType filter overrides this.
+    const EXCLUDED_BY_DEFAULT = [
+      'board_validation_failed', // expected discovery noise — 90%+ of guessed slugs fail
+      'dedup_merge',             // per-job internal bookkeeping, not actionable
+      'crawl_start',             // paired with crawl_complete; start alone is noise
+      'vector_insert',           // implementation detail of the crawl pipeline
+    ];
+
     const conditions: string[] = [];
     const params: any[] = [];
 
-    // Event type filter (maps UI filter values to actual DB event types)
+    // Event type filter — when set, show exactly that type (overrides exclusion list)
     const requestedType: string = data?.eventType ?? '';
     if (requestedType) {
       conditions.push(`event_type = ?`);
       params.push(requestedType);
+    } else {
+      // Exclude noise events from the default view
+      const placeholders = EXCLUDED_BY_DEFAULT.map(() => '?').join(',');
+      conditions.push(`event_type NOT IN (${placeholders})`);
+      params.push(...EXCLUDED_BY_DEFAULT);
     }
     // Platform/ATS filter
     if (data?.platform) {
@@ -165,7 +179,7 @@ export const getSearchLogs = createServerFn({ method: "GET" })
 
     // Level filter is applied in-memory since it's derived from event_type + details
 
-    const [countResult, rowsResult, errorCount] = await Promise.all([
+    const [countResult, rowsResult, errorCount, crawlSummary] = await Promise.all([
       env.DB.prepare(`SELECT COUNT(*) as total FROM audit_log ${where}`)
         .bind(...params)
         .first<{ total: number }>(),
@@ -190,6 +204,15 @@ export const getSearchLogs = createServerFn({ method: "GET" })
 
       env.DB.prepare(`SELECT COUNT(*) as cnt FROM audit_log WHERE event_type = 'error'`)
         .first<{ cnt: number }>(),
+
+      // Aggregate jobs found/skipped across all crawl_complete events (not just current page)
+      env.DB.prepare(`
+        SELECT
+          SUM(CAST(json_extract(details, '$.insertedCount') AS INTEGER)) as jobs_found,
+          SUM(CAST(json_extract(details, '$.mergedCount') AS INTEGER)) as jobs_skipped
+        FROM audit_log
+        WHERE event_type = 'crawl_complete'
+      `).first<{ jobs_found: number | null; jobs_skipped: number | null }>(),
     ]);
 
     const total = countResult?.total ?? 0;
@@ -275,8 +298,8 @@ export const getSearchLogs = createServerFn({ method: "GET" })
 
     const summary: SearchLogsSummary = {
       totalSearches: total,
-      totalJobsFound,
-      totalJobsSkipped: 0,
+      totalJobsFound: crawlSummary?.jobs_found ?? totalJobsFound,
+      totalJobsSkipped: crawlSummary?.jobs_skipped ?? 0,
       totalErrors: errorCount?.cnt ?? 0,
     };
 

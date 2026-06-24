@@ -366,31 +366,14 @@ async function validateAndDedupeBoards(
         console.error('[discovery] Failed to log audit:', err);
       }
     } else {
-      console.log(`[Discovery:validate] Recording validation failure count for [${board.ats}:${board.token}]`);
-      // Mark validation failure for unvalidated entry if exists
+      // Track failure count on the boards row (visible in the crawler dashboard).
+      // Do NOT write to audit_log — validation failures are expected discovery noise
+      // (most guessed slugs don't exist) and would flood the activity log.
       await env.DB.prepare(`
-        UPDATE boards 
-        SET validation_error_count = validation_error_count + 1 
+        UPDATE boards
+        SET validation_error_count = validation_error_count + 1
         WHERE ats = ? AND token = ?
       `).bind(board.ats, board.token).run();
-
-      // Log Audit Event for failure
-      try {
-        await logAudit(env, {
-          eventType: 'board_validation_failed',
-          ats: board.ats,
-          boardToken: board.token,
-          details: {
-            company: board.company,
-            confidence: board.confidence,
-            phase: board.discoveryPhase,
-            error: 'Validation fetch returned non-200 or failed'
-          },
-          actor: 'discovery_worker'
-        });
-      } catch (err) {
-        console.error('[discovery] Failed to log failure audit:', err);
-      }
     }
   }
 

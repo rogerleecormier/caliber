@@ -130,23 +130,12 @@ const PLATFORM_LABELS: Record<string, string> = {
   manual: "Manual",
 };
 
+// Events shown in the default view (meaningful, low-volume)
 const EVENT_TYPE_LABELS: Record<string, string> = {
-  // Crawler pipeline events (from audit_log)
-  crawl_start: "Crawl Started",
   crawl_complete: "Crawl Complete",
-  dedup_merge: "Dedup Merge",
-  vector_insert: "Vector Indexed",
   error: "Error",
   board_discovered: "Board Discovered",
-  board_validation_failed: "Validation Failed",
-  // Agent search events
   agent_search_run: "Agent Search Run",
-  // Legacy
-  search_started: "Search Started",
-  search_completed: "Search Completed",
-  job_found: "Job Found",
-  job_sync: "Job Ingestion Sync",
-  discovery_sync: "Company Discovery Sync",
 };
 
 function CopyButton({ text }: { text: string }) {
@@ -713,30 +702,30 @@ function AuditLogsPage() {
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <MetricCard
           icon={<Search className="h-5 w-5 text-orange-500" />}
-          label="Total Searches"
+          label="Total Events"
           value={summary.totalSearches.toLocaleString()}
-          note="Active saved agents and manual runs"
+          note="Crawl completions, errors, and board discoveries"
           accent="bg-white/70 dark:bg-slate-900/70 border-slate-200/60 dark:border-slate-800"
         />
         <MetricCard
           icon={<CheckCircle className="h-5 w-5 text-emerald-500" />}
-          label="Jobs Found"
+          label="Jobs Indexed"
           value={summary.totalJobsFound.toLocaleString()}
-          note="Surfaced matching opportunities"
+          note="New canonical jobs inserted across all boards"
           accent="bg-white/70 dark:bg-slate-900/70 border-slate-200/60 dark:border-slate-800"
         />
         <MetricCard
           icon={<Layers className="h-5 w-5 text-slate-500" />}
-          label="Jobs Skipped"
+          label="Deduped"
           value={summary.totalJobsSkipped.toLocaleString()}
-          note="Duplicates and score filter rejects"
+          note="Jobs merged into existing canonical records"
           accent="bg-white/70 dark:bg-slate-900/70 border-slate-200/60 dark:border-slate-800"
         />
         <MetricCard
           icon={<AlertTriangle className="h-5 w-5 text-red-500" />}
-          label="Errors Logged"
+          label="Errors"
           value={summary.totalErrors.toLocaleString()}
-          note="Background runner or API integration issues"
+          note="Crawl failures across all sources"
           accent="bg-white/70 dark:bg-slate-900/70 border-slate-200/60 dark:border-slate-800"
         />
       </div>
