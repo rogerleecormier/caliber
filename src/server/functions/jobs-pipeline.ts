@@ -498,6 +498,7 @@ export const getCatalogJobs = createServerFn({ method: "GET" })
     company?: string;
     ats?: string;
     salaryMin?: number;
+    location?: string;
     page?: number;
     pageSize?: number;
     useVectorSearch?: boolean;
@@ -595,6 +596,10 @@ export const getCatalogJobs = createServerFn({ method: "GET" })
         isNull(canonicalJobs.compensationMax),
         gte(canonicalJobs.compensationMax, data.salaryMin),
       ));
+    }
+    if (data.location?.trim()) {
+      const locQ = data.location.trim().toLowerCase();
+      conditions.push(sql`instr(lower(coalesce(${canonicalJobs.locationNorm}, ${canonicalJobs.locationDisplay}, '')), ${locQ}) > 0`);
     }
 
     // ATS filter — join job_sources

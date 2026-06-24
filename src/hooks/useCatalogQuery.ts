@@ -11,6 +11,7 @@ export interface CatalogFilters {
   company: string;
   ats: string;
   salaryMin: number;
+  location: string;
   page: number;
   useVectorSearch?: boolean;
 }
@@ -57,15 +58,17 @@ export function useCatalogQuery(filters: CatalogFilters) {
   const queryClient = useQueryClient();
   const router = useRouter();
 
-  // Debounce keyword/company inputs via @tanstack/react-pacer
+  // Debounce keyword/company/location inputs via @tanstack/react-pacer
   const [debouncedQuery] = useDebouncedValue(filters.query, { wait: 350 });
   const [debouncedCompany] = useDebouncedValue(filters.company, { wait: 350 });
+  const [debouncedLocation] = useDebouncedValue(filters.location, { wait: 350 });
 
   // Effective filters (debounced text inputs, immediate toggles)
   const effectiveFilters: CatalogFilters = {
     ...filters,
     query: debouncedQuery,
     company: debouncedCompany,
+    location: debouncedLocation,
   };
 
   // Main query
@@ -79,9 +82,10 @@ export function useCatalogQuery(filters: CatalogFilters) {
           company: effectiveFilters.company || undefined,
           ats: effectiveFilters.ats || undefined,
           salaryMin: effectiveFilters.salaryMin || undefined,
+          location: effectiveFilters.location || undefined,
           page: effectiveFilters.page,
           pageSize: PAGE_SIZE,
-          useVectorSearch: effectiveFilters.useVectorSearch ?? true, // Enable vector search by default
+          useVectorSearch: effectiveFilters.useVectorSearch ?? true,
         },
       }) as Promise<CatalogData>,
     staleTime: 1000 * 60 * 2,       // 2 min — catalog doesn't change fast
@@ -101,6 +105,7 @@ export function useCatalogQuery(filters: CatalogFilters) {
             company: effectiveFilters.company || undefined,
             ats: effectiveFilters.ats || undefined,
             salaryMin: effectiveFilters.salaryMin || undefined,
+            location: effectiveFilters.location || undefined,
             page: targetPage,
             pageSize: PAGE_SIZE,
             useVectorSearch: effectiveFilters.useVectorSearch ?? true,
@@ -156,7 +161,7 @@ export function useCatalogQuery(filters: CatalogFilters) {
   });
 
   const totalPages = query.data ? Math.ceil(query.data.total / PAGE_SIZE) : 0;
-  const isDebouncing = filters.query !== debouncedQuery || filters.company !== debouncedCompany;
+  const isDebouncing = filters.query !== debouncedQuery || filters.company !== debouncedCompany || filters.location !== debouncedLocation;
 
   return {
     ...query,

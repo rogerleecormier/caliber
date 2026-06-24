@@ -1,20 +1,17 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Briefcase,
   BarChart3,
-  Building2,
   ChevronLeft,
   ChevronRight,
   Grid3x3,
   Globe,
   Loader2,
   Search,
-  SlidersHorizontal,
   Star,
   Table2,
   Sparkles,
-  X,
 } from "lucide-react";
 import {
   PageHero,
@@ -23,9 +20,9 @@ import { requireLoginRedirect } from "@/lib/auth-redirect";
 import { JobResultCard } from "@/components/features/job-result-card";
 import { AnalysisModal } from "@/components/features/analysis-modal";
 import { UnifiedSearchPanel } from "@/components/features/unified-search-panel";
+import { MasterSearchBar } from "@/components/features/master-search-bar";
 import { getResume } from "@/server/functions/manage-resume";
 import {
-  getPipelineJobHistory,
   getSavedPipelineSearches,
   getRecommendedJobs,
 } from "@/server/functions/jobs-pipeline";
@@ -62,7 +59,29 @@ export type JobSearchParams = {
   catalogQuery: string;
 };
 
-type HubJob = Awaited<ReturnType<typeof getPipelineJobHistory>>["rows"][number] & {
+type HubJob = {
+  id: number | string;
+  title?: string;
+  sourceUrl?: string;
+  analyzedAt?: string;
+  currentStage?: string;
+  matchScore?: number;
+  pursueJustification?: string;
+  gapAnalysis?: any;
+  recommendations?: any;
+  keywords?: any;
+  pursue?: number;
+  strategyNote?: string;
+  personalInterest?: string;
+  careerAnalysis?: any;
+  insights?: any;
+  jdText?: string;
+  createdAt?: string;
+  industry?: string;
+  location?: string;
+  company?: string;
+  employerName?: string;
+  jobTitle?: string;
   isNew?: boolean;
 };
 
@@ -114,27 +133,44 @@ export const Route = createFileRoute("/jobs")({
 
 type ViewMode = "cards" | "table";
 
+const DEFAULT_FILTERS: CatalogFilters = {
+  query: '',
+  remote: undefined,
+  company: '',
+  ats: '',
+  salaryMin: 0,
+  location: '',
+  page: 1,
+};
+
 function JobsPage() {
-  const { view, catalogQuery } = Route.useSearch();
+  const { catalogQuery } = Route.useSearch();
   const loaderData = Route.useLoaderData() as any;
   const { hasResume, savedSearches: loaderSavedSearches } = loaderData;
-  const navigate = Route.useNavigate();
 
   const [viewMode, setViewMode] = useState<ViewMode>("cards");
   const [analysisModalOpen, setAnalysisModalOpen] = useState(false);
   const [selectedJobForAnalysis, setSelectedJobForAnalysis] = useState<HubJob | null>(null);
   const [storedAnalysis, setStoredAnalysis] = useState<any>(null);
-  const catalogRef = useRef<HTMLDivElement>(null);
-  const isSearchMode = view === 'search' && catalogQuery.trim().length > 0;
 
-  // Auto-scroll to catalog when landing in search mode
+  // Master filter state lives here so UnifiedSearchPanel can read active filters
+  const [filters, setFilters] = useState<CatalogFilters>({
+    ...DEFAULT_FILTERS,
+    query: catalogQuery ?? '',
+  });
+
+  // Sync query param → filter state when navigating via URL
   useEffect(() => {
-    if (isSearchMode && catalogRef.current) {
-      setTimeout(() => {
-        catalogRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      }, 150);
+    if (catalogQuery) {
+      setFilters((prev) => ({ ...prev, query: catalogQuery, page: 1 }));
     }
-  }, [isSearchMode, catalogQuery]);
+  }, [catalogQuery]);
+
+  const setFilter = <K extends keyof CatalogFilters>(key: K, value: CatalogFilters[K]) => {
+    setFilters((prev) => ({ ...prev, [key]: value, page: key !== 'page' ? 1 : prev.page }));
+  };
+
+  const clearFilters = () => setFilters(DEFAULT_FILTERS);
 
   function openAnalysisModal(job: any) {
     setSelectedJobForAnalysis(job);
@@ -178,7 +214,7 @@ function JobsPage() {
         description={
           loaderData.canViewAllUsers
             ? "Browse all users' agent jobs and manage the full pipeline."
-            : "Deploy background agents to search LinkedIn, Greenhouse, Lever, and Workable on your schedule — surfacing only top-tier matches."
+            : "Search across Greenhouse, Lever, Adzuna, Jooble, Remotive, and more — star any job to add it to your pipeline."
         }
         actions={
           <div className="flex flex-wrap items-center justify-end gap-2.5">
@@ -205,36 +241,28 @@ function JobsPage() {
         }
       />
 
+      {/* ── Master search + filters ──────────────────────────────────────── */}
+      <MasterSearchBar
+        filters={filters}
+        onChange={setFilter}
+        onClearAll={clearFilters}
+      />
+
+      {/* ── Search agents ────────────────────────────────────────────────── */}
       <UnifiedSearchPanel
         initialSavedSearches={loaderSavedSearches}
         hasResume={hasResume}
+        activeFilters={filters}
       />
 
-      <div ref={catalogRef}>
-        {isSearchMode && (
-          <div className="mb-4 flex items-center gap-3 rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-3">
-            <Search className="h-4 w-4 text-indigo-500 shrink-0" />
-            <p className="flex-1 text-sm font-medium text-indigo-800">
-              Showing results for <span className="font-bold">"{catalogQuery}"</span>
-            </p>
-            <button
-              onClick={() => navigate({ search: (prev: any) => ({ ...prev, view: 'all-jobs', catalogQuery: '' }) })}
-              className="flex items-center gap-1 text-sm font-medium text-indigo-600 hover:text-indigo-800 transition shrink-0"
-            >
-              <X className="h-4 w-4" />
-              Clear search
-            </button>
-          </div>
-        )}
-        <CatalogBrowser
-          onAnalyzeClick={openAnalysisModal}
-          viewMode={viewMode}
-          setViewMode={setViewMode}
-          recommendedJobs={loaderData.recommendedJobs}
-          initialQuery={catalogQuery}
-          isSearchMode={isSearchMode}
-        />
-      </div>
+      <CatalogBrowser
+        onAnalyzeClick={openAnalysisModal}
+        viewMode={viewMode}
+        setViewMode={setViewMode}
+        recommendedJobs={loaderData.recommendedJobs}
+        filters={filters}
+        setFilter={setFilter}
+      />
 
       <AnalysisModal
         isOpen={analysisModalOpen}
@@ -247,7 +275,7 @@ function JobsPage() {
         }}
         isFromExistingJob={!!selectedJobForAnalysis}
         storedAnalysis={storedAnalysis}
-        pipelineJobId={selectedJobForAnalysis?.id}
+        pipelineJobId={selectedJobForAnalysis?.id as number | undefined}
         onAnalysisComplete={() => {}}
         onDocumentGenerated={() => {}}
       />
@@ -257,36 +285,6 @@ function JobsPage() {
 }
 
 // ─── Catalog Browser ──────────────────────────────────────────────────────────
-
-// ─── Catalog Browser (TanStack Query + Pacer) ─────────────────────────────────
-
-const ATS_OPTIONS = [
-  { value: '', label: 'All Sources' },
-  // ATS platforms (company job boards)
-  { value: 'greenhouse', label: 'Greenhouse' },
-  { value: 'lever', label: 'Lever' },
-  { value: 'workable', label: 'Workable' },
-  { value: 'ashby', label: 'Ashby' },
-  // Job aggregators & crawlers
-  { value: 'adzuna', label: 'Adzuna' },
-  { value: 'jooble', label: 'Jooble' },
-  { value: 'remotive', label: 'Remotive' },
-  { value: 'remoteok', label: 'RemoteOK' },
-  { value: 'himalayas', label: 'Himalayas' },
-  { value: 'jobicy', label: 'Jobicy' },
-  // User-added
-  { value: 'manual', label: 'Manual Entry' },
-];
-
-const SALARY_OPTIONS = [
-  { value: 0, label: 'Any salary' },
-  { value: 50000, label: '$50K+' },
-  { value: 75000, label: '$75K+' },
-  { value: 100000, label: '$100K+' },
-  { value: 125000, label: '$125K+' },
-  { value: 150000, label: '$150K+' },
-  { value: 200000, label: '$200K+' },
-];
 
 const atsBadgeClass: Record<string, string> = {
   greenhouse: 'bg-emerald-100 text-emerald-700',
@@ -315,27 +313,16 @@ function CatalogBrowser({
   viewMode,
   setViewMode,
   recommendedJobs,
-  initialQuery = '',
-  isSearchMode = false,
+  filters,
+  setFilter,
 }: {
   onAnalyzeClick: (job: any) => void;
   viewMode: ViewMode;
   setViewMode: (mode: ViewMode) => void;
   recommendedJobs: any[];
-  initialQuery?: string;
-  isSearchMode?: boolean;
+  filters: CatalogFilters;
+  setFilter: <K extends keyof CatalogFilters>(key: K, value: CatalogFilters[K]) => void;
 }) {
-  // Local filter state — text inputs are debounced inside useCatalogQuery via @tanstack/react-pacer
-  const [filters, setFilters] = useState<CatalogFilters>({
-    query: initialQuery,
-    remote: undefined,
-    company: '',
-    ats: '',
-    salaryMin: 0,
-    page: 1,
-  });
-  const [filtersOpen, setFiltersOpen] = useState(false);
-
   const {
     data,
     isFetching,
@@ -346,21 +333,6 @@ function CatalogBrowser({
     isDebouncing,
   } = useCatalogQuery(filters);
 
-  // Sync filter query when initialQuery changes (e.g. new search from header)
-  useEffect(() => {
-    setFilters((prev) => ({ ...prev, query: initialQuery, page: 1 }));
-  }, [initialQuery]);
-
-  const hasActiveFilters =
-    filters.remote !== undefined || filters.company || filters.ats || filters.salaryMin > 0;
-
-  const setFilter = <K extends keyof CatalogFilters>(key: K, value: CatalogFilters[K]) => {
-    setFilters((prev) => ({ ...prev, [key]: value, page: key !== 'page' ? 1 : prev.page }));
-  };
-
-  const clearFilters = () =>
-    setFilters((prev) => ({ ...prev, remote: undefined, company: '', ats: '', salaryMin: 0, page: 1 }));
-
   const handlePageChange = (p: number) => {
     setFilter('page', p);
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -370,8 +342,6 @@ function CatalogBrowser({
     starMutation.mutate({ canonicalJobId: job.id, star: !job.isFavorited });
   };
 
-  const spinning = isFetching || isDebouncing;
-
   return (
     <div className="space-y-4">
       {/* Header */}
@@ -379,154 +349,43 @@ function CatalogBrowser({
         <div>
           <h2 className="text-xl font-bold text-slate-900">Job Catalog</h2>
           <p className="text-sm text-slate-500 mt-0.5">
-            {data
+            {(isFetching || isDebouncing) ? (
+              <span className="inline-flex items-center gap-1.5 text-indigo-500">
+                <Loader2 className="h-3.5 w-3.5 animate-spin" /> Searching…
+              </span>
+            ) : data
               ? `${data.total.toLocaleString()} jobs · ⭐ star any job to add it to My Jobs`
               : 'Loading catalog…'}
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          {/* View Toggle */}
-          <div className="inline-flex items-center rounded-lg border border-slate-200 bg-slate-50 p-1 gap-1">
-            <button
-              type="button"
-              onClick={() => setViewMode("cards")}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
-                viewMode === "cards"
-                  ? "bg-white border border-slate-200 text-slate-900 shadow-sm"
-                  : "text-slate-600 hover:text-slate-900"
-              }`}
-              title="Card view"
-            >
-              <Grid3x3 className="h-4 w-4" />
-            </button>
-            <button
-              type="button"
-              onClick={() => setViewMode("table")}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
-                viewMode === "table"
-                  ? "bg-white border border-slate-200 text-slate-900 shadow-sm"
-                  : "text-slate-600 hover:text-slate-900"
-              }`}
-              title="Table view"
-            >
-              <Table2 className="h-4 w-4" />
-            </button>
-          </div>
-
+        {/* View Toggle */}
+        <div className="inline-flex items-center rounded-lg border border-slate-200 bg-slate-50 p-1 gap-1">
           <button
-            onClick={() => setFiltersOpen((o) => !o)}
-          className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-sm font-medium transition ${
-            filtersOpen || hasActiveFilters
-              ? 'bg-slate-900 text-white border-slate-900'
-              : 'bg-white text-slate-700 border-slate-200 hover:border-slate-300'
-          }`}
-        >
-          <SlidersHorizontal className="h-4 w-4" />
-          {isSearchMode ? 'Refine Results' : 'Filters'}
-          {hasActiveFilters && <span className="ml-1 h-2 w-2 rounded-full bg-amber-400" />}
-        </button>
-        </div>
-      </div>
-
-      {/* Search */}
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
-        <input
-          type="text"
-          value={filters.query}
-          onChange={(e) => setFilter('query', e.target.value)}
-          placeholder="Search jobs by title, skills, or keywords…"
-          className="w-full pl-10 pr-36 py-2.5 border border-slate-200 rounded-xl bg-white text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition"
-        />
-        {filters.query && !spinning && (
-          <button
-            onClick={() => setFilter('query', '')}
-            className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 hover:text-slate-700 transition"
-            aria-label="Clear search"
+            type="button"
+            onClick={() => setViewMode("cards")}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+              viewMode === "cards"
+                ? "bg-white border border-slate-200 text-slate-900 shadow-sm"
+                : "text-slate-600 hover:text-slate-900"
+            }`}
+            title="Card view"
           >
-            <X className="h-4 w-4" />
+            <Grid3x3 className="h-4 w-4" />
           </button>
-        )}
-        {spinning ? (
-          <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-indigo-400 animate-spin" />
-        ) : !filters.query && (
-          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-semibold text-indigo-400 pointer-events-none select-none">✦ AI</span>
-        )}
-      </div>
-
-      {/* Filters panel */}
-      {filtersOpen && (
-        <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {/* Work type */}
-            <div>
-              <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-2">Work Type</label>
-              <div className="flex gap-1.5">
-                {([{ label: 'Any', val: undefined }, { label: 'Remote', val: true }, { label: 'On-site', val: false }] as const).map(({ label, val }) => (
-                  <button
-                    key={label}
-                    onClick={() => setFilter('remote', val as boolean | undefined)}
-                    className={`flex-1 py-1.5 rounded-lg border text-xs font-medium transition ${
-                      filters.remote === val
-                        ? 'bg-indigo-600 text-white border-indigo-600'
-                        : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
-                    }`}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Company */}
-            <div>
-              <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-2">Company</label>
-              <div className="relative">
-                <Building2 className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400 pointer-events-none" />
-                <input
-                  type="text"
-                  value={filters.company}
-                  onChange={(e) => setFilter('company', e.target.value)}
-                  placeholder="e.g. Stripe"
-                  className="w-full pl-8 pr-3 py-1.5 border border-slate-200 rounded-lg bg-white text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                />
-              </div>
-            </div>
-
-            {/* ATS Source */}
-            <div>
-              <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-2">ATS Source</label>
-              <select
-                value={filters.ats}
-                onChange={(e) => setFilter('ats', e.target.value)}
-                className="w-full py-1.5 px-2 border border-slate-200 rounded-lg bg-white text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              >
-                {ATS_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-              </select>
-            </div>
-
-            {/* Salary */}
-            <div>
-              <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-2">Min Salary</label>
-              <select
-                value={filters.salaryMin}
-                onChange={(e) => setFilter('salaryMin', Number(e.target.value))}
-                className="w-full py-1.5 px-2 border border-slate-200 rounded-lg bg-white text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              >
-                {SALARY_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-              </select>
-            </div>
-          </div>
-
-          {hasActiveFilters && (
-            <div className="flex justify-end">
-              <button onClick={clearFilters} className="px-3 py-1.5 text-xs font-medium text-slate-500 hover:text-slate-900 transition">
-                Clear all filters
-              </button>
-            </div>
-          )}
+          <button
+            type="button"
+            onClick={() => setViewMode("table")}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+              viewMode === "table"
+                ? "bg-white border border-slate-200 text-slate-900 shadow-sm"
+                : "text-slate-600 hover:text-slate-900"
+            }`}
+            title="Table view"
+          >
+            <Table2 className="h-4 w-4" />
+          </button>
         </div>
-      )}
+      </div>
 
       {/* Results */}
       {/* Recommended Jobs */}
@@ -794,11 +653,6 @@ function CatalogBrowser({
           <Search className="h-10 w-10 text-slate-300 mx-auto mb-3" />
           <p className="text-slate-600 font-medium">No jobs match your filters</p>
           <p className="text-slate-400 text-sm mt-1">Try adjusting your search or clearing filters</p>
-          {hasActiveFilters && (
-            <button onClick={clearFilters} className="mt-3 px-4 py-1.5 text-sm font-medium text-indigo-600 hover:text-indigo-700 transition">
-              Clear all filters
-            </button>
-          )}
         </div>
       ) : null}
     </div>

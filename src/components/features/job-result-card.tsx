@@ -17,7 +17,6 @@ import {
 } from "lucide-react";
 import { getScoreBorderColor } from "@/lib/scoreUtils";
 import { getDocumentDownload } from "@/server/functions/get-history";
-import { FlagToggle } from "@/components/features/flag-toggle";
 import { cleanJobDescription } from "@/lib/html-utils";
 import { WorkTypeBadge } from "@/components/ui/work-type-badge";
 
@@ -228,11 +227,6 @@ export function JobResultCard({
             aria-label={`Select ${job.title} at ${job.company}`}
           />
         ) : null}
-        {job.id != null ? (
-          <div className={`absolute top-2 z-10 ${showSelection ? "right-9" : "right-2"}`}>
-            <FlagToggle jobId={job.id} initialFlagged={!!job.isFlagged} />
-          </div>
-        ) : null}
 
         {/* Left Column: Job Info */}
         <div className="flex-1 space-y-4">
@@ -383,7 +377,7 @@ export function JobResultCard({
                   }`}
                 >
                   <span className="mr-0.5">{isFavorited ? "★" : "☆"}</span>
-                  {isFavorited ? "Favorited" : "Favorite"}
+                  {isFavorited ? "Unfavorite" : "Favorite"}
                 </button>
               )}
               {isAnalyzed ? (
@@ -470,11 +464,6 @@ export function JobResultCard({
           className="absolute right-3 top-3 h-4 w-4 shrink-0 rounded border-slate-300 text-primary-600 z-10"
           aria-label={`Select ${job.title} at ${job.company}`}
         />
-      ) : null}
-      {job.id != null ? (
-        <div className={`absolute top-2 z-10 ${showSelection ? "right-9" : "right-2"}`}>
-          <FlagToggle jobId={job.id} initialFlagged={!!job.isFlagged} />
-        </div>
       ) : null}
       <PrimaryCard
         title={job.title}
@@ -613,7 +602,7 @@ export function JobResultCard({
                   }`}
                 >
                   <span className="mr-1">{isFavorited ? "★" : "☆"}</span>
-                  {isFavorited ? "Favorited" : "Favorite"}
+                  {isFavorited ? "Unfavorite" : "Favorite"}
                 </button>
               )}
               {isAnalyzed ? (
