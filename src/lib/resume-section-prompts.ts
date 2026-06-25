@@ -98,10 +98,11 @@ Guidelines:
 - For dates: combine startDate and endDate (or use startDate only if endDate is missing)
   Example: "Jan 2020 - Dec 2021" or "Jan 2020 - Present"
 - Rewrite exactly 5 bullets per role using JD language and patterns (if the role has fewer than 5 source bullets, expand by splitting compound bullets into distinct, specific bullets — do not fabricate)
-- Each bullet MUST be 12-16 words — include the action, the specific tool/context, and a quantifiable result
-- Bullet format: [Action Verb] + [Context/Tool] + [Result or Metric]
-- Surface real metrics from the resume text (%, $, time, team size) — never fabricate
-- If no metric exists, state the strongest factual result
+- Each bullet MUST be 12-16 words — include the action, the specific tool/context, and the outcome
+- Bullet format: [Action Verb] + [Context/Tool] + [Outcome]
+- PRIORITIZE bullets that are directly applicable to the target role, whether or not they have a metric
+- Include a metric (%, $, time, team size) when one exists in the resume text — never fabricate one
+- A strong qualitative bullet that is highly relevant to the role is BETTER than a weak quantified bullet that is tangential
 - Different JDs should produce different bullet selections from the same resume
 - NO FABRICATION: every achievement must be grounded in the resume text
 
