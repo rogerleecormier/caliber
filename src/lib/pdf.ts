@@ -189,8 +189,22 @@ export async function generateResumePdf(content: AtsResumeContent): Promise<Uint
 
   if (content.coreCompetencies) {
     drawSection("Core Competencies");
-    for (const item of content.coreCompetencies) {
-      drawText(`•  ${item}`, { x: MARGIN + 10, hangingIndent: bulletIndent });
+    // Two-column layout: left col at MARGIN+10, right col at page midpoint+10.
+    // Pairs are drawn on the same y so the visual reads left-right but the
+    // underlying draw order stays top-to-bottom (left item first), which is
+    // what an ATS text-extraction pass sees.
+    const colWidth = CONTENT_WIDTH / 2 - 10;
+    const rightColX = MARGIN + CONTENT_WIDTH / 2 + 10;
+    const items = content.coreCompetencies;
+    for (let i = 0; i < items.length; i += 2) {
+      const leftItem = items[i];
+      const rightItem = items[i + 1];
+      ensureSpace(LINE_HEIGHT);
+      page.drawText(sanitizeText(`•  ${leftItem}`), { x: MARGIN + 10, y, size: 10, font: fontRegular, color: black });
+      if (rightItem) {
+        page.drawText(sanitizeText(`•  ${rightItem}`), { x: rightColX, y, size: 10, font: fontRegular, color: black });
+      }
+      y -= LINE_HEIGHT;
     }
   }
 

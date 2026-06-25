@@ -6,6 +6,7 @@ import {
   AlignmentType,
   BorderStyle,
   SectionType,
+  TabStopType,
 } from "docx";
 import type { AtsResumeContent } from "./ats-format";
 
@@ -78,11 +79,25 @@ export async function generateResumeDocx(content: AtsResumeContent): Promise<Uin
     }),
   );
 
-  // Core Competencies
+  // Core Competencies — two visual columns via a tab stop at the midpoint.
+  // Each paragraph holds a left item + tab + right item so the raw text reads
+  // linearly (left then right), which is what ATS parsers extract.
   if (content.coreCompetencies?.length) {
     paragraphs.push(...sectionHeading("Core Competencies"));
-    for (const item of content.coreCompetencies) {
-      paragraphs.push(bulletParagraph(item));
+    const items = content.coreCompetencies;
+    for (let i = 0; i < items.length; i += 2) {
+      const left = items[i];
+      const right = items[i + 1];
+      paragraphs.push(
+        new Paragraph({
+          tabStops: [{ type: TabStopType.LEFT, position: 4320 }], // ~3in from left margin
+          children: [
+            new TextRun({ text: `• ${left}`, size: 20, font: "Calibri" }),
+            ...(right ? [new TextRun({ text: `\t• ${right}`, size: 20, font: "Calibri" })] : []),
+          ],
+          spacing: { after: 60 },
+        }),
+      );
     }
   }
 
