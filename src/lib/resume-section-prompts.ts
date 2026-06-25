@@ -134,10 +134,9 @@ Guidelines:
 - Select the 3-4 MOST RELEVANT projects to THIS job (do not include all projects if there are more than 4)
 - Order by relevance to the job description, most relevant first
 - Preserve: name, technologies, url exactly as stated
-- Rewrite description as 2-3 sentences (each sentence ≤35 words, total ≤90 words)
-- Sentence 1: core technical accomplishment — WHAT was built and HOW (include architecture, key technologies, design decisions)
-- Sentence 2: key outcomes, features, or impact (metrics, scale, user benefits, relevance to the job)
-- Sentence 3 (optional): additional capability or forward-looking statement
+- Rewrite description as exactly 2 sentences (total ≤60 words, each sentence ≤30 words)
+- Sentence 1: WHAT was built and HOW — core tech, architecture, or key design decision
+- Sentence 2: the most relevant outcome, impact, or capability as it relates to the target job
 - Include specific technical details (e.g., "Cloudflare Workers", "cosine similarity ranking", "edge-native stack", "data governance")
 - Each sentence must be substantive and complete (no comma-separated lists or fragments)
 - Connect the project's skills/outcomes to job requirements where applicable
