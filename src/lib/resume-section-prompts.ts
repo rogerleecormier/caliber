@@ -11,12 +11,11 @@ Company: {company}
 Description: {jobDescription}
 
 Create a summary:
-- MUST be 3-4 sentences, NO MORE, NO FEWER
-- MUST be 70-85 words total (count every word — if under 70, add specific true detail from the current summary; if over 85, remove words)
-- Sentence 1 (~22 words): LEAD with the title/role from the current summary that BEST MATCHES the target job title — not necessarily the candidate's primary title. For example, if the job is a software engineering role, open with the engineering identity; if it is a PM role, open with the PM identity. The candidate has multiple roles in their background — pick the most relevant one for THIS job.
-- Sentence 2 (~22 words): a specific strength or track record taken directly from the current summary (include a metric only if it appears there)
-- Sentence 3 (~22 words): a second true strength or domain area from the current summary that aligns with the job
-- Sentence 4 (optional, ~22 words): a forward-looking statement connecting the candidate's existing (current summary) background to the role — do not promise skills, tools, or experience not present in the current summary
+- MUST be 3 sentences, NO MORE, NO FEWER
+- MUST be 55-70 words total (count every word — if under 55, add specific true detail from the current summary; if over 70, cut words)
+- Sentence 1 (~18 words): LEAD with the title/role from the current summary that BEST MATCHES the target job title — not necessarily the candidate's primary title. For example, if the job is a software engineering role, open with the engineering identity; if it is a PM role, open with the PM identity. The candidate has multiple roles in their background — pick the most relevant one for THIS job.
+- Sentence 2 (~18 words): a specific strength or track record taken directly from the current summary (include a metric only if it appears there)
+- Sentence 3 (~18 words): a second true strength or domain area from the current summary that aligns with the job
 - HARD RULE: every claim, skill, tool, title, domain, and metric must be traceable to the CURRENT SUMMARY above. If the job description mentions something the current summary does not support, DO NOT include it.
 - STRICT BAN: "I bring", "I leverage", "innovative", "passionate", "dynamic", "I am qualified", "proven track record", "extensive experience"
 - Every sentence must be specific and true — NO GENERIC LANGUAGE, NO FABRICATION
@@ -99,8 +98,8 @@ Guidelines:
 - For dates: combine startDate and endDate (or use startDate only if endDate is missing)
   Example: "Jan 2020 - Dec 2021" or "Jan 2020 - Present"
 - Rewrite exactly 5 bullets per role using JD language and patterns (if the role has fewer than 5 source bullets, expand by splitting compound bullets into distinct, specific bullets — do not fabricate)
-- Each bullet MUST be 18-24 words — include the action, the specific tool/context, the scope, and a quantifiable result
-- Bullet format: [Action Verb] + [Context/Tool] + [Quantifiable Result] + [Metric if available]
+- Each bullet MUST be 12-16 words — include the action, the specific tool/context, and a quantifiable result
+- Bullet format: [Action Verb] + [Context/Tool] + [Result or Metric]
 - Surface real metrics from the resume text (%, $, time, team size) — never fabricate
 - If no metric exists, state the strongest factual result
 - Different JDs should produce different bullet selections from the same resume
