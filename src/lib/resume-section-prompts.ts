@@ -60,8 +60,9 @@ Description: {jobDescription}
 
 Create a tailored technical skills section:
 - Create 5-6 categories (no more, no less)
-- Only include tools/methodologies/platforms explicitly in the candidate's resume
-- Match categories to this job's requirements (e.g., "PM Tools" for PM roles, "Infrastructure" for architecture roles)
+- HARD RULE: every skill listed MUST appear verbatim or as a clear abbreviation in CURRENT SKILLS above — if it is not there, do not include it, even if the job description mentions it
+- DO NOT infer, invent, or borrow skills from the job description (e.g. if the JD mentions "Snowflake" or "JSON-RPC 2.0" but the resume does not, they are BANNED)
+- Match category names to this job's requirements (e.g., "PM Tools" for PM roles, "Infrastructure" for architecture roles)
 - Within each category, include 3-5 skills; order by relevance to THIS job
 - Each skill should be a specific tool, platform, or technology name
 
