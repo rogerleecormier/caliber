@@ -129,16 +129,21 @@ export async function generateResumePdf(content: AtsResumeContent): Promise<Uint
     ensureSpace(LINE_HEIGHT);
     page.drawText(sanitizeText(prefix), { x, y, size, font: prefixFont, color });
 
+    // Hanging indent: continuation lines indent by a fixed amount (not the full
+    // prefix width), matching APA 7 style — short enough to be readable but
+    // clearly separate from the bold category label on line 1.
+    const HANGING_INDENT = 18;
+
     const words = sanitizeText(text).split(" ");
     let line = "";
     let isFirstLine = true;
     const maxWidth = CONTENT_WIDTH - (x - MARGIN);
     for (const word of words) {
       const test = line ? `${line} ${word}` : word;
-      const lineMaxWidth = isFirstLine ? maxWidth - prefixWidth : maxWidth - prefixWidth;
+      const lineMaxWidth = isFirstLine ? maxWidth - prefixWidth : maxWidth - HANGING_INDENT;
       const width = textFont.widthOfTextAtSize(test, size);
       if (width > lineMaxWidth && line) {
-        const lineX = isFirstLine ? x + prefixWidth : x + prefixWidth;
+        const lineX = isFirstLine ? x + prefixWidth : x + HANGING_INDENT;
         page.drawText(line, { x: lineX, y, size, font: textFont, color });
         y -= LINE_HEIGHT;
         ensureSpace(LINE_HEIGHT);
@@ -149,7 +154,7 @@ export async function generateResumePdf(content: AtsResumeContent): Promise<Uint
       }
     }
     if (line) {
-      const lineX = x + prefixWidth;
+      const lineX = isFirstLine ? x + prefixWidth : x + HANGING_INDENT;
       page.drawText(line, { x: lineX, y, size, font: textFont, color });
       y -= LINE_HEIGHT;
     }

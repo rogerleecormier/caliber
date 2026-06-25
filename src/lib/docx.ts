@@ -97,6 +97,8 @@ export async function generateResumeDocx(content: AtsResumeContent): Promise<Uin
             new TextRun({ text: `${group.category}: `, bold: true, size: 20, font: "Calibri" }),
             new TextRun({ text: skillsText, size: 20, font: "Calibri" }),
           ],
+          // APA 7-style hanging indent: first line at margin, continuations indented 180 twips (~0.125in)
+          indent: { left: 180, hanging: 180 },
           spacing: { after: 60 },
         }),
       );
