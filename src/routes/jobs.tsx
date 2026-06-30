@@ -214,7 +214,7 @@ function JobsPage() {
         description={
           loaderData.canViewAllUsers
             ? "Browse all users' agent jobs and manage the full pipeline."
-            : "Search across Greenhouse, Lever, Adzuna, Jooble, Remotive, and more — star any job to add it to your pipeline."
+            : "Search across Greenhouse, Lever, Adzuna, Jooble, Remotive, and more — favorite any job to add it to your pipeline."
         }
         actions={
           <div className="flex flex-wrap items-center justify-end gap-2.5">
@@ -354,7 +354,7 @@ function CatalogBrowser({
                 <Loader2 className="h-3.5 w-3.5 animate-spin" /> Searching…
               </span>
             ) : data
-              ? `${data.total.toLocaleString()} jobs · ⭐ star any job to add it to My Jobs`
+              ? `${data.total.toLocaleString()} jobs · ⭐ Favorite any job to add it to My Jobs`
               : 'Loading catalog…'}
           </p>
         </div>
@@ -506,7 +506,7 @@ function CatalogBrowser({
                     <button
                       onClick={() => handleStar(job)}
                       disabled={isStarring}
-                      title={job.isFavorited ? 'Remove from My Jobs' : 'Star to add to My Jobs'}
+                      title={job.isFavorited ? 'Remove from My Jobs' : 'Favorite to add to My Jobs'}
                       className={`mt-0.5 flex-shrink-0 transition-all ${
                         job.isFavorited ? 'text-amber-400 scale-110' : 'text-slate-200 hover:text-amber-400 hover:scale-110'
                       } ${isStarring ? 'opacity-50 animate-pulse' : ''}`}
