@@ -25,9 +25,15 @@ import {
   setPipelineJobStatus,
   togglePipelineJobFavorite,
 } from "@/server/functions/jobs-pipeline";
-import { PIPELINE_STATUSES } from "@/lib/pipeline-constants";
+import {
+  PIPELINE_STATUSES,
+  STATUS_TO_KEY,
+  STATUS_TONES,
+  type PipelineStatus,
+} from "@/lib/pipeline-constants";
 import { useJobsQuery } from "@/hooks/useJobsQuery";
 import { useQueryClient } from "@tanstack/react-query";
+import { CompactStatTile, StatCardGrid } from "@/components/ui/compact-stat-card";
 
 type SortOption = "posted-date" | "title" | "score" | "company" | "location";
 
@@ -52,6 +58,8 @@ type HubJob = Awaited<ReturnType<typeof getPipelineJobHistory>>["rows"][number] 
 const PAGE_SIZE = 20;
 const VALID_SORT_OPTIONS: SortOption[] = ["posted-date", "title", "score", "company", "location"];
 const JOB_STATUSES = PIPELINE_STATUSES as unknown as JobStatus[];
+// Archived jobs are excluded from the My Jobs query entirely, so omit that stage from the pipeline filter row.
+const VISIBLE_PIPELINE_STATUSES = PIPELINE_STATUSES.filter((s) => s !== "Archived");
 
 export const Route = createFileRoute("/my-jobs")({
   validateSearch: (search: Record<string, unknown> & MyJobsSearchInput): MyJobsSearchParams => ({
@@ -83,7 +91,7 @@ export const Route = createFileRoute("/my-jobs")({
 type ViewMode = "cards" | "table";
 
 function MyJobsPage() {
-  const { page, query, sortBy } = Route.useSearch();
+  const { page, query, sortBy, status } = Route.useSearch();
   const loaderData = Route.useLoaderData() as any;
   const navigate = Route.useNavigate();
 
@@ -99,7 +107,7 @@ function MyJobsPage() {
     page,
     query,
     sortBy,
-    status: "",
+    status,
     remote: false,
     analyzedOnly: false,
     view: "my-jobs" as const,
@@ -110,6 +118,17 @@ function MyJobsPage() {
   const jobs = (jobsQuery.data?.rows ?? []) as HubJob[];
   const totalCount = jobsQuery.data?.total ?? 0;
   const isLoading = jobsQuery.isLoading;
+  const pipelineCounts = jobsQuery.data?.pipelineCounts;
+
+  function handlePipelineFilterClick(pipelineStatus: PipelineStatus) {
+    navigate({
+      search: (prev) => ({
+        ...prev,
+        status: prev.status === pipelineStatus ? "" : pipelineStatus,
+        page: 1,
+      }),
+    });
+  }
 
   const sortedJobs = useMemo(() => {
     const copy = [...jobs];
@@ -210,6 +229,25 @@ function MyJobsPage() {
         title="My Jobs"
         description="Manage and track your saved and favorited jobs."
       />
+
+      {/* Pipeline status filter cards */}
+      <StatCardGrid cols={4} className="grid-cols-2 sm:grid-cols-4 lg:grid-cols-7">
+        {VISIBLE_PIPELINE_STATUSES.map((pipelineStatus) => {
+          const tone = STATUS_TONES[pipelineStatus];
+          const count = pipelineCounts?.[STATUS_TO_KEY[pipelineStatus]] ?? 0;
+          const isActive = status === pipelineStatus;
+          return (
+            <CompactStatTile
+              key={pipelineStatus}
+              icon={<span className={`block h-2.5 w-2.5 rounded-full ${tone.dot}`} />}
+              label={pipelineStatus}
+              value={count}
+              onClick={() => handlePipelineFilterClick(pipelineStatus)}
+              accentClass={isActive ? `${tone.bg} ${tone.text}` : undefined}
+            />
+          );
+        })}
+      </StatCardGrid>
 
       {/* Search + controls */}
       <div className="flex flex-wrap items-center gap-3">
