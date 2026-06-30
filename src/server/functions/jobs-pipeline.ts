@@ -517,19 +517,21 @@ export const getCatalogJobs = createServerFn({ method: "GET" })
     // Build where conditions for canonical_jobs
     const conditions: any[] = [eq(canonicalJobs.isListed, true)];
 
-    // Try vector search first if enabled and query exists
-    const VECTOR_SCORE_THRESHOLD = 0.30; // minimum cosine similarity to include a result
+    // Soft-rank threshold — below this a vector match still counts for the union,
+    // but contributes little to the blended score (see scoredRows below)
+    const VECTOR_SCORE_FLOOR = 0.15;
     let vectorSearchAttempted = false;
     let vectorJobIds: string[] | null = null;
-    let vectorScoreMap = new Map<string, number>(); // id → cosine score for re-ranking
+    const vectorScoreMap = new Map<string, number>(); // id → cosine score for re-ranking
     if (data.useVectorSearch && data.query?.trim() && env.VECTORIZE && env.AI) {
       try {
         vectorSearchAttempted = true;
         const { embedJob } = await import('@/server/dedup/embedding');
-        // Compose a richer embedding text than just the raw query title
-        const embeddingText = `${data.query.trim()} job position`;
+        // Embed the raw query text directly so its vector density matches how
+        // job vectors are built (title | company | location | description),
+        // rather than diluting it with filler words.
         const queryVector = await embedJob(env, {
-          titleDisplay: embeddingText,
+          titleDisplay: data.query.trim(),
           companyDisplay: '',
           titleNorm: '',
           companyNorm: '',
@@ -551,39 +553,40 @@ export const getCatalogJobs = createServerFn({ method: "GET" })
           score: m.score,
         })));
 
-        // Apply minimum score threshold
-        const aboveThreshold = (results.matches || []).filter(m => m.score >= VECTOR_SCORE_THRESHOLD);
-        console.log(`[getCatalogJobs] Vector matches above threshold (${VECTOR_SCORE_THRESHOLD}): ${aboveThreshold.length} of ${results.matches?.length ?? 0}`);
+        // Keep a floor only to exclude noise; real ranking happens via the blended score below
+        const aboveFloor = (results.matches || []).filter(m => m.score >= VECTOR_SCORE_FLOOR);
+        console.log(`[getCatalogJobs] Vector matches above floor (${VECTOR_SCORE_FLOOR}): ${aboveFloor.length} of ${results.matches?.length ?? 0}`);
 
-        vectorJobIds = aboveThreshold.map(m => String(m.metadata?.canonical_id || m.id));
-        aboveThreshold.forEach(m => {
+        vectorJobIds = aboveFloor.map(m => String(m.metadata?.canonical_id || m.id));
+        aboveFloor.forEach(m => {
           vectorScoreMap.set(String(m.metadata?.canonical_id || m.id), m.score);
         });
-
-        if (vectorJobIds.length > 0) {
-          conditions.push(inArray(canonicalJobs.id, vectorJobIds));
-          console.log('[getCatalogJobs] Vector search found', vectorJobIds.length, 'results');
-        } else {
-          console.warn('[getCatalogJobs] Vector search returned 0 results above threshold, falling back to keyword search');
-          vectorJobIds = null;
-        }
       } catch (error) {
-        console.warn('[getCatalogJobs] Vector search failed, falling back to keyword search:', error);
+        console.warn('[getCatalogJobs] Vector search failed:', error);
         vectorJobIds = null;
       }
     }
 
-    // Fall back to keyword search if vector search wasn't attempted, didn't find results, or failed
-    if (vectorJobIds === null && data.query?.trim()) {
+    // Keyword search always runs alongside vector search (when there's a query) and the
+    // two result sets are unioned — a query no longer has to clear a similarity bar to
+    // surface a job whose title/company/description contains it verbatim.
+    if (data.query?.trim()) {
       const q = data.query.trim().toLowerCase();
-      // Use instr for SQLite substring matching (case-insensitive)
-      conditions.push(or(
-        sql`instr(${canonicalJobs.titleNorm}, ${q}) > 0`,
-        sql`instr(${canonicalJobs.companyNorm}, ${q}) > 0`,
-      ));
+      const keywordCondition = or(
+        sql`instr(lower(${canonicalJobs.titleNorm}), ${q}) > 0`,
+        sql`instr(lower(${canonicalJobs.companyNorm}), ${q}) > 0`,
+        sql`instr(lower(coalesce(${canonicalJobs.descriptionPlain}, '')), ${q}) > 0`,
+      );
+      if (vectorJobIds && vectorJobIds.length > 0) {
+        conditions.push(or(inArray(canonicalJobs.id, vectorJobIds), keywordCondition));
+      } else {
+        conditions.push(keywordCondition);
+      }
       if (!vectorSearchAttempted) {
         console.log('[getCatalogJobs] Using keyword search for query:', q);
       }
+    } else if (vectorJobIds && vectorJobIds.length > 0) {
+      conditions.push(inArray(canonicalJobs.id, vectorJobIds));
     }
     if (data.remote === true) conditions.push(eq(canonicalJobs.remote, true));
     if (data.remote === false) conditions.push(eq(canonicalJobs.remote, false));
@@ -705,15 +708,19 @@ export const getCatalogJobs = createServerFn({ method: "GET" })
       return true;
     });
 
-    // Weighted hybrid re-rank: blend vector cosine score + keyword presence
+    // Weighted hybrid re-rank: blend vector cosine score + keyword presence,
+    // with title/company matches weighted higher than a description-only match.
     const q = (data.query || '').trim().toLowerCase();
     const scoredRows = uniqueRows.map((r) => {
       const vectorScore = vectorScoreMap.get(r.id) ?? 0;
-      const keywordMatch =
-        q && (
-          r.titleDisplay?.toLowerCase().includes(q) ||
-          r.companyDisplay?.toLowerCase().includes(q)
-        ) ? 1 : 0;
+      let keywordMatch = 0;
+      if (q) {
+        if (r.titleDisplay?.toLowerCase().includes(q) || r.companyDisplay?.toLowerCase().includes(q)) {
+          keywordMatch = 1;
+        } else if (r.descriptionPlain?.toLowerCase().includes(q)) {
+          keywordMatch = 0.5;
+        }
+      }
       const finalScore = vectorScore > 0
         ? 0.7 * vectorScore + 0.3 * keywordMatch
         : keywordMatch * 0.3; // keyword-only fallback gets lower weight
