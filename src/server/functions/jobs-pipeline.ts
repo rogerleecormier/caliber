@@ -14,7 +14,7 @@ import { getCloudflareEnvAsync } from "@/lib/cloudflare";
 import type { PipelineStatus } from "@/lib/pipeline-constants";
 import { getDb } from "@/db/db";
 import { user as userTable, canonicalJobs, masterResume, normalizedJobs, jobSources } from "@/db/schema";
-import { eq, and, inArray, or, gte, isNull, desc, asc, sql, count, ne } from "drizzle-orm";
+import { eq, and, inArray, or, gte, isNull, desc, asc, sql, count, countDistinct, ne } from "drizzle-orm";
 import { scoreJobAgainstProfile } from "@/lib/ai/job-score";
 import { canonicalizeJobUrl } from "@/lib/normalized-jobs-persistence";
 import {
@@ -608,7 +608,7 @@ export const getCatalogJobs = createServerFn({ method: "GET" })
     // Count total — use DISTINCT to avoid counting duplicates from LEFT JOINs
     // Exclude jobs that are archived (either for this user or globally)
     const countRows = await db
-      .select({ total: count(canonicalJobs.id, { distinct: true }) })
+      .select({ total: countDistinct(canonicalJobs.id) })
       .from(canonicalJobs)
       .leftJoin(jobSources, eq(jobSources.canonicalId, canonicalJobs.id))
       .leftJoin(normalizedJobs, and(
