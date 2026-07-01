@@ -45,6 +45,17 @@ function extractLeverJobId(sourceUrl: string): { companySlug: string; jobId: str
 }
 
 /**
+ * Extract Workable account and job shortcode from URL
+ */
+function extractWorkableJobId(sourceUrl: string): { account: string; shortcode: string } | null {
+  const match = sourceUrl.match(/apply\.workable\.com\/([^\/]+)\/j\/([a-zA-Z0-9]+)/i)
+  if (match?.[1] && match?.[2]) {
+    return { account: match[1], shortcode: match[2] }
+  }
+  return null
+}
+
+/**
  * Fetch Greenhouse job content via API
  */
 async function fetchGreenhouseContent(
@@ -102,6 +113,29 @@ async function fetchLeverContent(
 }
 
 /**
+ * Fetch Workable job content via per-job widget API
+ */
+async function fetchWorkableContent(
+  account: string,
+  shortcode: string
+): Promise<string | null> {
+  try {
+    const apiUrl = `https://apply.workable.com/api/v1/widget/accounts/${account}/jobs/${shortcode}`
+    const response = await fetch(apiUrl)
+    if (!response.ok) {
+      console.error(`[scrape-consumer] Workable API error: ${response.status}`)
+      return null
+    }
+
+    const data = (await response.json()) as any
+    return decodeHtmlEntities(data.description || data.full_description || '')
+  } catch (error) {
+    console.error('[scrape-consumer] Workable fetch failed:', error)
+    return null
+  }
+}
+
+/**
  * Process a single scrape request and enqueue result for ingestion
  */
 export async function processScrapeRequest(
@@ -131,6 +165,13 @@ export async function processScrapeRequest(
         content = await fetchLeverContent(ids.companySlug, ids.jobId)
       } else {
         throw new Error('Could not extract Lever job ID from URL')
+      }
+    } else if (source === 'workable') {
+      const ids = extractWorkableJobId(sourceUrl)
+      if (ids) {
+        content = await fetchWorkableContent(ids.account, ids.shortcode)
+      } else {
+        throw new Error('Could not extract Workable job ID from URL')
       }
     } else {
       throw new Error(`Unsupported source: ${source}`)

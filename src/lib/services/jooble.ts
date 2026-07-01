@@ -1,12 +1,13 @@
 import { JoobleJob, UnifiedJob } from './types';
 import { getCached, setCached, hashQuery } from './cache';
 import { incrementApiCall, getRateLimitStatus, canMakeJoobleRequest } from './rate-limiter';
+import { callWorkersAI } from '@/lib/ai-gateway';
 
 interface JoobleSearchParams {
   keywords?: string;
   location?: string;
   limit?: number;
-  enrichWithAI?: boolean; // Use Claude to analyze snippets
+  enrichWithAI?: boolean; // Use Workers AI to analyze snippets
 }
 
 interface JoobleResponse {
@@ -19,13 +20,13 @@ export class JoobleService {
   private baseUrl = 'https://jooble.org/api';
   private kv: any; // KVNamespace from Cloudflare Workers
   private cacheTtl: number;
-  private claudeApiKey?: string;
+  private aiEnv?: { AI?: any };
 
-  constructor(apiKey: string, kv: any, cacheTtlSeconds = 3600, claudeApiKey?: string) {
+  constructor(apiKey: string, kv: any, cacheTtlSeconds = 3600, aiEnv?: { AI?: any }) {
     this.apiKey = apiKey;
     this.kv = kv;
     this.cacheTtl = cacheTtlSeconds;
-    this.claudeApiKey = claudeApiKey;
+    this.aiEnv = aiEnv;
   }
 
   async search(params: JoobleSearchParams): Promise<UnifiedJob[]> {
@@ -145,11 +146,11 @@ export class JoobleService {
   }
 
   /**
-   * Enrich a job's snippet with Claude AI analysis
+   * Enrich a job's snippet with Workers AI (Gemma) analysis
    * Extracts key skills, requirements, seniority level, etc.
    */
   async enrichJobWithAI(job: UnifiedJob): Promise<UnifiedJob> {
-    if (!this.claudeApiKey || !job.description) {
+    if (!this.aiEnv?.AI || !job.description) {
       return job;
     }
 
@@ -163,43 +164,14 @@ Snippet: ${job.description}
 
 Respond with a single line JSON object with: summary (2-3 sentences), skills (comma-separated), seniority (junior/mid/senior/executive), requirements (comma-separated)`;
 
-      const response = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-api-key': this.claudeApiKey,
-          'anthropic-version': '2023-06-01',
-        },
-        body: JSON.stringify({
-          model: 'claude-opus-4-20250805',
-          max_tokens: 512,
-          messages: [
-            {
-              role: 'user',
-              content: prompt,
-            },
-          ],
-        }),
-      });
-
-      if (!response.ok) {
-        console.warn(`Claude enrichment failed for job ${job.id}: HTTP ${response.status}`);
-        return job;
-      }
-
-      const data = (await response.json()) as {
-        content: Array<{ type: string; text: string }>;
-      };
-
-      const textContent = data.content.find((c) => c.type === 'text');
-      if (!textContent || textContent.type !== 'text') {
-        return job;
-      }
+      const responseText = await callWorkersAI(this.aiEnv, [
+        { role: 'user', content: prompt },
+      ], { maxTokens: 512 });
 
       // Append enrichment data to rawData
       job.rawData = {
         ...((job.rawData as Record<string, unknown>) || {}),
-        aiAnalysis: textContent.text,
+        aiAnalysis: responseText,
       };
 
       return job;

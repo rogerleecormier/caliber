@@ -1,4 +1,6 @@
 import { UnifiedJob } from './types';
+import { callWorkersAI } from '@/lib/ai-gateway';
+import { DEFAULT_MODEL } from '@/lib/ai/types';
 
 interface EnrichedJobDescription {
   summary: string;
@@ -10,17 +12,17 @@ interface EnrichedJobDescription {
 }
 
 export class JoobleEnricher {
-  private apiKey: string;
+  private env: { AI?: any };
 
-  constructor(apiKey: string) {
-    if (!apiKey) {
-      throw new Error('Claude API key required for job enrichment');
+  constructor(env: { AI?: any }) {
+    if (!env?.AI) {
+      throw new Error('Workers AI binding required for job enrichment');
     }
-    this.apiKey = apiKey;
+    this.env = env;
   }
 
   /**
-   * Analyze a Jooble snippet using Claude to extract structured job information
+   * Analyze a Jooble snippet using Workers AI (Gemma) to extract structured job information
    * Useful for when full descriptions aren't available
    */
   async enrichJobFromSnippet(job: UnifiedJob): Promise<EnrichedJobDescription> {
@@ -45,50 +47,21 @@ Please provide a structured analysis with:
 
 Format your response as JSON with keys: summary, keyRequirements, keyResponsibilities, seniorityLevel, skillsRequired`;
 
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': this.apiKey,
-        'anthropic-version': '2023-06-01',
-      },
-      body: JSON.stringify({
-        model: 'claude-opus-4-20250805',
-        max_tokens: 1024,
-        messages: [
-          {
-            role: 'user',
-            content: prompt,
-          },
-        ],
-      }),
-    });
-
-    if (!response.ok) {
-      const error = await response.text();
-      throw new Error(`Claude API error: ${response.status} ${error}`);
-    }
-
-    const data = (await response.json()) as {
-      content: Array<{ type: string; text: string }>;
-    };
-
-    const textContent = data.content.find((c) => c.type === 'text');
-    if (!textContent || textContent.type !== 'text') {
-      throw new Error('No text response from Claude API');
-    }
+    const responseText = await callWorkersAI(this.env, [
+      { role: 'user', content: prompt },
+    ], { maxTokens: 1024 });
 
     // Parse JSON from response
-    const jsonMatch = textContent.text.match(/\{[\s\S]*\}/);
+    const jsonMatch = responseText.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
-      throw new Error('Failed to extract JSON from Claude response');
+      throw new Error('Failed to extract JSON from Workers AI response');
     }
 
     const parsed = JSON.parse(jsonMatch[0]) as Omit<EnrichedJobDescription, 'analysisModel'>;
 
     return {
       ...parsed,
-      analysisModel: 'claude-opus-4-20250805',
+      analysisModel: DEFAULT_MODEL,
     };
   }
 
