@@ -374,7 +374,7 @@ export const getRecommendedJobs = createServerFn({ method: "GET" })
               : null,
             workplaceType: job.remote ? 'remote' : 'on-site',
             remoteType: job.remote ? 'fully_remote' : 'unspecified',
-            currentStage: 'Favorited',
+            currentStage: 'Not Started',
             isFlagged: false,
             isUnicorn: scores.isUnicorn ? 1 : 0,
             unicornReason: scores.unicornReason,
@@ -419,26 +419,11 @@ export const togglePipelineJobFavorite = createServerFn({ method: "POST" })
     if (!env.DB) throw new Error("Database unavailable");
     const db = getDb(env.DB);
 
-    const [existing] = await db
-      .select({ currentStage: normalizedJobs.currentStage })
-      .from(normalizedJobs)
-      .where(and(eq(normalizedJobs.id, data.id), eq(normalizedJobs.userId, user.id)))
-      .limit(1);
-
-    if (!data.isFavorited && existing && existing.currentStage === 'Favorited') {
-      await db
-        .delete(normalizedJobs)
-        .where(and(eq(normalizedJobs.id, data.id), eq(normalizedJobs.userId, user.id)));
-      return { success: true, id: data.id, isFavorited: false, deleted: true };
-    }
-
-    const update: Record<string, unknown> = { isFavorited: data.isFavorited };
-    if (data.isFavorited) {
-      update.currentStage = 'Favorited';
-    }
+    // Favoriting is tracked purely via isFavorited — it never touches currentStage,
+    // and unstarring never deletes the row (the job stays visible at its current stage).
     await db
       .update(normalizedJobs)
-      .set(update as any)
+      .set({ isFavorited: data.isFavorited })
       .where(and(eq(normalizedJobs.id, data.id), eq(normalizedJobs.userId, user.id)));
     return { success: true, id: data.id, isFavorited: data.isFavorited };
   });
@@ -796,7 +781,7 @@ export const starCatalogJob = createServerFn({ method: "POST" })
         userId: user.id,
         canonicalJobId: canonical.id,
         isFavorited: data.star,
-        currentStage: 'Favorited',
+        currentStage: 'Not Started',
         sourceOrigin: source?.ats ?? 'unknown',
         jobTitle: canonical.titleDisplay,
         employerName: canonical.companyDisplay,

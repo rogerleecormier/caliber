@@ -313,7 +313,7 @@ export async function upsertNormalizedJobs(jobs: NormalizedJobInput[]): Promise<
     const values: NewNormalizedJob = {
       ...job,
       canonicalSourceUrl,
-      currentStage: job.currentStage ?? 'Favorited',
+      currentStage: job.currentStage ?? 'Not Started',
       isFlagged: job.isFlagged ?? false,
       isUnicorn: job.isUnicorn ?? 0,
       remoteType: job.remoteType ?? 'fully_remote',
@@ -388,6 +388,7 @@ export async function listNormalizedJobs(args: {
       canViewAllUsers: false,
       statusCounts: {} as Partial<Record<PipelineStatus, number>>,
       pipelineCounts: { ...EMPTY_PIPELINE_COUNTS },
+      favoritedCount: 0,
     };
   }
   const db = getDb(env.DB);
@@ -417,15 +418,16 @@ export async function listNormalizedJobs(args: {
         )
       : undefined,
     args.green ? gte(normalizedJobs.masterScore, 80) : undefined,
-    args.excludeFavorited ? sql`${normalizedJobs.currentStage} != 'Favorited'` : undefined,
-    // Pipeline visibility: show jobs user explicitly starred OR jobs progressed beyond Favorited stage
+    args.excludeFavorited ? eq(normalizedJobs.isFavorited, false) : undefined,
+    // Pipeline visibility (My Jobs): show jobs the user explicitly starred OR jobs
+    // that have progressed beyond the default "Not Started" stage.
     args.isFavorited === true
       ? or(
           eq(normalizedJobs.isFavorited, true),
-          sql`${normalizedJobs.currentStage} != 'Favorited'`,
+          sql`${normalizedJobs.currentStage} != 'Not Started'`,
         )
       : args.isFavorited === false
-        ? and(eq(normalizedJobs.isFavorited, false), sql`${normalizedJobs.currentStage} = 'Favorited'`)
+        ? and(eq(normalizedJobs.isFavorited, false), sql`${normalizedJobs.currentStage} = 'Not Started'`)
         : undefined,
   );
   const whereClause = args.status
@@ -528,6 +530,11 @@ export async function listNormalizedJobs(args: {
     .where(baseWhereClause)
     .groupBy(normalizedJobs.currentStage);
 
+  const [favoritedCountRow] = await db
+    .select({ count: sql<number>`count(*)` })
+    .from(normalizedJobs)
+    .where(and(baseWhereClause, eq(normalizedJobs.isFavorited, true)));
+
   const normalizedRows: NormalizedJobRow[] = await Promise.all(
     rows.map(async (row) => {
       const docs = await db
@@ -575,6 +582,7 @@ export async function listNormalizedJobs(args: {
     canViewAllUsers,
     statusCounts,
     pipelineCounts,
+    favoritedCount: Number(favoritedCountRow?.count ?? 0),
   };
 }
 
@@ -613,10 +621,6 @@ export async function setNormalizedJobStage(args: {
   // Archiving → clear the star so it disappears from both My Jobs and All Jobs
   if (args.currentStage === 'Archived') {
     stageUpdate.isFavorited = false;
-  }
-  // Setting to Favorited stage → star it (keeps is_favorited=1 OR stage!='Favorited' rule consistent)
-  if (args.currentStage === 'Favorited') {
-    stageUpdate.isFavorited = true;
   }
 
   await db
@@ -830,7 +834,7 @@ export async function setSearchConfigurationActive(id: number, userId: string, i
 
 /**
  * Unified archiving rule: archive unflagged rows older than 30 days instead of deleting.
- * Global (userId IS NULL) Favorited-stage rows additionally use the shorter
+ * Global (userId IS NULL) catalog rows additionally use the shorter
  * `linkedinRetentionDays` setting as a faster secondary pass to control ATS-catalog churn.
  */
 export async function pruneNormalizedJobs(): Promise<number> {

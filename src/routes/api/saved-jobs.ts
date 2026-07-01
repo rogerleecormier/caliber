@@ -154,7 +154,7 @@ export const Route = createFileRoute('/api/saved-jobs')({
               postDateText: job.postedDate || job.postDateText || null,
               workplaceType: job.workplaceType || null,
               remoteType: job.workplaceType === 'remote' ? 'fully_remote' : 'unspecified',
-              currentStage: 'Favorited',
+              currentStage: 'Not Started',
               isFlagged: false,
               isUnicorn: scores.isUnicorn ? 1 : 0,
               unicornReason: scores.unicornReason,

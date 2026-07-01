@@ -335,7 +335,7 @@ export const getAnalytics = createServerFn({ method: "POST" })
       // 10. Pipeline Conversion
       const statusMap = new Map<string, number>();
       const validStatuses = [
-        "Favorited",
+        "Not Started",
         "Analyzed",
         "Prepped",
         "Applied",

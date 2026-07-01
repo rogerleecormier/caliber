@@ -52,7 +52,7 @@ import {
   type DiscoveryLogRow,
   type CrawlerLogRow,
 } from '@/server/functions/agents-admin';
-import { backfillLegacyAnalyses } from '@/server/functions/admin';
+import { backfillLegacyAnalyses, debugLegacyBackfillState } from '@/server/functions/admin';
 import { getAgentInsightsJobs } from '@/server/functions/agent-insights';
 import type { FilterKey, JobDetailRow } from '@/server/functions/agent-insights';
 import { cleanJobDescription } from '@/lib/html-utils';
@@ -1130,6 +1130,16 @@ function ManualActionsCard({ queryClient }: { queryClient: ReturnType<typeof use
     setTimeout(() => setBackfillCopied(false), 2000);
   };
 
+  const [debugState, setDebugState] = useState<Awaited<ReturnType<typeof debugLegacyBackfillState>> | null>(null);
+  const debugMutation = useMutation({
+    mutationFn: async () => {
+      const result = await debugLegacyBackfillState({ data: {} });
+      setDebugState(result);
+      return result;
+    },
+    onError: (err: any) => toast.error(err.message || 'Failed to load debug state'),
+  });
+
   const isPending = triggerDiscoveryMutation.isPending || triggerCrawlerMutation.isPending || backfillMutation.isPending;
 
   return (
@@ -1156,7 +1166,32 @@ function ManualActionsCard({ queryClient }: { queryClient: ReturnType<typeof use
           <Loader2 className={`h-4 w-4 ${backfillMutation.isPending ? 'animate-spin' : 'hidden'}`} />
           Backfill Legacy Analyses
         </Button>
+        <Button
+          onClick={() => debugMutation.mutate()}
+          disabled={isPending || debugMutation.isPending}
+          variant="outline"
+          title="Show legacy vs normalized job counts and pipeline stage breakdown"
+        >
+          <Loader2 className={`h-4 w-4 ${debugMutation.isPending ? 'animate-spin' : 'hidden'}`} />
+          Debug Backfill State
+        </Button>
       </div>
+
+      {debugState && (
+        <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-4">
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-sm font-medium text-slate-700">
+              {debugState.legacyCount} legacy rows, {debugState.normalizedCount} normalized_jobs rows, {debugState.matchedLegacyCount} legacy rows already matched in normalized_jobs
+            </p>
+            <button type="button" onClick={() => setDebugState(null)} className="p-1 text-slate-400 hover:text-slate-600 cursor-pointer">
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+          <pre className="mt-3 max-h-64 overflow-auto whitespace-pre-wrap select-text rounded-md border border-slate-200 bg-white p-3 text-xs text-slate-600">
+            {JSON.stringify(debugState.stageCounts, null, 2)}
+          </pre>
+        </div>
+      )}
 
       {backfillResult && (
         <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-4">

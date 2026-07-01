@@ -6,6 +6,7 @@ import {
   Grid3x3,
   Loader2,
   Search,
+  Star,
   Table2,
 } from "lucide-react";
 import {
@@ -57,9 +58,11 @@ type HubJob = Awaited<ReturnType<typeof getPipelineJobHistory>>["rows"][number] 
 
 const PAGE_SIZE = 20;
 const VALID_SORT_OPTIONS: SortOption[] = ["posted-date", "title", "score", "company", "location"];
-const JOB_STATUSES = PIPELINE_STATUSES as unknown as JobStatus[];
+// "Not Started" is not a manually-selectable stage — it's the default for jobs that
+// haven't progressed yet. Favoriting is handled separately via the star icon.
+const JOB_STATUSES = PIPELINE_STATUSES.filter((s) => s !== "Not Started") as unknown as JobStatus[];
 // Archived jobs are excluded from the My Jobs query entirely, so omit that stage from the pipeline filter row.
-const VISIBLE_PIPELINE_STATUSES = PIPELINE_STATUSES.filter((s) => s !== "Archived");
+const VISIBLE_PIPELINE_STATUSES = PIPELINE_STATUSES.filter((s) => s !== "Archived" && s !== "Not Started");
 
 export const Route = createFileRoute("/my-jobs")({
   validateSearch: (search: Record<string, unknown> & MyJobsSearchInput): MyJobsSearchParams => ({
@@ -100,6 +103,7 @@ function MyJobsPage() {
   const [selectedJobForAnalysis, setSelectedJobForAnalysis] = useState<HubJob | null>(null);
   const [storedAnalysis, setStoredAnalysis] = useState<any>(null);
   const [pendingStatusId, setPendingStatusId] = useState<number | null>(null);
+  const [favoritesOnly, setFavoritesOnly] = useState(false);
 
   const queryClient = useQueryClient();
 
@@ -131,7 +135,7 @@ function MyJobsPage() {
   }
 
   const sortedJobs = useMemo(() => {
-    const copy = [...jobs];
+    const copy = favoritesOnly ? jobs.filter((j) => j.isFavorited) : [...jobs];
     switch (sortBy) {
       case "title": return copy.sort((a, b) => (a.title || "").localeCompare(b.title || ""));
       case "score": return copy.sort((a, b) => (b.matchScore ?? 0) - (a.matchScore ?? 0));
@@ -169,14 +173,9 @@ function MyJobsPage() {
   async function handleToggleFavorite(id: number, nextFavorited: boolean) {
     jobsQuery.updateJobsOptimistically((data) => {
       if (!data) return data;
-      const filtered = data.rows.filter((job) => {
-        if (job.id === id && !nextFavorited) return false;
-        return true;
-      });
       return {
         ...data,
-        rows: filtered,
-        total: Math.max(0, data.total - (!nextFavorited ? 1 : 0)),
+        rows: data.rows.map((job) => (job.id === id ? { ...job, isFavorited: nextFavorited } : job)),
       };
     });
     try {
@@ -230,8 +229,16 @@ function MyJobsPage() {
         description="Manage and track your saved and favorited jobs."
       />
 
-      {/* Pipeline status filter cards */}
-      <StatCardGrid cols={4} className="grid-cols-2 sm:grid-cols-4 lg:grid-cols-7">
+      {/* Favorites + pipeline status filter cards */}
+      <StatCardGrid cols={4} className="grid-cols-2 sm:grid-cols-4 lg:grid-cols-8">
+        <CompactStatTile
+          key="favorited"
+          icon={<Star className={`h-3.5 w-3.5 ${favoritesOnly ? "fill-amber-400 text-amber-400" : "text-amber-400"}`} />}
+          label="Favorites"
+          value={jobsQuery.data?.favoritedCount ?? 0}
+          onClick={() => setFavoritesOnly((prev) => !prev)}
+          accentClass={favoritesOnly ? "bg-amber-50 text-amber-700" : undefined}
+        />
         {VISIBLE_PIPELINE_STATUSES.map((pipelineStatus) => {
           const tone = STATUS_TONES[pipelineStatus];
           const count = pipelineCounts?.[STATUS_TO_KEY[pipelineStatus]] ?? 0;
@@ -332,12 +339,12 @@ function MyJobsPage() {
                   statusPending={job.id ? pendingStatusId === job.id : false}
                   isAnalyzed={!!job.analyzedAt}
                   onAnalyzeClick={job.id ? () => openAnalysisModal(job) : undefined}
-                  isFavorited={true}
-                  onToggleFavorite={job.id ? () => handleToggleFavorite(job.id!, false) : undefined}
+                  isFavorited={!!job.isFavorited}
+                  onToggleFavorite={job.id ? () => handleToggleFavorite(job.id!, !job.isFavorited) : undefined}
                 />
               ))}
             </div>
-            {totalCount > PAGE_SIZE && (
+            {!favoritesOnly && totalCount > PAGE_SIZE && (
               <Pagination
                 page={page}
                 totalPages={Math.ceil(totalCount / PAGE_SIZE)}
@@ -364,7 +371,7 @@ function MyJobsPage() {
               }}
               analyzedJobIds={analyzedJobIds}
             />
-            {totalCount > PAGE_SIZE && (
+            {!favoritesOnly && totalCount > PAGE_SIZE && (
               <Pagination
                 page={page}
                 totalPages={Math.ceil(totalCount / PAGE_SIZE)}

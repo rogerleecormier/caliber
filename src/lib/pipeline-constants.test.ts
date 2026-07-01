@@ -13,8 +13,8 @@ describe("Pipeline Constants", () => {
       expect(PIPELINE_STATUSES.length).toBeGreaterThan(0);
     });
 
-    it("should include Favorited status", () => {
-      expect(PIPELINE_STATUSES).toContain("Favorited");
+    it("should include Not Started status", () => {
+      expect(PIPELINE_STATUSES).toContain("Not Started");
     });
 
     it("should include Analyzed status", () => {
@@ -50,8 +50,8 @@ describe("Pipeline Constants", () => {
   });
 
   describe("Pipeline Status Transitions", () => {
-    it("should support transitioning from Favorited to Analyzed", () => {
-      expect(PIPELINE_STATUSES).toContain("Favorited");
+    it("should support transitioning from Not Started to Analyzed", () => {
+      expect(PIPELINE_STATUSES).toContain("Not Started");
       expect(PIPELINE_STATUSES).toContain("Analyzed");
     });
 

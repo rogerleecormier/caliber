@@ -8,7 +8,7 @@
 // ─── Status Enum ──────────────────────────────────────────────────────────────
 
 export const PIPELINE_STATUSES = [
-  'Favorited',
+  'Not Started',
   'Analyzed',
   'Prepped',
   'Applied',
@@ -30,8 +30,9 @@ export const ANALYZED_STATUSES: PipelineStatus[] = [
   'Not Hired',
 ];
 
-/** Default status for jobs discovered by search agents */
-export const DEFAULT_AGENT_STATUS: PipelineStatus = 'Favorited';
+/** Default status for jobs discovered by search agents. Favoriting is tracked
+ * independently via the `isFavorited` flag, not by pipeline stage. */
+export const DEFAULT_AGENT_STATUS: PipelineStatus = 'Not Started';
 
 /** Default status for jobs that are manually analyzed */
 export const DEFAULT_ANALYZED_STATUS: PipelineStatus = 'Analyzed';
@@ -54,13 +55,13 @@ export interface StatusTone {
 }
 
 export const STATUS_TONES: Record<PipelineStatus, StatusTone> = {
-  Favorited: {
-    dot: 'bg-amber-400',
-    bg: 'bg-amber-50',
-    text: 'text-amber-700',
-    border: 'border-amber-100',
-    pill: 'border-amber-100 bg-amber-50 text-amber-700',
-    bar: 'bg-amber-400',
+  'Not Started': {
+    dot: 'bg-slate-300',
+    bg: 'bg-slate-50',
+    text: 'text-slate-500',
+    border: 'border-slate-100',
+    pill: 'border-slate-100 bg-slate-50 text-slate-500',
+    bar: 'bg-slate-300',
   },
   Analyzed: {
     dot: 'bg-slate-400',
@@ -122,7 +123,7 @@ export const STATUS_TONES: Record<PipelineStatus, StatusTone> = {
 
 // ─── Utilities ────────────────────────────────────────────────────────────────
 
-/** Validate and coerce a string into a PipelineStatus, falling back to Favorited */
+/** Validate and coerce a string into a PipelineStatus, falling back to Not Started */
 export function normalizePipelineStatus(status: string | null | undefined): PipelineStatus {
   if (!status) return DEFAULT_AGENT_STATUS;
   // Direct match
@@ -142,7 +143,8 @@ export function normalizePipelineStatus(status: string | null | undefined): Pipe
     case 'Pursue':
     case 'Saved':
     case 'Discovered':
-      return 'Favorited';
+    case 'Favorited':
+      return 'Not Started';
     default:
       return DEFAULT_AGENT_STATUS;
   }
@@ -175,7 +177,7 @@ export const PIPELINE_STEPS = PIPELINE_STATUSES.map((status, index) => ({
 
 /** Pipeline status keys suitable for object keys (camelCase) */
 export type PipelineStatusKey =
-  | 'favorited'
+  | 'notStarted'
   | 'analyzed'
   | 'prepped'
   | 'applied'
@@ -185,7 +187,7 @@ export type PipelineStatusKey =
   | 'archived';
 
 export const STATUS_TO_KEY: Record<PipelineStatus, PipelineStatusKey> = {
-  Favorited: 'favorited',
+  'Not Started': 'notStarted',
   Analyzed: 'analyzed',
   Prepped: 'prepped',
   Applied: 'applied',
@@ -196,7 +198,7 @@ export const STATUS_TO_KEY: Record<PipelineStatus, PipelineStatusKey> = {
 };
 
 export const KEY_TO_STATUS: Record<PipelineStatusKey, PipelineStatus> = {
-  favorited: 'Favorited',
+  notStarted: 'Not Started',
   analyzed: 'Analyzed',
   prepped: 'Prepped',
   applied: 'Applied',
@@ -209,7 +211,7 @@ export const KEY_TO_STATUS: Record<PipelineStatusKey, PipelineStatus> = {
 export type PipelineCounts = Record<PipelineStatusKey, number>;
 
 export const EMPTY_PIPELINE_COUNTS: PipelineCounts = {
-  favorited: 0,
+  notStarted: 0,
   analyzed: 0,
   prepped: 0,
   applied: 0,

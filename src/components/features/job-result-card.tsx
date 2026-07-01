@@ -15,6 +15,7 @@ import {
   Loader2,
   Mail,
   Sparkles,
+  Star,
 } from "lucide-react";
 import { getScoreBorderColor } from "@/lib/scoreUtils";
 import { getDocumentDownload } from "@/server/functions/get-history";
@@ -144,6 +145,41 @@ function sourceLabel(sourceName?: string | null, sourceOrigin?: string | null): 
   return SOURCE_DISPLAY_LABELS[raw] ?? (raw ? raw.charAt(0).toUpperCase() + raw.slice(1) : '');
 }
 
+function FavoriteStarButton({
+  isFavorited,
+  onToggleFavorite,
+  jobTitle,
+}: {
+  isFavorited: boolean;
+  onToggleFavorite: () => void | Promise<void>;
+  jobTitle: string;
+}) {
+  const [isAnimating, setIsAnimating] = useState(false);
+
+  function handleClick() {
+    setIsAnimating(true);
+    setTimeout(() => setIsAnimating(false), 400);
+    void onToggleFavorite();
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={handleClick}
+      aria-label={isFavorited ? `Unfavorite ${jobTitle}` : `Favorite ${jobTitle}`}
+      aria-pressed={isFavorited}
+      title={isFavorited ? "Unfavorite" : "Favorite"}
+      className="absolute right-3 top-3 z-10 inline-flex h-8 w-8 items-center justify-center rounded-full bg-white/90 shadow-sm ring-1 ring-slate-200 transition hover:bg-white hover:ring-amber-300"
+    >
+      <Star
+        className={`h-4 w-4 transition-transform duration-300 ${
+          isFavorited ? "fill-amber-400 text-amber-400" : "fill-none text-slate-400"
+        } ${isAnimating ? "scale-150" : "scale-100"}`}
+      />
+    </button>
+  );
+}
+
 export function JobResultCard({
   job,
   isNew = false,
@@ -229,10 +265,18 @@ export function JobResultCard({
             type="checkbox"
             checked={selected}
             onChange={onSelect}
-            className="absolute right-3 top-3 h-4 w-4 shrink-0 rounded border-slate-300 text-primary-600 z-10"
+            className={`absolute top-3 h-4 w-4 shrink-0 rounded border-slate-300 text-primary-600 z-10 ${onToggleFavorite ? "right-14" : "right-3"}`}
             aria-label={`Select ${job.title} at ${job.company}`}
           />
         ) : null}
+
+        {onToggleFavorite && (
+          <FavoriteStarButton
+            isFavorited={isFavorited}
+            onToggleFavorite={onToggleFavorite}
+            jobTitle={job.title}
+          />
+        )}
 
         {/* Left Column: Job Info */}
         <div className="flex-1 space-y-4">
@@ -383,20 +427,6 @@ export function JobResultCard({
           {/* Action buttons */}
           <div className="flex flex-col gap-2 pt-3 md:pt-0">
             <div className="flex flex-wrap items-center gap-2">
-              {onToggleFavorite && (
-                <button
-                  type="button"
-                  onClick={onToggleFavorite}
-                  className={`flex-1 inline-flex h-9 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg border px-3 text-xs font-semibold transition ${
-                    isFavorited
-                      ? "border-amber-300 bg-amber-50 text-amber-700 hover:bg-amber-100"
-                      : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
-                  }`}
-                >
-                  <span className="mr-0.5">{isFavorited ? "★" : "☆"}</span>
-                  {isFavorited ? "Unfavorite" : "Favorite"}
-                </button>
-              )}
               {isAnalyzed ? (
                 <button
                   type="button"
@@ -485,10 +515,17 @@ export function JobResultCard({
           type="checkbox"
           checked={selected}
           onChange={onSelect}
-          className="absolute right-3 top-3 h-4 w-4 shrink-0 rounded border-slate-300 text-primary-600 z-10"
+          className={`absolute top-3 h-4 w-4 shrink-0 rounded border-slate-300 text-primary-600 z-10 ${onToggleFavorite ? "right-14" : "right-3"}`}
           aria-label={`Select ${job.title} at ${job.company}`}
         />
       ) : null}
+      {onToggleFavorite && (
+        <FavoriteStarButton
+          isFavorited={isFavorited}
+          onToggleFavorite={onToggleFavorite}
+          jobTitle={job.title}
+        />
+      )}
       <PrimaryCard
         title={job.title}
         description={`${job.company}${job.location ? ' · ' + job.location : ''}`}
@@ -626,20 +663,6 @@ export function JobResultCard({
         <div className="flex flex-col gap-2 border-t border-slate-100 pt-2">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex w-full flex-wrap items-center gap-1.5 sm:w-auto">
-              {onToggleFavorite && (
-                <button
-                  type="button"
-                  onClick={onToggleFavorite}
-                  className={`inline-flex h-8 items-center gap-1 whitespace-nowrap rounded-lg border px-2.5 text-xs font-semibold transition ${
-                    isFavorited
-                      ? "border-amber-300 bg-amber-50 text-amber-700 hover:bg-amber-100"
-                      : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
-                  }`}
-                >
-                  <span className="mr-1">{isFavorited ? "★" : "☆"}</span>
-                  {isFavorited ? "Unfavorite" : "Favorite"}
-                </button>
-              )}
               {isAnalyzed ? (
                 <button
                   type="button"

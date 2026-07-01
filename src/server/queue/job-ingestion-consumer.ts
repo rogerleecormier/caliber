@@ -113,7 +113,7 @@ async function processAtsJobMessage(
       postDateText: payload.postDate,
       remoteType: 'fully_remote',
       categoryId,
-      currentStage: 'Favorited',
+      currentStage: 'Not Started',
       isFlagged: false,
       isUnicorn: 0,
       discoveryTimestamp: now,

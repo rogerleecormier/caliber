@@ -127,6 +127,13 @@
       "when": 1782226922136,
       "tag": "0034_little_living_mummy",
       "breakpoints": true
+    },
+    {
+      "idx": 35,
+      "version": "6",
+      "when": 1782891159454,
+      "tag": "0035_spicy_genesis",
+      "breakpoints": true
     }
   ]
 }

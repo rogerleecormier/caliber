@@ -96,6 +96,50 @@ export const deleteUser = createServerFn({ method: "POST" })
     return { success: true };
   });
 
+export const debugLegacyBackfillState = createServerFn({ method: "GET" })
+  .inputValidator((data: { userId?: string }) => data)
+  .handler(async (ctx: any) => { const { data } = ctx;
+    const adminUser = await requireAdmin(ctx);
+    const env = await getCloudflareEnvAsync();
+    if (!env.DB) throw new Error("Database unavailable");
+    const db = getDb(env.DB);
+    const targetUserId = data.userId ?? adminUser.id;
+
+    const legacyRows = await db
+      .select({ id: jobAnalyses.id, jobUrl: jobAnalyses.jobUrl })
+      .from(jobAnalyses)
+      .where(eq(jobAnalyses.userId, targetUserId));
+
+    const normalizedRows = await db
+      .select({
+        sourceUrl: normalizedJobs.sourceUrl,
+        canonicalSourceUrl: normalizedJobs.canonicalSourceUrl,
+        currentStage: normalizedJobs.currentStage,
+        isFavorited: normalizedJobs.isFavorited,
+      })
+      .from(normalizedJobs)
+      .where(eq(normalizedJobs.userId, targetUserId));
+
+    const stageCounts: Record<string, number> = {};
+    for (const row of normalizedRows) {
+      const key = `${row.currentStage} (favorited=${row.isFavorited})`;
+      stageCounts[key] = (stageCounts[key] ?? 0) + 1;
+    }
+
+    const normalizedUrlSet = new Set([
+      ...normalizedRows.map((r) => r.sourceUrl),
+      ...normalizedRows.map((r) => r.canonicalSourceUrl),
+    ]);
+    const matchedLegacyCount = legacyRows.filter((r) => r.jobUrl && normalizedUrlSet.has(r.jobUrl)).length;
+
+    return {
+      legacyCount: legacyRows.length,
+      normalizedCount: normalizedRows.length,
+      matchedLegacyCount,
+      stageCounts,
+    };
+  });
+
 export const backfillLegacyAnalyses = createServerFn({ method: "POST" })
   .inputValidator((data: { userId?: string }) => data)
   .handler(async (ctx: any) => { const { data } = ctx;
