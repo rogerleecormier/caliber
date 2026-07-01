@@ -1,6 +1,6 @@
 'use server';
 import { createServerFn } from "@tanstack/react-start";
-import { eq, inArray } from "drizzle-orm";
+import { eq, inArray, sql } from "drizzle-orm";
 import { getCloudflareEnvAsync } from "@/lib/cloudflare";
 import { getDb } from "@/db/db";
 import { resolveSessionUser } from "@/lib/resolve-user";
@@ -14,6 +14,7 @@ import {
   normalizedJobs,
   searchConfigurations,
 } from "@/db/schema";
+import { mapLegacyAnalysisStatus } from "@/lib/pipeline-constants";
 
 async function requireAdmin(ctx?: any) {
   const request = ctx?.request;
@@ -93,4 +94,86 @@ export const deleteUser = createServerFn({ method: "POST" })
     await db.delete(userTable).where(eq(userTable.id, data.userId));
 
     return { success: true };
+  });
+
+export const backfillLegacyAnalyses = createServerFn({ method: "POST" })
+  .inputValidator((data: { userId?: string }) => data)
+  .handler(async (ctx: any) => { const { data } = ctx;
+    const adminUser = await requireAdmin(ctx);
+    const env = await getCloudflareEnvAsync();
+    if (!env.DB) throw new Error("Database unavailable");
+    const db = getDb(env.DB);
+
+    const targetUserId = data.userId ?? adminUser.id;
+
+    const legacyRows = await db
+      .select()
+      .from(jobAnalyses)
+      .where(eq(jobAnalyses.userId, targetUserId));
+
+    if (legacyRows.length === 0) return { inserted: 0, skipped: 0 };
+
+    const existingUrls = await db
+      .select({ sourceUrl: normalizedJobs.sourceUrl })
+      .from(normalizedJobs)
+      .where(eq(normalizedJobs.userId, targetUserId));
+    const existingUrlSet = new Set(existingUrls.map((r) => r.sourceUrl));
+
+    let inserted = 0;
+    let skipped = 0;
+
+    for (const row of legacyRows) {
+      if (!row.jobUrl || existingUrlSet.has(row.jobUrl)) {
+        skipped++;
+        continue;
+      }
+
+      const currentStage = mapLegacyAnalysisStatus({
+        applied: row.applied,
+        applicationStatus: row.applicationStatus ?? undefined,
+        documents: [],
+      });
+
+      const now = row.createdAt ?? new Date().toISOString();
+
+      await db.insert(normalizedJobs).values({
+        userId: targetUserId,
+        sourceOrigin: 'legacy',
+        jobTitle: row.jobTitle ?? 'Untitled',
+        employerName: row.company ?? 'Unknown',
+        location: row.location ?? null,
+        industry: row.industry ?? null,
+        sourceUrl: row.jobUrl,
+        canonicalSourceUrl: row.jobUrl,
+        jdText: row.jdText ?? null,
+        matchScore: row.matchScore ?? null,
+        gapAnalysis: row.gapAnalysis ?? null,
+        recommendations: row.recommendations ?? null,
+        pursue: row.pursue ?? null,
+        pursueJustification: row.pursueJustification ?? null,
+        keywords: row.keywords ?? null,
+        strategyNote: row.strategyNote ?? null,
+        personalInterest: row.personalInterest ?? null,
+        careerAnalysis: row.careerAnalysis ?? null,
+        insights: row.insights ?? null,
+        currentStage,
+        isFavorited: true,
+        discoveryTimestamp: now,
+        lastSeenAt: now,
+        analyzedAt: row.createdAt ?? null,
+        createdAt: now,
+        updatedAt: now,
+      });
+
+      if (row.id) {
+        await db
+          .update(generatedDocuments)
+          .set({ pipelineJobId: sql`(SELECT id FROM normalized_jobs WHERE source_url = ${row.jobUrl} AND user_id = ${targetUserId} LIMIT 1)` })
+          .where(eq(generatedDocuments.jobAnalysisId, row.id));
+      }
+
+      inserted++;
+    }
+
+    return { inserted, skipped };
   });

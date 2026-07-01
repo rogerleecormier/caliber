@@ -52,6 +52,7 @@ import {
   type DiscoveryLogRow,
   type CrawlerLogRow,
 } from '@/server/functions/agents-admin';
+import { backfillLegacyAnalyses } from '@/server/functions/admin';
 import { getAgentInsightsJobs } from '@/server/functions/agent-insights';
 import type { FilterKey, JobDetailRow } from '@/server/functions/agent-insights';
 import { cleanJobDescription } from '@/lib/html-utils';
@@ -1095,7 +1096,17 @@ function ManualActionsCard({ queryClient }: { queryClient: ReturnType<typeof use
     addBoardMutation.mutate({ ats: newBoardAts, token: newBoardToken, companyName: newBoardCompany });
   };
 
-  const isPending = triggerDiscoveryMutation.isPending || triggerCrawlerMutation.isPending;
+  const backfillMutation = useMutation({
+    mutationFn: async () => {
+      const toastId = toast.loading('Backfilling legacy analyses…', { duration: Infinity });
+      const result = await backfillLegacyAnalyses({ data: {} });
+      toast.success(`Backfill complete: ${result.inserted} inserted, ${result.skipped} skipped`, { id: toastId, duration: 6000 });
+      return result;
+    },
+    onError: (err: any) => toast.error(err.message || 'Backfill failed'),
+  });
+
+  const isPending = triggerDiscoveryMutation.isPending || triggerCrawlerMutation.isPending || backfillMutation.isPending;
 
   return (
     <PageSection title="Manual Actions" description="Trigger discovery and crawler runs on demand, or register a new ATS board.">
@@ -1111,6 +1122,15 @@ function ManualActionsCard({ queryClient }: { queryClient: ReturnType<typeof use
         <Button onClick={() => setIsAddModalOpen(true)} variant="outline">
           <Plus className="h-4 w-4" />
           Add Board
+        </Button>
+        <Button
+          onClick={() => backfillMutation.mutate()}
+          disabled={isPending}
+          variant="outline"
+          title="Copy legacy job_analyses rows into normalized_jobs so they appear in My Jobs"
+        >
+          <Loader2 className={`h-4 w-4 ${backfillMutation.isPending ? 'animate-spin' : 'hidden'}`} />
+          Backfill Legacy Analyses
         </Button>
       </div>
 
