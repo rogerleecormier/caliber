@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect, useCallback, useRef } from "react";
+import { useMemo } from "react";
 import type { ComponentType, ReactNode } from "react";
 import {
   BarChart3,
@@ -32,14 +32,6 @@ interface AppHeaderUser {
   role: string;
 }
 
-export interface AppHeaderSearchResult {
-  id: string;
-  titleDisplay: string;
-  companyDisplay: string;
-  locationDisplay: string | null;
-  remote: boolean | null;
-}
-
 interface AppHeaderProps {
   app: "jobs" | "tools" | "corporate";
   isDev?: boolean;
@@ -48,7 +40,7 @@ interface AppHeaderProps {
   extraNav?: ReactNode;
   user?: AppHeaderUser | null;
   onLogout?: () => Promise<void> | void;
-  onSearch?: (query: string) => Promise<AppHeaderSearchResult[]>;
+  onAnalyzeClick?: () => void;
 }
 
 type MenuTone = "neutral" | "primary" | "indigo" | "info" | "success";
@@ -338,67 +330,8 @@ export function AppHeader({
   extraNav,
   user,
   onLogout,
-  onSearch,
+  onAnalyzeClick,
 }: AppHeaderProps) {
-  const [searchModalOpen, setSearchModalOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [searchResults, setSearchResults] = useState<AppHeaderSearchResult[]>([]);
-  const [searchLoading, setSearchLoading] = useState(false);
-  const [searchError, setSearchError] = useState<string | null>(null);
-  const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  // Handle keyboard shortcut for search
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
-        e.preventDefault();
-        setSearchModalOpen(true);
-      }
-      if (e.key === "Escape") {
-        setSearchModalOpen(false);
-      }
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, []);
-
-  const runSearch = useCallback(async (q: string) => {
-    if (!onSearch || q.trim().length < 2) {
-      setSearchResults([]);
-      return;
-    }
-    setSearchLoading(true);
-    setSearchError(null);
-    try {
-      const results = await onSearch(q.trim());
-      setSearchResults(results);
-    } catch (err) {
-      console.error('[HeaderSearch] search error:', err);
-      setSearchError("Search failed. Please try again.");
-      setSearchResults([]);
-    } finally {
-      setSearchLoading(false);
-    }
-  }, [onSearch]);
-
-  useEffect(() => {
-    if (debounceTimer.current) clearTimeout(debounceTimer.current);
-    if (searchQuery.trim().length < 2) {
-      setSearchResults([]);
-      setSearchError(null);
-      return;
-    }
-    debounceTimer.current = setTimeout(() => {
-      void runSearch(searchQuery);
-    }, 400);
-    return () => {
-      if (debounceTimer.current) clearTimeout(debounceTimer.current);
-    };
-  }, [searchQuery, runSearch]);
-
   const sharedOrigin =
     typeof window === "undefined"
       ? getSharedAuthOrigin()
@@ -578,16 +511,15 @@ export function AppHeader({
     </a>
   );
 
-  const searchBoxElement = (
+  const searchBoxElement = onAnalyzeClick ? (
     <button
-      onClick={() => setSearchModalOpen(true)}
-      className="hidden md:flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50/50 hover:bg-slate-100 px-3 py-2 text-sm text-slate-600 transition min-w-0 w-1/3"
+      onClick={onAnalyzeClick}
+      className="hidden md:flex items-center gap-2 rounded-lg bg-indigo-600 border border-indigo-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700"
     >
-      <Search size={14} className="text-slate-400 shrink-0" />
-      <span className="text-slate-500">Search jobs...</span>
-      <span className="text-[10px] font-semibold text-slate-400 ml-auto shrink-0">⌘K</span>
+      <Search size={14} className="shrink-0" />
+      Analyze a Job
     </button>
-  );
+  ) : undefined;
 
   return (
     <>
@@ -753,93 +685,6 @@ export function AppHeader({
         </div>
       )}
 
-      {searchModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/50 flex items-start justify-center pt-20 px-4">
-          <div className="w-full max-w-2xl rounded-xl border border-slate-200 bg-white shadow-xl">
-            <div className="border-b border-slate-200 p-4 flex items-center gap-3">
-              <Search className="h-5 w-5 text-slate-400 shrink-0" />
-              <input
-                type="text"
-                placeholder="Search jobs by title, company, skills..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                autoFocus
-                className="w-full text-lg outline-none placeholder:text-slate-400"
-              />
-              {searchLoading && (
-                <div className="h-4 w-4 border-2 border-orange-400 border-t-transparent rounded-full animate-spin shrink-0" />
-              )}
-            </div>
-            <div className="max-h-96 overflow-y-auto">
-              {searchQuery.trim().length < 2 ? (
-                <div className="text-center py-12 px-4">
-                  <Search className="h-12 w-12 text-slate-300 mx-auto mb-3" />
-                  <p className="text-slate-600">Type at least 2 characters to search</p>
-                </div>
-              ) : searchError ? (
-                <div className="text-center py-8 px-4">
-                  <p className="text-red-500">{searchError}</p>
-                </div>
-              ) : searchLoading && searchResults.length === 0 ? (
-                <div className="text-center py-12 px-4">
-                  <p className="text-slate-500">Searching…</p>
-                </div>
-              ) : searchResults.length === 0 && !searchLoading ? (
-                <div className="text-center py-12 px-4">
-                  <p className="text-slate-600">No results found for "<span className="font-medium">{searchQuery}</span>"</p>
-                  <p className="text-sm text-slate-500 mt-2">Try broader keywords or different terms</p>
-                </div>
-              ) : (
-                <ul className="divide-y divide-slate-100">
-                  {searchResults.map((job) => (
-                    <li key={job.id}>
-                      <a
-                        href={`/jobs?view=search&catalogQuery=${encodeURIComponent(searchQuery)}`}
-                        className="flex flex-col gap-0.5 px-5 py-3.5 hover:bg-slate-50 transition-colors"
-                        onClick={() => {
-                          setSearchModalOpen(false);
-                          setSearchQuery("");
-                          setSearchResults([]);
-                        }}
-                      >
-                        <span className="text-sm font-semibold text-slate-900 truncate">{job.titleDisplay}</span>
-                        <span className="text-xs text-slate-500 truncate">
-                          {job.companyDisplay}
-                          {job.locationDisplay ? ` · ${job.locationDisplay}` : ""}
-                          {job.remote ? " · Remote" : ""}
-                        </span>
-                      </a>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-            <div className="border-t border-slate-200 bg-slate-50 px-4 py-3 flex justify-between items-center text-xs text-slate-500">
-              <span>Press <kbd className="font-semibold">ESC</kbd> to close</span>
-              {searchResults.length > 0 && (
-                <a
-                  href={`/jobs?view=search&catalogQuery=${encodeURIComponent(searchQuery)}`}
-                  className="text-orange-600 font-medium hover:underline"
-                  onClick={() => { setSearchModalOpen(false); setSearchQuery(""); setSearchResults([]); }}
-                >
-                  View all {searchResults.length}+ results →
-                </a>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {searchModalOpen && (
-        <div
-          className="fixed inset-0 z-40"
-          onClick={() => {
-            setSearchModalOpen(false);
-            setSearchQuery("");
-            setSearchResults([]);
-          }}
-        />
-      )}
     </>
   );
 }

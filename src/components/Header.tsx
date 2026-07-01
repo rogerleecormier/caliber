@@ -1,10 +1,10 @@
 import { Link, useLocation, useRouter } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { AppHeader, type AppHeaderSearchResult } from "@caliber/ui-kit";
+import { AppHeader } from "@caliber/ui-kit";
 import type { SessionUser } from "@/lib/cloudflare";
 import { authClient } from "@/auth/client";
 import { getSessionUser } from "@/server/functions/auth";
-import { getCatalogJobs } from "@/server/functions/jobs-pipeline";
+import { AnalysisModal } from "@/components/features/analysis-modal";
 
 interface HeaderProps {
   user?: SessionUser | null;
@@ -15,6 +15,7 @@ export default function Header({ user }: HeaderProps) {
   const location = useLocation();
   const router = useRouter();
   const [resolvedUser, setResolvedUser] = useState<SessionUser | null>(user ?? null);
+  const [analysisModalOpen, setAnalysisModalOpen] = useState(false);
 
   useEffect(() => {
     setResolvedUser(user ?? null);
@@ -42,25 +43,23 @@ export default function Header({ user }: HeaderProps) {
     window.location.href = "/";
   }
 
-  async function handleSearch(query: string): Promise<AppHeaderSearchResult[]> {
-    console.log('[HeaderSearch] query:', query);
-    const result = await getCatalogJobs({
-      data: { query, useVectorSearch: true, page: 1, pageSize: 10 },
-    });
-    const jobs = (result as any)?.jobs ?? [];
-    console.log('[HeaderSearch] results:', jobs);
-    return jobs as AppHeaderSearchResult[];
-  }
-
   return (
-    <AppHeader
-      app="jobs"
-      isDev={isDev}
-      currentPath={location.pathname}
-      Link={Link}
-      user={resolvedUser}
-      onLogout={handleLogout}
-      onSearch={handleSearch}
-    />
+    <>
+      <AppHeader
+        app="jobs"
+        isDev={isDev}
+        currentPath={location.pathname}
+        Link={Link}
+        user={resolvedUser}
+        onLogout={handleLogout}
+        onAnalyzeClick={() => setAnalysisModalOpen(true)}
+      />
+      <AnalysisModal
+        isOpen={analysisModalOpen}
+        onClose={() => setAnalysisModalOpen(false)}
+        onAnalysisComplete={() => {}}
+        onDocumentGenerated={() => {}}
+      />
+    </>
   );
 }
