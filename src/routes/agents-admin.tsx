@@ -1099,11 +1099,25 @@ function ManualActionsCard({ queryClient }: { queryClient: ReturnType<typeof use
   const backfillMutation = useMutation({
     mutationFn: async () => {
       const toastId = toast.loading('Backfilling legacy analyses…', { duration: Infinity });
-      const result = await backfillLegacyAnalyses({ data: {} });
-      toast.success(`Backfill complete: ${result.inserted} inserted, ${result.skipped} skipped`, { id: toastId, duration: 6000 });
-      return result;
+      try {
+        const result = await backfillLegacyAnalyses({ data: {} });
+        const errorCount = result.errors?.length ?? 0;
+        if (errorCount > 0) {
+          toast.warning(
+            `Backfill done: ${result.inserted} inserted, ${result.skipped} skipped, ${errorCount} errors`,
+            { id: toastId, duration: 8000, description: result.errors?.[0] },
+          );
+          console.error('Backfill errors:', result.errors);
+        } else {
+          toast.success(`Backfill complete: ${result.inserted} inserted, ${result.skipped} skipped`, { id: toastId, duration: 6000 });
+        }
+        return result;
+      } catch (err: any) {
+        const msg = err?.message ?? String(err);
+        toast.error(`Backfill failed: ${msg.slice(0, 120)}`, { id: toastId, duration: 8000 });
+        throw err;
+      }
     },
-    onError: (err: any) => toast.error(err.message || 'Backfill failed'),
   });
 
   const isPending = triggerDiscoveryMutation.isPending || triggerCrawlerMutation.isPending || backfillMutation.isPending;

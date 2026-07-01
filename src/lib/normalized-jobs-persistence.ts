@@ -40,7 +40,7 @@ export type NormalizedJobRow = NormalizedJob & {
   company: string;
   firstSeenAt?: string | null;
   ownerEmail?: string | null;
-  documents?: Array<{ id: number; docType: string; r2Key: string; fileName: string }>;
+  documents?: Array<{ id: number; docType: string; r2Key: string; fileName: string; createdAt: string | null }>;
   status?: PipelineStatus;
 };
 
@@ -536,6 +536,7 @@ export async function listNormalizedJobs(args: {
           docType: generatedDocuments.docType,
           r2Key: generatedDocuments.r2Key,
           fileName: generatedDocuments.fileName,
+          createdAt: generatedDocuments.createdAt,
         })
         .from(generatedDocuments)
         .where(eq(generatedDocuments.pipelineJobId, row.id))
@@ -550,6 +551,7 @@ export async function listNormalizedJobs(args: {
           docType: d.docType,
           r2Key: d.r2Key,
           fileName: d.fileName ?? '',
+          createdAt: d.createdAt ?? null,
         })),
       } as NormalizedJobRow;
     }),

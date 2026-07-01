@@ -122,6 +122,12 @@ export const backfillLegacyAnalyses = createServerFn({ method: "POST" })
     let inserted = 0;
     let skipped = 0;
 
+    const errors: string[] = [];
+
+    // Build the list of rows to insert
+    type PendingRow = { legacy: typeof legacyRows[number]; values: typeof normalizedJobs.$inferInsert };
+    const pending: PendingRow[] = [];
+
     for (const row of legacyRows) {
       if (!row.jobUrl || existingUrlSet.has(row.jobUrl)) {
         skipped++;
@@ -136,44 +142,58 @@ export const backfillLegacyAnalyses = createServerFn({ method: "POST" })
 
       const now = row.createdAt ?? new Date().toISOString();
 
-      await db.insert(normalizedJobs).values({
-        userId: targetUserId,
-        sourceOrigin: 'legacy',
-        jobTitle: row.jobTitle ?? 'Untitled',
-        employerName: row.company ?? 'Unknown',
-        location: row.location ?? null,
-        industry: row.industry ?? null,
-        sourceUrl: row.jobUrl,
-        canonicalSourceUrl: row.jobUrl,
-        jdText: row.jdText ?? null,
-        matchScore: row.matchScore ?? null,
-        gapAnalysis: row.gapAnalysis ?? null,
-        recommendations: row.recommendations ?? null,
-        pursue: row.pursue ?? null,
-        pursueJustification: row.pursueJustification ?? null,
-        keywords: row.keywords ?? null,
-        strategyNote: row.strategyNote ?? null,
-        personalInterest: row.personalInterest ?? null,
-        careerAnalysis: row.careerAnalysis ?? null,
-        insights: row.insights ?? null,
-        currentStage,
-        isFavorited: true,
-        discoveryTimestamp: now,
-        lastSeenAt: now,
-        analyzedAt: row.createdAt ?? null,
-        createdAt: now,
-        updatedAt: now,
+      pending.push({
+        legacy: row,
+        values: {
+          userId: targetUserId,
+          sourceOrigin: 'legacy',
+          jobTitle: row.jobTitle ?? 'Untitled',
+          employerName: row.company ?? 'Unknown',
+          location: row.location ?? null,
+          industry: row.industry ?? null,
+          sourceUrl: row.jobUrl,
+          canonicalSourceUrl: row.jobUrl,
+          jdText: row.jdText ?? null,
+          matchScore: row.matchScore ?? null,
+          gapAnalysis: row.gapAnalysis ?? null,
+          recommendations: row.recommendations ?? null,
+          pursue: row.pursue ?? null,
+          pursueJustification: row.pursueJustification ?? null,
+          keywords: row.keywords ?? null,
+          strategyNote: row.strategyNote ?? null,
+          personalInterest: row.personalInterest ?? null,
+          careerAnalysis: row.careerAnalysis ?? null,
+          insights: row.insights ?? null,
+          currentStage,
+          isFavorited: true,
+          discoveryTimestamp: now,
+          lastSeenAt: now,
+          analyzedAt: row.createdAt ?? null,
+          createdAt: now,
+          updatedAt: now,
+        },
       });
-
-      if (row.id) {
-        await db
-          .update(generatedDocuments)
-          .set({ pipelineJobId: sql`(SELECT id FROM normalized_jobs WHERE source_url = ${row.jobUrl} AND user_id = ${targetUserId} LIMIT 1)` })
-          .where(eq(generatedDocuments.jobAnalysisId, row.id));
-      }
-
-      inserted++;
     }
 
-    return { inserted, skipped };
+    // Process one row at a time — each insert + optional doc update = 2 statements,
+    // well within D1's per-request limit, and avoids large batch failures.
+    for (const { legacy, values } of pending) {
+      try {
+        const [newJob] = await db.insert(normalizedJobs).values(values).returning({ id: normalizedJobs.id });
+
+        if (legacy.id && newJob?.id) {
+          await db
+            .update(generatedDocuments)
+            .set({ pipelineJobId: newJob.id })
+            .where(eq(generatedDocuments.jobAnalysisId, legacy.id));
+        }
+
+        inserted++;
+      } catch (err: any) {
+        errors.push(`Row ${legacy.id} (${legacy.jobTitle ?? legacy.jobUrl}): ${err?.message ?? String(err)}`);
+        skipped++;
+      }
+    }
+
+    return { inserted, skipped, errors };
   });
