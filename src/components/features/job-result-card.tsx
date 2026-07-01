@@ -60,7 +60,7 @@ export type JobResultCardJob = {
   unicornReason?: string | null;
   matchScore?: number | null;
   isFlagged?: boolean | number | null;
-  documents?: Array<{ id: number; docType: string; r2Key: string; fileName: string; createdAt?: string | null }>;
+  documents?: Array<{ id: number; docType: string; r2Key: string; fileName: string; createdAt: string | null }>;
   quickAnalysis?: string | null;
 };
 

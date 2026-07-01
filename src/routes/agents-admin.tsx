@@ -1105,7 +1105,7 @@ function ManualActionsCard({ queryClient }: { queryClient: ReturnType<typeof use
         if (errorCount > 0) {
           toast.warning(
             `Backfill done: ${result.inserted} inserted, ${result.skipped} skipped, ${errorCount} errors`,
-            { id: toastId, duration: 8000, description: result.errors?.[0] },
+            { id: toastId, duration: 8000, description: `${result.errors?.[0]?.slice(0, 200)}${errorCount > 1 ? ` (+${errorCount - 1} more, see console)` : ''}` },
           );
           console.error('Backfill errors:', result.errors);
         } else {

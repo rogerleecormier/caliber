@@ -190,7 +190,10 @@ export const backfillLegacyAnalyses = createServerFn({ method: "POST" })
 
         inserted++;
       } catch (err: any) {
-        errors.push(`Row ${legacy.id} (${legacy.jobTitle ?? legacy.jobUrl}): ${err?.message ?? String(err)}`);
+        // Drizzle's D1 driver wraps the real SQLite error in `.cause`; the top-level
+        // message is just the query text + params, which is useless for diagnosis.
+        const rootMessage = err?.cause?.message ?? err?.message ?? String(err);
+        errors.push(`Row ${legacy.id} (${legacy.jobTitle ?? legacy.jobUrl}): ${rootMessage}`);
         skipped++;
       }
     }
