@@ -6,7 +6,6 @@ import {
   Grid3x3,
   Loader2,
   Search,
-  Star,
   Table2,
 } from "lucide-react";
 import {
@@ -43,7 +42,6 @@ type MyJobsSearchInput = {
   query?: string;
   sortBy?: SortOption;
   status?: string;
-  favorites?: boolean;
 };
 
 export type MyJobsSearchParams = {
@@ -51,7 +49,6 @@ export type MyJobsSearchParams = {
   query: string;
   sortBy: SortOption;
   status: string;
-  favorites: boolean;
 };
 
 type HubJob = Awaited<ReturnType<typeof getPipelineJobHistory>>["rows"][number] & {
@@ -60,11 +57,9 @@ type HubJob = Awaited<ReturnType<typeof getPipelineJobHistory>>["rows"][number] 
 
 const PAGE_SIZE = 20;
 const VALID_SORT_OPTIONS: SortOption[] = ["posted-date", "title", "score", "company", "location"];
-// "Not Started" is not a manually-selectable stage — it's the default for jobs that
-// haven't progressed yet. Favoriting is handled separately via the star icon.
-const JOB_STATUSES = PIPELINE_STATUSES.filter((s) => s !== "Not Started") as unknown as JobStatus[];
+const JOB_STATUSES = PIPELINE_STATUSES as unknown as JobStatus[];
 // Archived jobs are excluded from the My Jobs query entirely, so omit that stage from the pipeline filter row.
-const VISIBLE_PIPELINE_STATUSES = PIPELINE_STATUSES.filter((s) => s !== "Archived" && s !== "Not Started");
+const VISIBLE_PIPELINE_STATUSES = PIPELINE_STATUSES.filter((s) => s !== "Archived");
 
 export const Route = createFileRoute("/my-jobs")({
   validateSearch: (search: Record<string, unknown> & MyJobsSearchInput): MyJobsSearchParams => ({
@@ -74,7 +69,6 @@ export const Route = createFileRoute("/my-jobs")({
       ? search.sortBy
       : "posted-date") as SortOption,
     status: typeof search.status === "string" ? search.status : "",
-    favorites: search.favorites === true,
   }),
   loaderDeps: ({ search }: { search: MyJobsSearchParams }) => search,
   beforeLoad: ({ context }) => {
@@ -87,7 +81,6 @@ export const Route = createFileRoute("/my-jobs")({
         ...deps,
         pageSize: PAGE_SIZE,
         isFavorited: true,
-        favoritedOnly: deps.favorites,
       },
     });
     return { jobHistory };
@@ -98,7 +91,7 @@ export const Route = createFileRoute("/my-jobs")({
 type ViewMode = "cards" | "table";
 
 function MyJobsPage() {
-  const { page, query, sortBy, status, favorites } = Route.useSearch();
+  const { page, query, sortBy, status } = Route.useSearch();
   const loaderData = Route.useLoaderData() as any;
   const navigate = Route.useNavigate();
 
@@ -119,7 +112,6 @@ function MyJobsPage() {
     analyzedOnly: false,
     view: "my-jobs" as const,
     catalogQuery: "",
-    favoritedOnly: favorites,
   };
 
   const jobsQuery = useJobsQuery({ searchParams, initialData: loaderData.jobHistory });
@@ -133,16 +125,6 @@ function MyJobsPage() {
       search: (prev) => ({
         ...prev,
         status: prev.status === pipelineStatus ? "" : pipelineStatus,
-        page: 1,
-      }),
-    });
-  }
-
-  function handleFavoritesFilterClick() {
-    navigate({
-      search: (prev) => ({
-        ...prev,
-        favorites: !prev.favorites,
         page: 1,
       }),
     });
@@ -243,16 +225,8 @@ function MyJobsPage() {
         description="Manage and track your saved and favorited jobs."
       />
 
-      {/* Favorites + pipeline status filter cards */}
-      <StatCardGrid cols={4} className="grid-cols-2 sm:grid-cols-4 lg:grid-cols-8">
-        <CompactStatTile
-          key="favorited"
-          icon={<Star className={`h-3.5 w-3.5 ${favorites ? "fill-amber-400 text-amber-400" : "text-amber-400"}`} />}
-          label="Favorites"
-          value={jobsQuery.data?.favoritedCount ?? 0}
-          onClick={handleFavoritesFilterClick}
-          accentClass={favorites ? "bg-amber-50 text-amber-700" : undefined}
-        />
+      {/* Pipeline status filter cards (mutually exclusive — one stage at a time) */}
+      <StatCardGrid cols={4} className="grid-cols-2 sm:grid-cols-4 lg:grid-cols-7">
         {VISIBLE_PIPELINE_STATUSES.map((pipelineStatus) => {
           const tone = STATUS_TONES[pipelineStatus];
           const count = pipelineCounts?.[STATUS_TO_KEY[pipelineStatus]] ?? 0;
@@ -345,7 +319,7 @@ function MyJobsPage() {
               {sortedJobs.map((job) => (
                 <JobResultCard
                   key={job.id ?? job.sourceUrl}
-                  job={{ ...job, resultSource: "history" } as any}
+                  job={{ ...job, status: job.currentStage, resultSource: "history" } as any}
                   isNew={!!job.isNew}
                   showSelection={false}
                   statusOptions={JOB_STATUSES}
@@ -372,7 +346,7 @@ function MyJobsPage() {
         ) : (
           <>
             <JobTableView
-              jobs={sortedJobs.map((job) => ({ ...job, resultSource: "history" } as any))}
+              jobs={sortedJobs.map((job) => ({ ...job, status: job.currentStage, resultSource: "history" } as any))}
               selectedIds={new Set<number>()}
               onSelect={() => {}}
               onSelectAll={() => {}}

@@ -1,7 +1,7 @@
 'use server';
 import { createServerFn } from "@tanstack/react-start";
 import { resolveSessionUser } from "@/lib/resolve-user";
-import { eq, and } from "drizzle-orm";
+import { eq, and, sql } from "drizzle-orm";
 import { getCloudflareEnvAsync } from "@/lib/cloudflare";
 import { getDb } from "@/db/db";
 import { masterResume, normalizedJobs, generatedDocuments, resumeVectorIndex, resumeSections } from "@/db/schema";
@@ -197,6 +197,13 @@ export const generateCoverLetter = createServerFn({ method: "POST" })
           },
         ])
         .returning();
+
+      // A cover letter was produced for this job — advance it to Prepped, but only
+      // from Not Started/Analyzed so we don't regress a job already further along.
+      await db
+        .update(normalizedJobs)
+        .set({ currentStage: sql`CASE WHEN ${normalizedJobs.currentStage} IN ('Not Started', 'Analyzed') THEN 'Prepped' ELSE ${normalizedJobs.currentStage} END`, updatedAt: now })
+        .where(eq(normalizedJobs.id, data.analysisId));
 
       return {
         pdf: { documentId: pdfDoc.id, fileName: pdfName, r2Key: pdfKey },

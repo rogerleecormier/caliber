@@ -157,7 +157,7 @@ export function JobTableView({
         if (!job.id) return null;
         return (
           <select
-            value={(job.status ?? "Analyzed") as JobStatus}
+            value={(job.status ?? "Not Started") as JobStatus}
             onChange={(e: ChangeEvent<HTMLSelectElement>) => onStatusChange(job.id!, e.target.value as JobStatus)}
             disabled={statusPending === job.id}
             className="h-7 w-full rounded border border-slate-200 bg-white px-2 text-xs font-medium text-slate-700 disabled:opacity-60 focus:outline-none focus:ring-1 focus:ring-orange-400"

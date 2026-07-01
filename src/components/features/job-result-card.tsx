@@ -23,7 +23,7 @@ import { cleanJobDescription } from "@/lib/html-utils";
 import { WorkTypeBadge } from "@/components/ui/work-type-badge";
 import { DocumentViewerModal } from "@/components/features/document-viewer-modal";
 
-export type JobStatus = "Discovered" | "Analyzed" | "Prepped" | "Applied" | "Interviewed" | "Hired" | "Not Hired" | "Archived";
+export type JobStatus = "Not Started" | "Analyzed" | "Prepped" | "Applied" | "Interviewed" | "Hired" | "Not Hired" | "Archived";
 
 export type JobResultCardJob = {
   id?: number;
@@ -481,7 +481,7 @@ export function JobResultCard({
               <div className="flex items-center justify-between gap-2 mt-1">
                 <span className="text-xs font-medium text-slate-600">Status</span>
                 <select
-                  value={(job.status ?? "Analyzed") as JobStatus}
+                  value={(job.status ?? "Not Started") as JobStatus}
                   onChange={(event: ChangeEvent<HTMLSelectElement>) =>
                     onStatusChange(event.target.value as JobStatus)
                   }
@@ -715,7 +715,7 @@ export function JobResultCard({
               <div className="flex items-center gap-2">
                 <span className="text-xs font-medium text-slate-600">Status</span>
                 <select
-                  value={(job.status ?? "Analyzed") as JobStatus}
+                  value={(job.status ?? "Not Started") as JobStatus}
                   onChange={(event: ChangeEvent<HTMLSelectElement>) =>
                     onStatusChange(event.target.value as JobStatus)
                   }

@@ -1,6 +1,6 @@
 'use server';
 import { createServerFn } from "@tanstack/react-start";
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { getCloudflareEnvAsync, type CloudflareEnv } from "@/lib/cloudflare";
 import { getDb } from "@/db/db";
 import { masterResume, normalizedJobs } from "@/db/schema";
@@ -113,7 +113,9 @@ export const analyzeJob = createServerFn({ method: "POST" })
           careerAnalysis: JSON.stringify(analysis.careerAnalysis),
           insights: analysis.insights ? JSON.stringify(analysis.insights) : null,
           industry: analysis.industry ?? undefined,
-          currentStage: 'Analyzed',
+          // Advance to Analyzed only from the default stage — re-analyzing a job that
+          // already progressed further (Prepped/Applied/etc.) shouldn't regress it.
+          currentStage: sql`CASE WHEN ${normalizedJobs.currentStage} = 'Not Started' THEN 'Analyzed' ELSE ${normalizedJobs.currentStage} END`,
           analyzedAt: now,
           updatedAt: now,
         })
