@@ -1096,6 +1096,14 @@ function ManualActionsCard({ queryClient }: { queryClient: ReturnType<typeof use
     addBoardMutation.mutate({ ats: newBoardAts, token: newBoardToken, companyName: newBoardCompany });
   };
 
+  const copyErrorAction = (text: string) => ({
+    label: 'Copy error',
+    onClick: () => {
+      void navigator.clipboard.writeText(text);
+      toast.success('Error copied to clipboard');
+    },
+  });
+
   const backfillMutation = useMutation({
     mutationFn: async () => {
       const toastId = toast.loading('Backfilling legacy analyses…', { duration: Infinity });
@@ -1103,9 +1111,15 @@ function ManualActionsCard({ queryClient }: { queryClient: ReturnType<typeof use
         const result = await backfillLegacyAnalyses({ data: {} });
         const errorCount = result.errors?.length ?? 0;
         if (errorCount > 0) {
+          const fullErrorText = result.errors!.join('\n');
           toast.warning(
             `Backfill done: ${result.inserted} inserted, ${result.skipped} skipped, ${errorCount} errors`,
-            { id: toastId, duration: 8000, description: `${result.errors?.[0]?.slice(0, 200)}${errorCount > 1 ? ` (+${errorCount - 1} more, see console)` : ''}` },
+            {
+              id: toastId,
+              duration: Infinity,
+              description: `${result.errors![0].slice(0, 200)}${errorCount > 1 ? ` (+${errorCount - 1} more)` : ''}`,
+              action: copyErrorAction(fullErrorText),
+            },
           );
           console.error('Backfill errors:', result.errors);
         } else {
@@ -1114,7 +1128,11 @@ function ManualActionsCard({ queryClient }: { queryClient: ReturnType<typeof use
         return result;
       } catch (err: any) {
         const msg = err?.message ?? String(err);
-        toast.error(`Backfill failed: ${msg.slice(0, 120)}`, { id: toastId, duration: 8000 });
+        toast.error(`Backfill failed: ${msg.slice(0, 120)}`, {
+          id: toastId,
+          duration: Infinity,
+          action: copyErrorAction(msg),
+        });
         throw err;
       }
     },
