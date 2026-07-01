@@ -1096,31 +1096,19 @@ function ManualActionsCard({ queryClient }: { queryClient: ReturnType<typeof use
     addBoardMutation.mutate({ ats: newBoardAts, token: newBoardToken, companyName: newBoardCompany });
   };
 
-  const copyErrorAction = (text: string) => ({
-    label: 'Copy error',
-    onClick: () => {
-      void navigator.clipboard.writeText(text);
-      toast.success('Error copied to clipboard');
-    },
-  });
+  const [backfillResult, setBackfillResult] = useState<{ inserted: number; skipped: number; errors: string[] } | null>(null);
+  const [backfillCopied, setBackfillCopied] = useState(false);
 
   const backfillMutation = useMutation({
     mutationFn: async () => {
+      setBackfillResult(null);
       const toastId = toast.loading('Backfilling legacy analyses…', { duration: Infinity });
       try {
         const result = await backfillLegacyAnalyses({ data: {} });
+        setBackfillResult({ inserted: result.inserted, skipped: result.skipped, errors: result.errors ?? [] });
         const errorCount = result.errors?.length ?? 0;
         if (errorCount > 0) {
-          const fullErrorText = result.errors!.join('\n');
-          toast.warning(
-            `Backfill done: ${result.inserted} inserted, ${result.skipped} skipped, ${errorCount} errors`,
-            {
-              id: toastId,
-              duration: Infinity,
-              description: `${result.errors![0].slice(0, 200)}${errorCount > 1 ? ` (+${errorCount - 1} more)` : ''}`,
-              action: copyErrorAction(fullErrorText),
-            },
-          );
+          toast.warning(`Backfill done: ${result.inserted} inserted, ${result.skipped} skipped, ${errorCount} errors`, { id: toastId, duration: 6000 });
           console.error('Backfill errors:', result.errors);
         } else {
           toast.success(`Backfill complete: ${result.inserted} inserted, ${result.skipped} skipped`, { id: toastId, duration: 6000 });
@@ -1128,15 +1116,19 @@ function ManualActionsCard({ queryClient }: { queryClient: ReturnType<typeof use
         return result;
       } catch (err: any) {
         const msg = err?.message ?? String(err);
-        toast.error(`Backfill failed: ${msg.slice(0, 120)}`, {
-          id: toastId,
-          duration: Infinity,
-          action: copyErrorAction(msg),
-        });
+        setBackfillResult({ inserted: 0, skipped: 0, errors: [msg] });
+        toast.error(`Backfill failed — see details below`, { id: toastId, duration: 6000 });
         throw err;
       }
     },
   });
+
+  const copyBackfillErrors = async () => {
+    if (!backfillResult?.errors.length) return;
+    await navigator.clipboard.writeText(backfillResult.errors.join('\n'));
+    setBackfillCopied(true);
+    setTimeout(() => setBackfillCopied(false), 2000);
+  };
 
   const isPending = triggerDiscoveryMutation.isPending || triggerCrawlerMutation.isPending || backfillMutation.isPending;
 
@@ -1165,6 +1157,36 @@ function ManualActionsCard({ queryClient }: { queryClient: ReturnType<typeof use
           Backfill Legacy Analyses
         </Button>
       </div>
+
+      {backfillResult && (
+        <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-4">
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-sm font-medium text-slate-700">
+              Backfill result: {backfillResult.inserted} inserted, {backfillResult.skipped} skipped
+              {backfillResult.errors.length > 0 && `, ${backfillResult.errors.length} errors`}
+            </p>
+            <div className="flex items-center gap-2">
+              {backfillResult.errors.length > 0 && (
+                <Button size="sm" variant="outline" onClick={copyBackfillErrors}>
+                  {backfillCopied ? 'Copied!' : 'Copy errors'}
+                </Button>
+              )}
+              <button
+                type="button"
+                onClick={() => setBackfillResult(null)}
+                className="p-1 text-slate-400 hover:text-slate-600 cursor-pointer"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+          {backfillResult.errors.length > 0 && (
+            <pre className="mt-3 max-h-64 overflow-auto whitespace-pre-wrap select-text rounded-md border border-slate-200 bg-white p-3 text-xs text-slate-600">
+              {backfillResult.errors.join('\n')}
+            </pre>
+          )}
+        </div>
+      )}
 
       {isAddModalOpen && (
         <div

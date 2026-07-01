@@ -114,25 +114,33 @@ export const backfillLegacyAnalyses = createServerFn({ method: "POST" })
     if (legacyRows.length === 0) return { inserted: 0, skipped: 0 };
 
     const existingUrls = await db
-      .select({ sourceUrl: normalizedJobs.sourceUrl })
+      .select({ sourceUrl: normalizedJobs.sourceUrl, canonicalSourceUrl: normalizedJobs.canonicalSourceUrl })
       .from(normalizedJobs)
       .where(eq(normalizedJobs.userId, targetUserId));
-    const existingUrlSet = new Set(existingUrls.map((r) => r.sourceUrl));
+    // The DB enforces a unique (user_id, canonical_source_url) constraint, so dedup on
+    // both fields — a legacy row's jobUrl becomes both sourceUrl and canonicalSourceUrl.
+    const existingUrlSet = new Set([
+      ...existingUrls.map((r) => r.sourceUrl),
+      ...existingUrls.map((r) => r.canonicalSourceUrl),
+    ]);
 
     let inserted = 0;
     let skipped = 0;
 
     const errors: string[] = [];
 
-    // Build the list of rows to insert
+    // Build the list of rows to insert, also deduping within job_analyses itself
+    // (legacy table has no uniqueness guarantee on job_url).
+    const seenInBatch = new Set<string>();
     type PendingRow = { legacy: typeof legacyRows[number]; values: typeof normalizedJobs.$inferInsert };
     const pending: PendingRow[] = [];
 
     for (const row of legacyRows) {
-      if (!row.jobUrl || existingUrlSet.has(row.jobUrl)) {
+      if (!row.jobUrl || existingUrlSet.has(row.jobUrl) || seenInBatch.has(row.jobUrl)) {
         skipped++;
         continue;
       }
+      seenInBatch.add(row.jobUrl);
 
       const currentStage = mapLegacyAnalysisStatus({
         applied: row.applied,
