@@ -45,6 +45,7 @@ export const getPipelineJobHistory = createServerFn({ method: "GET" })
       excludeFavorited?: boolean;
       includeGlobal?: boolean;
       isFavorited?: boolean;
+      favoritedOnly?: boolean;
     }) => data,
   )
   .handler(async (ctx: any) => { const { data } = ctx;
@@ -63,6 +64,7 @@ export const getPipelineJobHistory = createServerFn({ method: "GET" })
       status: data.status,
       excludeFavorited: data.excludeFavorited,
       isFavorited: data.isFavorited,
+      favoritedOnly: data.favoritedOnly,
     });
   });
 

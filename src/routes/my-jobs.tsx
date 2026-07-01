@@ -43,6 +43,7 @@ type MyJobsSearchInput = {
   query?: string;
   sortBy?: SortOption;
   status?: string;
+  favorites?: boolean;
 };
 
 export type MyJobsSearchParams = {
@@ -50,6 +51,7 @@ export type MyJobsSearchParams = {
   query: string;
   sortBy: SortOption;
   status: string;
+  favorites: boolean;
 };
 
 type HubJob = Awaited<ReturnType<typeof getPipelineJobHistory>>["rows"][number] & {
@@ -72,6 +74,7 @@ export const Route = createFileRoute("/my-jobs")({
       ? search.sortBy
       : "posted-date") as SortOption,
     status: typeof search.status === "string" ? search.status : "",
+    favorites: search.favorites === true,
   }),
   loaderDeps: ({ search }: { search: MyJobsSearchParams }) => search,
   beforeLoad: ({ context }) => {
@@ -84,6 +87,7 @@ export const Route = createFileRoute("/my-jobs")({
         ...deps,
         pageSize: PAGE_SIZE,
         isFavorited: true,
+        favoritedOnly: deps.favorites,
       },
     });
     return { jobHistory };
@@ -94,7 +98,7 @@ export const Route = createFileRoute("/my-jobs")({
 type ViewMode = "cards" | "table";
 
 function MyJobsPage() {
-  const { page, query, sortBy, status } = Route.useSearch();
+  const { page, query, sortBy, status, favorites } = Route.useSearch();
   const loaderData = Route.useLoaderData() as any;
   const navigate = Route.useNavigate();
 
@@ -103,7 +107,6 @@ function MyJobsPage() {
   const [selectedJobForAnalysis, setSelectedJobForAnalysis] = useState<HubJob | null>(null);
   const [storedAnalysis, setStoredAnalysis] = useState<any>(null);
   const [pendingStatusId, setPendingStatusId] = useState<number | null>(null);
-  const [favoritesOnly, setFavoritesOnly] = useState(false);
 
   const queryClient = useQueryClient();
 
@@ -116,6 +119,7 @@ function MyJobsPage() {
     analyzedOnly: false,
     view: "my-jobs" as const,
     catalogQuery: "",
+    favoritedOnly: favorites,
   };
 
   const jobsQuery = useJobsQuery({ searchParams, initialData: loaderData.jobHistory });
@@ -134,8 +138,18 @@ function MyJobsPage() {
     });
   }
 
+  function handleFavoritesFilterClick() {
+    navigate({
+      search: (prev) => ({
+        ...prev,
+        favorites: !prev.favorites,
+        page: 1,
+      }),
+    });
+  }
+
   const sortedJobs = useMemo(() => {
-    const copy = favoritesOnly ? jobs.filter((j) => j.isFavorited) : [...jobs];
+    const copy = [...jobs];
     switch (sortBy) {
       case "title": return copy.sort((a, b) => (a.title || "").localeCompare(b.title || ""));
       case "score": return copy.sort((a, b) => (b.matchScore ?? 0) - (a.matchScore ?? 0));
@@ -233,11 +247,11 @@ function MyJobsPage() {
       <StatCardGrid cols={4} className="grid-cols-2 sm:grid-cols-4 lg:grid-cols-8">
         <CompactStatTile
           key="favorited"
-          icon={<Star className={`h-3.5 w-3.5 ${favoritesOnly ? "fill-amber-400 text-amber-400" : "text-amber-400"}`} />}
+          icon={<Star className={`h-3.5 w-3.5 ${favorites ? "fill-amber-400 text-amber-400" : "text-amber-400"}`} />}
           label="Favorites"
           value={jobsQuery.data?.favoritedCount ?? 0}
-          onClick={() => setFavoritesOnly((prev) => !prev)}
-          accentClass={favoritesOnly ? "bg-amber-50 text-amber-700" : undefined}
+          onClick={handleFavoritesFilterClick}
+          accentClass={favorites ? "bg-amber-50 text-amber-700" : undefined}
         />
         {VISIBLE_PIPELINE_STATUSES.map((pipelineStatus) => {
           const tone = STATUS_TONES[pipelineStatus];
@@ -344,7 +358,7 @@ function MyJobsPage() {
                 />
               ))}
             </div>
-            {!favoritesOnly && totalCount > PAGE_SIZE && (
+            {totalCount > PAGE_SIZE && (
               <Pagination
                 page={page}
                 totalPages={Math.ceil(totalCount / PAGE_SIZE)}
@@ -371,7 +385,7 @@ function MyJobsPage() {
               }}
               analyzedJobIds={analyzedJobIds}
             />
-            {!favoritesOnly && totalCount > PAGE_SIZE && (
+            {totalCount > PAGE_SIZE && (
               <Pagination
                 page={page}
                 totalPages={Math.ceil(totalCount / PAGE_SIZE)}

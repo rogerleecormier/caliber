@@ -1,4 +1,24 @@
 PRAGMA foreign_keys=OFF;--> statement-breakpoint
+-- generated_documents.pipeline_job_id currently has a live FK to normalized_jobs(id)
+-- on the remote DB that isn't declared in schema.ts. That FK blocks the DROP TABLE
+-- below when rebuilding normalized_jobs, so rebuild generated_documents first,
+-- dropping the FK to bring it in line with the ORM's model.
+CREATE TABLE `__new_generated_documents` (
+	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+	`job_analysis_id` integer REFERENCES `job_analyses`(`id`),
+	`doc_type` text NOT NULL,
+	`r2_key` text NOT NULL,
+	`file_name` text,
+	`resume_keywords` text,
+	`created_at` text,
+	`pipeline_job_id` integer
+);
+--> statement-breakpoint
+INSERT INTO `__new_generated_documents` ("id", "job_analysis_id", "doc_type", "r2_key", "file_name", "resume_keywords", "created_at", "pipeline_job_id")
+SELECT "id", "job_analysis_id", "doc_type", "r2_key", "file_name", "resume_keywords", "created_at", "pipeline_job_id" FROM `generated_documents`;
+--> statement-breakpoint
+DROP TABLE `generated_documents`;--> statement-breakpoint
+ALTER TABLE `__new_generated_documents` RENAME TO `generated_documents`;--> statement-breakpoint
 CREATE TABLE `__new_normalized_jobs` (
 	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
 	`user_id` text,

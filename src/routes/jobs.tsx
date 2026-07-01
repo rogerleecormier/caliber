@@ -57,6 +57,7 @@ export type JobSearchParams = {
   url?: string;
   view: 'my-jobs' | 'all-jobs' | 'quick-search' | 'search';
   catalogQuery: string;
+  favoritedOnly?: boolean;
 };
 
 type HubJob = {

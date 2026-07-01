@@ -379,6 +379,7 @@ export async function listNormalizedJobs(args: {
   status?: string;
   excludeFavorited?: boolean;
   isFavorited?: boolean;
+  favoritedOnly?: boolean;
 }) {
   const env = getCloudflareEnv();
   if (!env.DB) {
@@ -430,9 +431,11 @@ export async function listNormalizedJobs(args: {
         ? and(eq(normalizedJobs.isFavorited, false), sql`${normalizedJobs.currentStage} = 'Not Started'`)
         : undefined,
   );
-  const whereClause = args.status
-    ? and(baseWhereClause, eq(normalizedJobs.currentStage, args.status as PipelineStatus))
-    : baseWhereClause;
+  const whereClause = and(
+    baseWhereClause,
+    args.status ? eq(normalizedJobs.currentStage, args.status as PipelineStatus) : undefined,
+    args.favoritedOnly ? eq(normalizedJobs.isFavorited, true) : undefined,
+  );
 
   const orderBy = (() => {
     switch (args.sortBy) {

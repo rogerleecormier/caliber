@@ -17,6 +17,7 @@ export const jobsQueryKeys = {
         status: params.status,
         analyzedOnly: params.analyzedOnly,
         view: params.view,
+        favoritedOnly: params.favoritedOnly,
       },
     ] as const,
 };
