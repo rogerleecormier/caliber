@@ -24,7 +24,7 @@ export interface HistoryRow {
   applied: boolean;
   applicationStatus: PipelineStatus | null;
   appliedAt: string | null;
-  documents: Array<{ id: number; docType: string; r2Key: string; fileName: string }>;
+  documents: Array<{ id: number; docType: string; r2Key: string; fileName: string; createdAt: string | null }>;
 }
 
 export interface HistoryPipelineCounts extends PipelineCounts {}
@@ -124,6 +124,7 @@ export const getHistory = createServerFn({ method: "GET" })
               docType: generatedDocuments.docType,
               r2Key: generatedDocuments.r2Key,
               fileName: generatedDocuments.fileName,
+              createdAt: generatedDocuments.createdAt,
             })
             .from(generatedDocuments)
             .where(eq(generatedDocuments.pipelineJobId, a.id))
@@ -148,6 +149,7 @@ export const getHistory = createServerFn({ method: "GET" })
               docType: d.docType,
               r2Key: d.r2Key,
               fileName: d.fileName ?? "",
+              createdAt: d.createdAt ?? null,
             })),
           };
         }),

@@ -11,6 +11,7 @@ import {
 import {
   ExternalLink,
   FileText,
+  Layers,
   Loader2,
   Mail,
   Sparkles,
@@ -19,6 +20,7 @@ import { getScoreBorderColor } from "@/lib/scoreUtils";
 import { getDocumentDownload } from "@/server/functions/get-history";
 import { cleanJobDescription } from "@/lib/html-utils";
 import { WorkTypeBadge } from "@/components/ui/work-type-badge";
+import { DocumentViewerModal } from "@/components/features/document-viewer-modal";
 
 export type JobStatus = "Discovered" | "Analyzed" | "Prepped" | "Applied" | "Interviewed" | "Hired" | "Not Hired" | "Archived";
 
@@ -58,7 +60,7 @@ export type JobResultCardJob = {
   unicornReason?: string | null;
   matchScore?: number | null;
   isFlagged?: boolean | number | null;
-  documents?: Array<{ id: number; docType: string; r2Key: string; fileName: string }>;
+  documents?: Array<{ id: number; docType: string; r2Key: string; fileName: string; createdAt?: string | null }>;
   quickAnalysis?: string | null;
 };
 
@@ -162,6 +164,7 @@ export function JobResultCard({
   const score = getScore(job);
   const hasUrl = !!(job.sourceUrl && job.sourceUrl !== "text-input" && job.sourceUrl !== "manual");
   const [downloadingKey, setDownloadingKey] = useState<string | null>(null);
+  const [documentsModalOpen, setDocumentsModalOpen] = useState(false);
   const cleanedSnippet = useMemo(() => {
     const text = job.snippet || job.descriptionPruned || job.description;
     if (!text) return '';
@@ -169,16 +172,18 @@ export function JobResultCard({
     return clean.length > 300 ? clean.substring(0, 300) + '...' : clean;
   }, [job.snippet, job.descriptionPruned, job.description]);
 
+  // Show only the single most recent resume and the single most recent cover
+  // letter on the card face (regardless of PDF/DOCX format); the full list is
+  // available via the "view more" button, which opens DocumentViewerModal.
   const mostRecentDocuments = (() => {
     if (!job.documents || job.documents.length === 0) return [];
-    const byType = new Map<string, typeof job.documents[0]>();
-    for (const doc of job.documents) {
-      const existing = byType.get(doc.docType);
-      if (!existing || doc.id > existing.id) {
-        byType.set(doc.docType, doc);
-      }
-    }
-    return Array.from(byType.values());
+    const latestResume = job.documents
+      .filter((d) => d.docType.startsWith("resume"))
+      .reduce<typeof job.documents[0] | null>((latest, d) => (!latest || d.id > latest.id ? d : latest), null);
+    const latestCover = job.documents
+      .filter((d) => d.docType.startsWith("cover_letter"))
+      .reduce<typeof job.documents[0] | null>((latest, d) => (!latest || d.id > latest.id ? d : latest), null);
+    return [latestResume, latestCover].filter((d): d is typeof job.documents[0] => d != null);
   })();
 
   async function triggerDownload(r2Key: string, fileName: string) {
@@ -208,6 +213,7 @@ export function JobResultCard({
 
   if (isHorizontal) {
     return (
+      <>
       <Card
         className={`shadow-sm transition hover:shadow-md border-l-4 ${getScoreBorderColor(score?.masterScore ?? 0)} ${
           selected
@@ -309,7 +315,7 @@ export function JobResultCard({
           ) : null}
 
           {mostRecentDocuments.length > 0 && (
-            <div className="flex flex-wrap gap-2 pt-2 border-t border-slate-100">
+            <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-slate-100">
               <Caption variant="semibold" className="w-full text-[10px] uppercase tracking-wide text-slate-500">
                 Documents
               </Caption>
@@ -331,6 +337,17 @@ export function JobResultCard({
                   {doc.docType === "resume_docx" ? "Resume (DOCX)" : doc.docType.startsWith("resume") ? "Resume (PDF)" : doc.docType === "cover_letter_docx" ? "Cover Letter (DOCX)" : "Cover Letter (PDF)"}
                 </button>
               ))}
+              {(job.documents?.length ?? 0) > mostRecentDocuments.length && (
+                <button
+                  type="button"
+                  onClick={() => setDocumentsModalOpen(true)}
+                  title="View all documents"
+                  aria-label="View all documents"
+                  className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 hover:bg-slate-50"
+                >
+                  <Layers className="h-3.5 w-3.5" />
+                </button>
+              )}
             </div>
           )}
         </div>
@@ -451,6 +468,13 @@ export function JobResultCard({
           </div>
         </div>
       </Card>
+      <DocumentViewerModal
+        open={documentsModalOpen}
+        onClose={() => setDocumentsModalOpen(false)}
+        documents={job.documents ?? []}
+        jobTitle={`${job.title} · ${job.company}`}
+      />
+    </>
     );
   }
 
@@ -565,7 +589,7 @@ export function JobResultCard({
             </p>
           ) : null}
           {mostRecentDocuments.length > 0 && (
-            <div className="flex flex-wrap gap-1.5 pt-2 border-t border-slate-100">
+            <div className="flex flex-wrap items-center gap-1.5 pt-2 border-t border-slate-100">
               {mostRecentDocuments.map((doc) => (
                 <button
                   key={doc.id}
@@ -584,6 +608,17 @@ export function JobResultCard({
                   {doc.docType === "resume_docx" ? "Resume (DOCX)" : doc.docType.startsWith("resume") ? "Resume (PDF)" : doc.docType === "cover_letter_docx" ? "Cover Letter (DOCX)" : "Cover Letter (PDF)"}
                 </button>
               ))}
+              {(job.documents?.length ?? 0) > mostRecentDocuments.length && (
+                <button
+                  type="button"
+                  onClick={() => setDocumentsModalOpen(true)}
+                  title="View all documents"
+                  aria-label="View all documents"
+                  className="inline-flex h-7 w-7 items-center justify-center rounded border border-slate-200 bg-white text-slate-500 hover:bg-slate-50"
+                >
+                  <Layers className="h-3 w-3" />
+                </button>
+              )}
             </div>
           )}
         </div>
@@ -676,6 +711,12 @@ export function JobResultCard({
 
       </div>
     </PrimaryCard>
+      <DocumentViewerModal
+        open={documentsModalOpen}
+        onClose={() => setDocumentsModalOpen(false)}
+        documents={job.documents ?? []}
+        jobTitle={`${job.title} · ${job.company}`}
+      />
     </div>
   );
 }
