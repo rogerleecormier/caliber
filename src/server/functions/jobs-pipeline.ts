@@ -672,6 +672,8 @@ export const getCatalogJobs = createServerFn({ method: "GET" })
         outlookScore: normalizedJobs.outlookScore,
         masterScore: normalizedJobs.masterScore,
         matchScore: normalizedJobs.matchScore,
+        normalizedJobId: normalizedJobs.id,
+        analyzedAt: normalizedJobs.analyzedAt,
       })
       .from(canonicalJobs)
       .leftJoin(jobSources, eq(jobSources.canonicalId, canonicalJobs.id))

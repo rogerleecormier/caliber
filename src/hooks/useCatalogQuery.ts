@@ -39,6 +39,8 @@ export type CatalogJob = {
   outlookScore: number | null;
   masterScore: number | null;
   matchScore: number | null;
+  normalizedJobId: number | null;
+  analyzedAt: string | null;
 };
 
 export type CatalogData = {

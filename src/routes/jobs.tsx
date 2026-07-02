@@ -180,7 +180,7 @@ function JobsPage() {
 
     if (job.analyzedAt || job.currentStage === "Analyzed") {
       const analysis = {
-        id: job.id,
+        id: job.normalizedJobId ?? job.id,
         jobTitle: job.title || job.jobTitle,
         company: job.company || job.employerName,
         industry: job.industry ?? undefined,
@@ -265,7 +265,7 @@ function JobsPage() {
         }}
         isFromExistingJob={!!selectedJobForAnalysis}
         storedAnalysis={storedAnalysis}
-        pipelineJobId={selectedJobForAnalysis?.id as number | undefined}
+        pipelineJobId={(selectedJobForAnalysis as any)?.normalizedJobId ?? undefined}
         onAnalysisComplete={() => {}}
         onDocumentGenerated={() => {}}
       />

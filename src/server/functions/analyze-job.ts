@@ -69,8 +69,21 @@ export const analyzeJob = createServerFn({ method: "POST" })
 
     const now = new Date().toISOString();
 
-    // Check if a normalized job already exists for this URL (from an agent)
-    let normalizedJobId = data.pipelineJobId ?? null;
+    // Check if a normalized job already exists for this URL (from an agent).
+    // pipelineJobId comes from the client, so verify it's actually owned by this
+    // user before trusting it — otherwise a forged id could update another user's row.
+    let normalizedJobId: number | null = null;
+    if (data.pipelineJobId) {
+      const [owned] = await db
+        .select({ id: normalizedJobs.id })
+        .from(normalizedJobs)
+        .where(and(
+          eq(normalizedJobs.id, data.pipelineJobId),
+          eq(normalizedJobs.userId, user.id),
+        ))
+        .limit(1);
+      normalizedJobId = owned?.id ?? null;
+    }
     const canonicalSourceUrl = canonicalizeJobUrl(cleanedUrl);
 
     if (!normalizedJobId && cleanedUrl !== 'manual') {
