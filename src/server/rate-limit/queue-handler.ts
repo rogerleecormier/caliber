@@ -15,6 +15,7 @@ import {
 } from '../db/queries';
 import { normalizeJob } from '@/lib/normalization';
 import { dedupPipeline } from '../dedup/deterministic';
+import { enqueueJobScore } from '@/lib/job-score-queue';
 
 export interface CrawlMessage {
   ats: 'greenhouse' | 'lever' | 'ashby' | 'workable' | 'remoteok' | 'himalayas' | 'jobicy' | 'adzuna' | 'jooble' | 'remotive';
@@ -199,6 +200,14 @@ export async function processCrawlJobsQueue(
         const chunkSize = 100;
         for (let i = 0; i < statements.length; i += chunkSize) {
           await env.DB.batch(statements.slice(i, i + chunkSize));
+        }
+      }
+
+      // Enqueue scoring for newly-inserted jobs — decoupled from the crawl so a
+      // slow/failed AI call never blocks or retries the crawl itself.
+      if (env.JOB_SCORE_QUEUE && newJobsForEmbedding.length > 0) {
+        for (const { canonicalId } of newJobsForEmbedding) {
+          await enqueueJobScore(env.JOB_SCORE_QUEUE, { canonicalJobId: canonicalId });
         }
       }
 

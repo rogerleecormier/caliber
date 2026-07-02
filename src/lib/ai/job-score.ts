@@ -53,7 +53,7 @@ ${profile}
 Job Title: ${job.title}
 
 Job Description:
-${(job.description || "").substring(0, 2000)}
+${(job.description || "").substring(0, 7000)}
 `;
 
     const response = await ai.run(SCORING_MODEL as any, {

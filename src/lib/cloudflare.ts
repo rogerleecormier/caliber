@@ -1,4 +1,5 @@
 import type { JobIngestionMessage } from "@/lib/job-ingestion-queue";
+import type { JobScoreMessage } from "@/lib/job-score-queue";
 
 export interface SessionUser {
   id: string;
@@ -14,6 +15,7 @@ export interface CloudflareEnv {
   BROWSER: Fetcher;
   JOB_INGESTION_QUEUE?: Queue<JobIngestionMessage>;
   CRAWL_JOBS_QUEUE?: Queue<any>;
+  JOB_SCORE_QUEUE?: Queue<JobScoreMessage>;
   DISCOVERY_QUEUE?: Queue<any>;
   RATE_LIMITER?: DurableObjectNamespace;
   ADMIN_PROMOTION_TOKEN?: string;

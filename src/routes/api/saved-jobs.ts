@@ -8,7 +8,7 @@ import { resolveSessionUser } from '@/lib/resolve-user';
 import { normalizeJob } from '@/lib/normalization';
 import { dedupPipeline } from '@/server/dedup/deterministic';
 import { insertCanonicalJob, linkJobSource } from '@/server/db/queries';
-import { scoreJobAgainstProfile } from '@/lib/ai/job-score';
+import { scoreJobAgainstProfile, type JobScoreResult } from '@/lib/ai/job-score';
 import { canonicalizeJobUrl } from '@/lib/normalized-jobs-persistence';
 import type { AtsJobResponse } from '@/types/crawler';
 
@@ -79,17 +79,10 @@ export const Route = createFileRoute('/api/saved-jobs')({
             .limit(1);
           const resumeText = resumeRows[0]?.rawText || '';
 
-          // 4. Perform AI scoring if resume is present
-          let scores = {
-            atsScore: 50,
-            careerScore: 50,
-            outlookScore: 50,
-            masterScore: 50,
-            atsReason: 'Resume unavailable for scoring.',
-            careerReason: 'Resume unavailable for scoring.',
-            outlookReason: 'Resume unavailable for scoring.',
+          // 4. Perform AI scoring if resume is present — left null otherwise
+          let scores: Partial<JobScoreResult> & { isUnicorn: boolean; unicornReason: string | null } = {
             isUnicorn: false,
-            unicornReason: null as string | null,
+            unicornReason: null,
           };
           if (resumeText) {
             try {

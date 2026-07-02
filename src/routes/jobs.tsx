@@ -17,6 +17,7 @@ import {
   PageHero,
 } from "@caliber/ui-kit";
 import { requireLoginRedirect } from "@/lib/auth-redirect";
+import { getScoreColor } from "@/lib/scoreUtils";
 import { JobResultCard } from "@/components/features/job-result-card";
 import { AnalysisModal } from "@/components/features/analysis-modal";
 import { UnifiedSearchPanel } from "@/components/features/unified-search-panel";
@@ -452,6 +453,11 @@ function CatalogBrowser({
                   sourceOrigin: job.ats,
                   isSaved: job.isSaved,
                   isFavorited: job.isFavorited,
+                  atsScore: job.atsScore,
+                  careerScore: job.careerScore,
+                  outlookScore: job.outlookScore,
+                  masterScore: job.masterScore,
+                  matchScore: job.matchScore,
                 };
 
                 return (
@@ -511,6 +517,14 @@ function CatalogBrowser({
                           <p className="text-sm text-slate-500 mt-0.5 truncate">{job.companyDisplay}</p>
                         </div>
                         <div className="flex items-center gap-1.5 flex-shrink-0">
+                          {job.masterScore != null && (
+                            <span
+                              title={`Match Score: ${job.masterScore}`}
+                              className={`px-2 py-0.5 rounded-full text-[11px] font-bold ${getScoreColor(job.masterScore)}`}
+                            >
+                              {job.masterScore}%
+                            </span>
+                          )}
                           {job.ats && (
                             <span className={`px-2 py-0.5 rounded-full text-[11px] font-bold uppercase tracking-wide ${badgeCls}`}>
                               {job.ats}

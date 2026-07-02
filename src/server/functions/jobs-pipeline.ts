@@ -15,7 +15,7 @@ import type { PipelineStatus } from "@/lib/pipeline-constants";
 import { getDb } from "@/db/db";
 import { user as userTable, canonicalJobs, masterResume, normalizedJobs, jobSources } from "@/db/schema";
 import { eq, and, inArray, or, gte, isNull, desc, asc, sql, count, countDistinct, ne } from "drizzle-orm";
-import { scoreJobAgainstProfile } from "@/lib/ai/job-score";
+import { scoreJobAgainstProfile, type JobScoreResult } from "@/lib/ai/job-score";
 import { canonicalizeJobUrl } from "@/lib/normalized-jobs-persistence";
 import {
   listNormalizedJobs,
@@ -330,18 +330,10 @@ export const getRecommendedJobs = createServerFn({ method: "GET" })
           location: existing.location,
         };
       } else {
-        // Run lightweight scoring
-        let scores = {
-          atsScore: 50,
-          careerScore: 50,
-          outlookScore: 50,
-          masterScore: 50,
-          atsReason: 'Awaiting evaluation.',
-          careerReason: 'Awaiting evaluation.',
-          outlookReason: 'Awaiting evaluation.',
+        // Run lightweight scoring — left null until a resume exists to score against
+        let scores: Partial<JobScoreResult> & { isUnicorn: boolean; unicornReason: string | null } = {
           isUnicorn: false,
-          unicornReason: null as string | null,
-          quickAnalysis: null as string | null,
+          unicornReason: null,
         };
 
         if (resumeText) {
@@ -675,6 +667,11 @@ export const getCatalogJobs = createServerFn({ method: "GET" })
         sourceCreatedAt: jobSources.createdAt,
         isFavorited: normalizedJobs.isFavorited,
         currentStage: normalizedJobs.currentStage,
+        atsScore: normalizedJobs.atsScore,
+        careerScore: normalizedJobs.careerScore,
+        outlookScore: normalizedJobs.outlookScore,
+        masterScore: normalizedJobs.masterScore,
+        matchScore: normalizedJobs.matchScore,
       })
       .from(canonicalJobs)
       .leftJoin(jobSources, eq(jobSources.canonicalId, canonicalJobs.id))

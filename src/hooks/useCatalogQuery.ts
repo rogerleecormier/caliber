@@ -34,6 +34,11 @@ export type CatalogJob = {
   applyUrl: string | null;
   isSaved: boolean;
   isFavorited: boolean;
+  atsScore: number | null;
+  careerScore: number | null;
+  outlookScore: number | null;
+  masterScore: number | null;
+  matchScore: number | null;
 };
 
 export type CatalogData = {

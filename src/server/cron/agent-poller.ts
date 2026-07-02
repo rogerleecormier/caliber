@@ -14,7 +14,7 @@ import type { AtsJobResponse } from '@/types/crawler';
 import { normalizeJob } from '@/lib/normalization';
 import { dedupPipeline } from '@/server/dedup/deterministic';
 import { insertCanonicalJob, linkJobSource, logAudit } from '@/server/db/queries';
-import { scoreJobAgainstProfile } from '@/lib/ai/job-score';
+import { scoreJobAgainstProfile, type JobScoreResult } from '@/lib/ai/job-score';
 
 const DEFAULT_LIMIT = 25;
 
@@ -161,17 +161,10 @@ export async function runAgentPoller(env: CloudflareEnv): Promise<void> {
           });
         }
 
-        // 2. Perform AI scoring
-        let scores = {
-          atsScore: 50,
-          careerScore: 50,
-          outlookScore: 50,
-          masterScore: 50,
-          atsReason: 'AI scoring model unavailable.',
-          careerReason: 'AI scoring model unavailable.',
-          outlookReason: 'AI scoring model unavailable.',
+        // 2. Perform AI scoring — left null until a resume exists to score against
+        let scores: Partial<JobScoreResult> & { isUnicorn: boolean; unicornReason: string | null } = {
           isUnicorn: false,
-          unicornReason: null as string | null,
+          unicornReason: null,
         };
         if (resumeText) {
           try {
