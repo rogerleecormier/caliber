@@ -71,6 +71,7 @@ ${(job.description || "").substring(0, 7000)}
       {
         maxRetries: 3,
         baseDelayMs: 2000,
+        timeoutMs: 30000, // 30 seconds timeout per attempt
         onRetry: (attempt, err) => {
           console.warn(`[job-score] AI call failed for job ${job.id} (attempt ${attempt}), retrying...`, err);
         },

@@ -130,22 +130,46 @@ export function getNextAtsSource(lastSource: 'greenhouse' | 'lever' | 'workable'
 // Retry Logic with Exponential Backoff
 // ============================================
 
+export async function runWithTimeout<T>(
+  fn: () => Promise<T>,
+  timeoutMs: number,
+  label = "Promise"
+): Promise<T> {
+  let timeoutId: any;
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timeoutId = setTimeout(() => {
+      reject(new Error(`${label} timed out after ${timeoutMs}ms`));
+    }, timeoutMs);
+  });
+
+  try {
+    return await Promise.race([fn(), timeoutPromise]);
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
 export async function withRetry<T>(
   fn: () => Promise<T>,
   options: {
     maxRetries?: number
     baseDelayMs?: number
     maxDelayMs?: number
+    timeoutMs?: number
     onRetry?: (attempt: number, error: Error) => void
   } = {}
 ): Promise<T> {
-  const { maxRetries = 3, baseDelayMs = 1000, maxDelayMs = 10000, onRetry } = options
+  const { maxRetries = 3, baseDelayMs = 1000, maxDelayMs = 10000, timeoutMs, onRetry } = options
   
   let lastError: Error | undefined
   
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     try {
-      return await fn()
+      if (timeoutMs !== undefined) {
+        return await runWithTimeout(fn, timeoutMs, `Attempt ${attempt + 1}`);
+      } else {
+        return await fn();
+      }
     } catch (error) {
       lastError = error instanceof Error ? error : new Error(String(error))
       

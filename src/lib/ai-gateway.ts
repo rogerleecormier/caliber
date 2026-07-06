@@ -147,6 +147,7 @@ export async function callWorkersAI(
       {
         maxRetries: 3,
         baseDelayMs: 2000,
+        timeoutMs: 45000, // 45 seconds timeout per attempt
         onRetry: (attempt, err) => {
           console.warn(`[callWorkersAI] AI run failed (attempt ${attempt}), retrying...`, err);
         },
