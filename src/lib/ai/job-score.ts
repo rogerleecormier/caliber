@@ -1,5 +1,6 @@
 import { SCORING_MODEL } from "./types";
 import { JOB_SCORE_ALL_PROMPT } from "./prompts";
+import { withRetry } from "../sync-queue";
 
 export interface JobScoreResult {
   jobId: string;
@@ -56,14 +57,24 @@ Job Description:
 ${(job.description || "").substring(0, 7000)}
 `;
 
-    const response = await ai.run(SCORING_MODEL as any, {
-      messages: [
-        { role: "system", content: JOB_SCORE_ALL_PROMPT },
-        { role: "user", content: userMessage },
-      ],
-      max_tokens: 1500,
-      temperature: 0.1,
-    });
+    const response = await withRetry(
+      () =>
+        ai.run(SCORING_MODEL as any, {
+          messages: [
+            { role: "system", content: JOB_SCORE_ALL_PROMPT },
+            { role: "user", content: userMessage },
+          ],
+          max_tokens: 1500,
+          temperature: 0.1,
+        }),
+      {
+        maxRetries: 3,
+        baseDelayMs: 2000,
+        onRetry: (attempt, err) => {
+          console.warn(`[job-score] AI call failed for job ${job.id} (attempt ${attempt}), retrying...`, err);
+        },
+      }
+    );
 
     let responseText = "";
     const res = response as any;

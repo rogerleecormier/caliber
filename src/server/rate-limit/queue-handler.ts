@@ -212,23 +212,29 @@ export async function processCrawlJobsQueue(
       }
 
       // Batch-embed new jobs after D1 writes succeed.
-      // Workers AI accepts up to 100 texts per request; Vectorize upsert is also batched.
       if (newJobsForEmbedding.length > 0) {
         try {
           const { embedJob, upsertVector } = await import('../dedup/embedding');
-          const EMBED_CHUNK = 50; // stay well under AI input limits
-          for (let i = 0; i < newJobsForEmbedding.length; i += EMBED_CHUNK) {
-            const chunk = newJobsForEmbedding.slice(i, i + EMBED_CHUNK);
-            await Promise.all(
-              chunk.map(async ({ canonicalId, normalized }) => {
-                try {
+          const { withRetry } = await import('@/lib/sync-queue');
+          
+          for (const { canonicalId, normalized } of newJobsForEmbedding) {
+            try {
+              await withRetry(
+                async () => {
                   const vector = await embedJob(env, normalized);
                   await upsertVector(env, canonicalId, normalized.companyNorm, vector);
-                } catch (embedErr) {
-                  console.error(`[queue-handler] Embedding failed for ${canonicalId}:`, embedErr);
+                },
+                {
+                  maxRetries: 3,
+                  baseDelayMs: 2000,
+                  onRetry: (attempt, err) => {
+                    console.warn(`[queue-handler] Rate limit or error embedding for ${canonicalId}, retrying attempt ${attempt}...`, err);
+                  }
                 }
-              })
-            );
+              );
+            } catch (embedErr) {
+              console.error(`[queue-handler] Embedding failed for ${canonicalId} after retries:`, embedErr);
+            }
           }
         } catch (embedImportErr) {
           console.error('[queue-handler] Failed to import embedding module:', embedImportErr);
@@ -254,26 +260,42 @@ export async function processCrawlJobsQueue(
       const errorMsg = err instanceof Error ? err.message : String(err);
       console.error(`[queue-handler] Error during crawl for ${ats}/${token}: ${errorMsg}`);
       
+      const is404 = errorMsg.toLowerCase().includes('404') || errorMsg.toLowerCase().includes('not found');
+      
       try {
         const nowString = new Date().toISOString();
-        await env.DB.prepare(`
-          UPDATE boards 
-          SET crawl_error_count = crawl_error_count + 1, crawl_error_last_at = ?
-          WHERE id = ?
-        `).bind(nowString, boardId).run();
+        if (is404) {
+          // Deactivate the board to prevent further queue/spam retries
+          await env.DB.prepare(`
+            UPDATE boards 
+            SET crawl_error_count = crawl_error_count + 1, 
+                crawl_error_last_at = ?,
+                is_active = 0
+            WHERE id = ?
+          `).bind(nowString, boardId).run();
+          console.warn(`[queue-handler] Deactivated dead board ${ats}/${token} due to 404 error`);
+        } else {
+          await env.DB.prepare(`
+            UPDATE boards 
+            SET crawl_error_count = crawl_error_count + 1, crawl_error_last_at = ?
+            WHERE id = ?
+          `).bind(nowString, boardId).run();
+        }
 
         await logAudit(env, {
           eventType: 'error',
           ats,
           boardToken: token,
-          details: { boardId, crawlUuid: uuid, error: errorMsg },
+          details: { boardId, crawlUuid: uuid, error: errorMsg, deactivated: is404 },
         });
       } catch (dbErr) {
         console.error(`[queue-handler] Failed to write crawl error to DB: ${dbErr}`);
       }
 
-      // Let Wrangler Queue retry this message according to retry policy
-      message.retry();
+      if (!is404) {
+        // Let Wrangler Queue retry this message according to retry policy
+        message.retry();
+      }
     }
   }
 }

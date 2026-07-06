@@ -1,5 +1,6 @@
 
 import { DEFAULT_MODEL } from "./ai/types";
+import { withRetry } from "./sync-queue";
 
 export const WORKERS_AI_CONTEXT_WINDOW_TOKENS = 128_000;
 const APPROX_CHARS_PER_TOKEN = 4;
@@ -141,9 +142,18 @@ export async function callWorkersAI(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let result: any;
   try {
-    result = await env.AI.run((options?.model ?? DEFAULT_MODEL) as any, runParams);
+    result = await withRetry(
+      () => env.AI.run((options?.model ?? DEFAULT_MODEL) as any, runParams),
+      {
+        maxRetries: 3,
+        baseDelayMs: 2000,
+        onRetry: (attempt, err) => {
+          console.warn(`[callWorkersAI] AI run failed (attempt ${attempt}), retrying...`, err);
+        },
+      }
+    );
   } catch (error) {
-    console.error("[callWorkersAI] AI.run() error:", error);
+    console.error("[callWorkersAI] AI.run() error after retries:", error);
     throw error;
   }
 
