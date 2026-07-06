@@ -113,8 +113,8 @@ queue = "job-score-queue"
 
 [[queues.consumers]]
 queue = "job-score-queue"
-max_batch_size = 20
-max_batch_timeout = 30
+max_batch_size = 1
+max_batch_timeout = 5
 max_retries = 3
 dead_letter_queue = "job-score-dlq"
 
