@@ -66,6 +66,7 @@ ${(job.description || "").substring(0, 7000)}
           ],
           max_tokens: 1500,
           temperature: 0.1,
+          reasoning: { enabled: false }, // Disable slow chain-of-thought generation
         }),
       {
         maxRetries: 3,

@@ -54,18 +54,20 @@ export const analyzeJob = createServerFn({ method: "POST" })
       education: resumeRow.education,
     });
 
-    const analysis = await runAnalysisPipeline(jdText, resumeText, resumeEvidenceText, env);
-
-    // Generate all 4 scores (ATS, Career, Outlook, Master)
-    const scoreResult = await scoreJobAgainstProfile(
-      env.AI,
-      resumeText,
-      {
-        id: 'manual-analysis',
-        title: analysis.jobTitle ?? 'Untitled',
-        description: jdText,
-      },
-    );
+    // Run the analysis pipeline and scoring in parallel to cut latency in half
+    const guessedTitle = jdText.split('\n')[0]?.trim().substring(0, 100) || 'Untitled';
+    const [analysis, scoreResult] = await Promise.all([
+      runAnalysisPipeline(jdText, resumeText, resumeEvidenceText, env),
+      scoreJobAgainstProfile(
+        env.AI,
+        resumeText,
+        {
+          id: 'manual-analysis',
+          title: guessedTitle,
+          description: jdText,
+        },
+      ),
+    ]);
 
     const now = new Date().toISOString();
 
