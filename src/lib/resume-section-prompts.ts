@@ -61,11 +61,12 @@ Description: {jobDescription}
 
 Create a tailored technical skills section:
 - Create 5-6 categories (no more, no less)
-- HARD RULE: every skill listed MUST appear verbatim or as a clear abbreviation in CURRENT SKILLS above — if it is not there, do not include it, even if the job description mentions it
-- DO NOT infer, invent, or borrow skills from the job description (e.g. if the JD mentions "Snowflake" or "JSON-RPC 2.0" but the resume does not, they are BANNED)
+- HARD RULE: every skill listed MUST appear verbatim or as a clear abbreviation in CURRENT SKILLS above, OR be explicitly requested in the ADDITIONAL TAILORING INSTRUCTIONS FROM USER.
+- DO NOT infer, invent, or borrow skills from the job description (e.g. if the JD mentions "Snowflake" but the resume does not, it is BANNED unless explicitly requested in the User Instructions)
+- Style Guideline: For security and compliance categories, prioritize high-level frameworks, standards, and architectures (e.g. "SOC 2", "FERPA", "Zero-Trust Architecture") over low-level implementation details or cryptographic algorithms (e.g. "AES-256-GCM", "HMAC-SHA-256") unless specifically requested otherwise.
 - Match category names to this job's requirements (e.g., "PM Tools" for PM roles, "Infrastructure" for architecture roles)
 - Within each category, include 3-5 skills; order by relevance to THIS job
-- Each skill should be a specific tool, platform, or technology name
+- Each skill should be a specific tool, platform, standard, framework, or technology name
 
 Return ONLY this exact JSON (no other fields, no markdown):
 {
