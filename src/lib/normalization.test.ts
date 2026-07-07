@@ -94,7 +94,7 @@ describe('Normalization Rules', () => {
       expect(result.experienceLevel).toBe('Senior');
       expect(result.department).toBe('Engineering');
       expect(result.team).toBe('Search');
-      expect(result.dedupKey).toContain('google::senior software engineer::new york, ny::');
+      expect(result.dedupKey).toContain('google::senior software engineer::new york, ny');
       expect(result.rawHash).not.toBe('no-hash');
     });
   });

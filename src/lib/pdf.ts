@@ -336,6 +336,9 @@ export async function generateCoverLetterPdf(content: {
     y -= LINE_HEIGHT;
   }
 
+  // Shift greeting and everything below it down by 2 lines
+  y -= LINE_HEIGHT * 2;
+
   drawText(content.greeting, { font: fontBold });
   y -= 6;
   drawText(content.opening);

@@ -239,7 +239,7 @@ export async function generateCoverLetterDocx(content: {
   paragraphs.push(
     new Paragraph({
       children: [new TextRun({ text: content.greeting, bold: true, size: 22, font: "Calibri" })],
-      spacing: { after: 160 },
+      spacing: { before: 480, after: 160 },
     }),
   );
 
