@@ -13,7 +13,7 @@ import { resolveSessionUser } from "@/lib/resolve-user";
 import { getCloudflareEnvAsync } from "@/lib/cloudflare";
 import type { PipelineStatus } from "@/lib/pipeline-constants";
 import { getDb } from "@/db/db";
-import { user as userTable, canonicalJobs, masterResume, normalizedJobs, jobSources } from "@/db/schema";
+import { user as userTable, canonicalJobs, masterResume, normalizedJobs, jobSources, generatedDocuments } from "@/db/schema";
 import { eq, and, inArray, or, gte, isNull, desc, asc, sql, count, countDistinct, ne } from "drizzle-orm";
 import { scoreJobAgainstProfile, type JobScoreResult } from "@/lib/ai/job-score";
 import { canonicalizeJobUrl } from "@/lib/normalized-jobs-persistence";
@@ -401,7 +401,47 @@ export const getRecommendedJobs = createServerFn({ method: "GET" })
       });
     }
 
-    return { jobs: resultJobs };
+    // Retrieve documents for recommended jobs
+    const normalizedJobIds = resultJobs
+      .map(j => j.id)
+      .filter((id): id is number => id !== null && id !== undefined);
+
+    let docsMap = new Map<number, any[]>();
+    if (normalizedJobIds.length > 0) {
+      const docs = await db
+        .select({
+          id: generatedDocuments.id,
+          docType: generatedDocuments.docType,
+          r2Key: generatedDocuments.r2Key,
+          fileName: generatedDocuments.fileName,
+          createdAt: generatedDocuments.createdAt,
+          pipelineJobId: generatedDocuments.pipelineJobId,
+        })
+        .from(generatedDocuments)
+        .where(inArray(generatedDocuments.pipelineJobId, normalizedJobIds))
+        .orderBy(desc(generatedDocuments.id));
+
+      for (const d of docs) {
+        if (d.pipelineJobId) {
+          const list = docsMap.get(d.pipelineJobId) || [];
+          list.push({
+            id: d.id,
+            docType: d.docType,
+            r2Key: d.r2Key,
+            fileName: d.fileName,
+            createdAt: d.createdAt,
+          });
+          docsMap.set(d.pipelineJobId, list);
+        }
+      }
+    }
+
+    const finalResultJobs = resultJobs.map((j) => ({
+      ...j,
+      documents: j.id ? (docsMap.get(j.id) || []) : [],
+    }));
+
+    return { jobs: finalResultJobs };
   });
 
 export const togglePipelineJobFavorite = createServerFn({ method: "POST" })
@@ -674,6 +714,16 @@ export const getCatalogJobs = createServerFn({ method: "GET" })
         matchScore: normalizedJobs.matchScore,
         normalizedJobId: normalizedJobs.id,
         analyzedAt: normalizedJobs.analyzedAt,
+        gapAnalysis: normalizedJobs.gapAnalysis,
+        recommendations: normalizedJobs.recommendations,
+        pursue: normalizedJobs.pursue,
+        pursueJustification: normalizedJobs.pursueJustification,
+        keywords: normalizedJobs.keywords,
+        strategyNote: normalizedJobs.strategyNote,
+        personalInterest: normalizedJobs.personalInterest,
+        careerAnalysis: normalizedJobs.careerAnalysis,
+        insights: normalizedJobs.insights,
+        jdText: normalizedJobs.jdText,
       })
       .from(canonicalJobs)
       .leftJoin(jobSources, eq(jobSources.canonicalId, canonicalJobs.id))
@@ -717,11 +767,49 @@ export const getCatalogJobs = createServerFn({ method: "GET" })
       scoredRows.sort((a, b) => b.finalScore - a.finalScore);
     }
 
-    const jobs = scoredRows.map(({ row: r }) => ({
-      ...r,
-      isSaved: r.currentStage !== null && r.currentStage !== undefined,
-      isFavorited: r.isFavorited === true || r.isFavorited === 1,
-    }));
+    const normalizedJobIds = scoredRows
+      .map(({ row: r }) => r.normalizedJobId)
+      .filter((id): id is number => id !== null && id !== undefined);
+
+    let docsMap = new Map<number, any[]>();
+    if (normalizedJobIds.length > 0) {
+      const docs = await db
+        .select({
+          id: generatedDocuments.id,
+          docType: generatedDocuments.docType,
+          r2Key: generatedDocuments.r2Key,
+          fileName: generatedDocuments.fileName,
+          createdAt: generatedDocuments.createdAt,
+          pipelineJobId: generatedDocuments.pipelineJobId,
+        })
+        .from(generatedDocuments)
+        .where(inArray(generatedDocuments.pipelineJobId, normalizedJobIds))
+        .orderBy(desc(generatedDocuments.id));
+
+      for (const d of docs) {
+        if (d.pipelineJobId) {
+          const list = docsMap.get(d.pipelineJobId) || [];
+          list.push({
+            id: d.id,
+            docType: d.docType,
+            r2Key: d.r2Key,
+            fileName: d.fileName,
+            createdAt: d.createdAt,
+          });
+          docsMap.set(d.pipelineJobId, list);
+        }
+      }
+    }
+
+    const jobs = scoredRows.map(({ row: r }) => {
+      const jobDocs = r.normalizedJobId ? (docsMap.get(r.normalizedJobId) || []) : [];
+      return {
+        ...r,
+        isSaved: r.currentStage !== null && r.currentStage !== undefined,
+        isFavorited: r.isFavorited === true,
+        documents: jobDocs,
+      };
+    });
 
     return { jobs, total, page, pageSize };
   });

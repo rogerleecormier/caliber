@@ -27,7 +27,8 @@ import {
   getSavedPipelineSearches,
   getRecommendedJobs,
 } from "@/server/functions/jobs-pipeline";
-import { useCatalogQuery } from "@/hooks/useCatalogQuery";
+import { useQueryClient } from "@tanstack/react-query";
+import { useCatalogQuery, catalogQueryKeys } from "@/hooks/useCatalogQuery";
 import type { CatalogFilters } from "@/hooks/useCatalogQuery";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -150,6 +151,7 @@ function JobsPage() {
   const loaderData = Route.useLoaderData() as any;
   const { hasResume, savedSearches: loaderSavedSearches } = loaderData;
 
+  const queryClient = useQueryClient();
   const [viewMode, setViewMode] = useState<ViewMode>("cards");
   const [analysisModalOpen, setAnalysisModalOpen] = useState(false);
   const [selectedJobForAnalysis, setSelectedJobForAnalysis] = useState<HubJob | null>(null);
@@ -266,8 +268,12 @@ function JobsPage() {
         isFromExistingJob={!!selectedJobForAnalysis}
         storedAnalysis={storedAnalysis}
         pipelineJobId={(selectedJobForAnalysis as any)?.normalizedJobId ?? undefined}
-        onAnalysisComplete={() => {}}
-        onDocumentGenerated={() => {}}
+        onAnalysisComplete={() => {
+          void queryClient.invalidateQueries({ queryKey: catalogQueryKeys.all });
+        }}
+        onDocumentGenerated={() => {
+          void queryClient.invalidateQueries({ queryKey: catalogQueryKeys.all });
+        }}
       />
 
     </div>
@@ -413,6 +419,7 @@ function CatalogBrowser({
                   isHorizontal={true}
                   isFavorited={job.isFavorited === 1 || job.isFavorited === true}
                   onToggleFavorite={() => handleStar(job)}
+                  isAnalyzed={!!job.analyzedAt}
                   onAnalyzeClick={() => {
                     onAnalyzeClick({
                       ...job,
@@ -441,6 +448,7 @@ function CatalogBrowser({
             <div className="grid gap-4 grid-cols-1 lg:grid-cols-2">
               {data.jobs.map((job) => {
                 const cardJob = {
+                  id: job.normalizedJobId ?? undefined,
                   title: job.titleDisplay,
                   company: job.companyDisplay,
                   location: job.locationDisplay,
@@ -458,6 +466,17 @@ function CatalogBrowser({
                   outlookScore: job.outlookScore,
                   masterScore: job.masterScore,
                   matchScore: job.matchScore,
+                  documents: job.documents,
+                  gapAnalysis: job.gapAnalysis,
+                  recommendations: job.recommendations,
+                  pursue: job.pursue,
+                  pursueJustification: job.pursueJustification,
+                  keywords: job.keywords,
+                  strategyNote: job.strategyNote,
+                  personalInterest: job.personalInterest,
+                  careerAnalysis: job.careerAnalysis,
+                  insights: job.insights,
+                  jdText: job.jdText,
                 };
 
                 return (
@@ -466,6 +485,7 @@ function CatalogBrowser({
                     job={cardJob}
                     isNew={false}
                     showSelection={false}
+                    isAnalyzed={!!job.analyzedAt}
                     onAnalyzeClick={() => {
                       onAnalyzeClick({
                         ...job,
@@ -564,19 +584,35 @@ function CatalogBrowser({
                           Apply
                         </a>
                       )}
-                      <button
-                        onClick={() => {
-                          onAnalyzeClick({
-                            ...job,
-                            title: job.titleDisplay,
-                            company: job.companyDisplay,
-                            sourceUrl: job.applyUrl ?? job.sourceUrl,
-                          });
-                        }}
-                        className="px-2.5 py-1 text-[12px] font-medium border border-slate-200 text-slate-600 rounded-lg hover:bg-slate-100 transition"
-                      >
-                        Analyze
-                      </button>
+                      {job.analyzedAt ? (
+                        <button
+                          onClick={() => {
+                            onAnalyzeClick({
+                              ...job,
+                              title: job.titleDisplay,
+                              company: job.companyDisplay,
+                              sourceUrl: job.applyUrl ?? job.sourceUrl,
+                            });
+                          }}
+                          className="px-2.5 py-1 text-[12px] font-medium border border-indigo-200 bg-indigo-50 text-indigo-700 rounded-lg hover:bg-indigo-100 transition"
+                        >
+                          View Analysis
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => {
+                            onAnalyzeClick({
+                              ...job,
+                              title: job.titleDisplay,
+                              company: job.companyDisplay,
+                              sourceUrl: job.applyUrl ?? job.sourceUrl,
+                            });
+                          }}
+                          className="px-2.5 py-1 text-[12px] font-medium border border-slate-200 text-slate-600 rounded-lg hover:bg-slate-100 transition"
+                        >
+                          Analyze
+                        </button>
+                      )}
                     </div>
                   </div>
                 );

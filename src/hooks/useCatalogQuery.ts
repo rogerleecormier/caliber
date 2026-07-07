@@ -41,6 +41,19 @@ export type CatalogJob = {
   matchScore: number | null;
   normalizedJobId: number | null;
   analyzedAt: string | null;
+  documents?: Array<{ id: number; docType: string; r2Key: string; fileName: string; createdAt: string | null }>;
+  gapAnalysis?: any;
+  recommendations?: any;
+  pursue?: number | null;
+  pursueJustification?: string | null;
+  keywords?: any;
+  strategyNote?: string | null;
+  personalInterest?: string | null;
+  careerAnalysis?: any;
+  insights?: any;
+  jdText?: string | null;
+  descriptionPlain?: string | null;
+  sourceCreatedAt?: string | null;
 };
 
 export type CatalogData = {
