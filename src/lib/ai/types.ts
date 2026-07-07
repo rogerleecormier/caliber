@@ -62,8 +62,8 @@ export const SCORING_MODEL = AI_MODELS.LLAMA_3_1_8B;
 // "content" (e.g. a summary that reads "Summarize the CURRENT SUMMARY..."), so
 // it is NOT usable here — same reason it was dropped for parsing below. Llama
 // 3.3 70B (fp8-fast) follows the JSON instruction reliably.
-// Testing Llama 4 Scout — if it echoes prompts or fails JSON constraints, revert to LLAMA_3_3_70B.
-export const RESUME_TAILORING_MODEL = AI_MODELS.LLAMA_4_SCOUT;
+// Reverted to LLAMA_3_3_70B because LLAMA_4_SCOUT was too concise in bullets and hallucinated technical skills.
+export const RESUME_TAILORING_MODEL = AI_MODELS.LLAMA_3_3_70B;
 
 // Resume SECTION PARSING (extraction) model. Must be a non-reasoning,
 // instruction-following model that honors response_format JSON mode and does
@@ -71,5 +71,5 @@ export const RESUME_TAILORING_MODEL = AI_MODELS.LLAMA_4_SCOUT;
 // thinking into the output and ignores JSON-schema constraints, so it is NOT
 // usable for structured extraction. Llama 3.3 70B (fp8-fast) follows the
 // JSON instruction reliably.
-// Testing Llama 4 Scout — if it echoes prompts or fails JSON constraints, revert to LLAMA_3_3_70B.
-export const RESUME_PARSING_MODEL = AI_MODELS.LLAMA_4_SCOUT;
+// Reverted to LLAMA_3_3_70B to keep alignment with tailoring.
+export const RESUME_PARSING_MODEL = AI_MODELS.LLAMA_3_3_70B;
