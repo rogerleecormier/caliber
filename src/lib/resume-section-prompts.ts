@@ -15,11 +15,12 @@ Description: {jobDescription}
 
 Create a summary:
 - MUST be 3-4 sentences, NO MORE, NO FEWER
-- MUST be 70-85 words total (count every word — if under 70, add specific true detail from the experience; if over 85, remove words)
-- Sentence 1 (~22 words): LEAD with the title/role from the candidate's profile that BEST MATCHES the target job title.
-- Sentence 2 (~22 words): a specific strength, achievement, or track record taken directly from the candidate's experience or summary (include a metric if it exists).
-- Sentence 3 (~22 words): a second true strength, project highlight, or domain area from the candidate's experience.
-- Sentence 4 (optional, ~22 words): a forward-looking statement connecting the candidate's existing background to the role.
+- MUST be 70-85 words total (count every word — if under 70, you MUST expand the sentences by adding more true context, tools, and achievements from the candidate's history)
+- Sentence 1 (~22 words): LEAD with the candidate's professional identity (e.g. "Senior Full-Stack AI Engineer and Technical Project Manager") matching the target job, highlighting their total years of experience and core expertise area.
+- Sentence 2 (~22 words): Weave together a specific high-impact strength, project, or track record (e.g., "Led the implementation of AI-driven automation solutions using HubSpot and Ramp to optimize workflows and reduce manual effort by 40%").
+- Sentence 3 (~22 words): Combine multiple technical tools, frameworks, and compliance standards from their background (e.g., "Expertise spans LLM inference orchestration, prompt engineering, and zero-trust security architectures aligned with SOC 2 and FERPA guidelines").
+- Sentence 4 (optional, ~22 words): A forward-looking statement connecting their background to delivering value in the target role.
+- WEAVE AND SYNTHESIZE: You are expected to combine different facts, tools, and experiences from the resume to construct long, rich, flowy, and professional sentences. Professional synthesis and descriptive phrasing of TRUE resume facts is NOT fabrication.
 - HARD RULE: every claim, skill, tool, title, domain, and metric must be traceable to the CURRENT SUMMARY or the CANDIDATE RESUME EXPERIENCE above. If the job description mentions something the resume does not support, DO NOT include it.
 - STRICT BAN: "I bring", "I leverage", "innovative", "passionate", "dynamic", "I am qualified", "proven track record", "extensive experience"
 - Every sentence must be specific, rich, and true — NO GENERIC LANGUAGE, NO FABRICATION
