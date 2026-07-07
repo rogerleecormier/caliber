@@ -188,28 +188,30 @@ export const generateResume = createServerFn({ method: "POST" })
 
 
 
-      const tailoredSections = await Promise.all(
-        sectionsToTailor.map(async (sectionType) => {
-          const original = sectionData[sectionType] ?? getDefaultSectionValue(sectionType);
-          if (isEmptySection(original)) return original;
+      const tailoredSections: any[] = [];
+      for (const sectionType of sectionsToTailor) {
+        const original = sectionData[sectionType] ?? getDefaultSectionValue(sectionType);
+        if (isEmptySection(original)) {
+          tailoredSections.push(original);
+          continue;
+        }
 
-          try {
-            const tailored = await tailorSection(env, sectionType, original, jobTitle, company, jobDescription, rawResumeText);
-            if (isEmptySection(tailored)) {
-              console.warn(`[generateResume] Tailored ${sectionType} was empty, falling back to original`);
-              return enforceGuardrails(sectionType, original);
-            }
-            if (looksLikePromptEcho(tailored)) {
-              console.warn(`[generateResume] Tailored ${sectionType} looks like prompt-instruction echo, falling back to original`);
-              return enforceGuardrails(sectionType, original);
-            }
-            return tailored;
-          } catch (err) {
-            console.error(`[generateResume] Failed to tailor ${sectionType}, falling back to original:`, err);
-            return enforceGuardrails(sectionType, original);
+        try {
+          const tailored = await tailorSection(env, sectionType, original, jobTitle, company, jobDescription, rawResumeText);
+          if (isEmptySection(tailored)) {
+            console.warn(`[generateResume] Tailored ${sectionType} was empty, falling back to original`);
+            tailoredSections.push(enforceGuardrails(sectionType, original));
+          } else if (looksLikePromptEcho(tailored)) {
+            console.warn(`[generateResume] Tailored ${sectionType} looks like prompt-instruction echo, falling back to original`);
+            tailoredSections.push(enforceGuardrails(sectionType, original));
+          } else {
+            tailoredSections.push(tailored);
           }
-        }),
-      );
+        } catch (err) {
+          console.error(`[generateResume] Failed to tailor ${sectionType}, falling back to original:`, err);
+          tailoredSections.push(enforceGuardrails(sectionType, original));
+        }
+      }
 
       console.log(`[generateResume] Tailored sections received:`, {
         professional_summary: typeof tailoredSections[0] === 'string' ? tailoredSections[0].substring(0, 100) : tailoredSections[0],

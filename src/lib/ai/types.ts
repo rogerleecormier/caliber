@@ -62,8 +62,8 @@ export const SCORING_MODEL = AI_MODELS.GEMMA_4_26B;
 // "content" (e.g. a summary that reads "Summarize the CURRENT SUMMARY..."), so
 // it is NOT usable here — same reason it was dropped for parsing below. Llama
 // 3.3 70B (fp8-fast) follows the JSON instruction reliably.
-// Reverted to GEMMA_4_26B as it is the only Gemma 4 model variant available on Cloudflare Workers AI.
-export const RESUME_TAILORING_MODEL = AI_MODELS.GEMMA_4_26B;
+// Reverted back to LLAMA_3_3_70B because GEMMA_4_26B echoes prompt guidelines and fails JSON formatting.
+export const RESUME_TAILORING_MODEL = AI_MODELS.LLAMA_3_3_70B;
 
 // Resume SECTION PARSING (extraction) model. Must be a non-reasoning,
 // instruction-following model that honors response_format JSON mode and does
@@ -71,5 +71,5 @@ export const RESUME_TAILORING_MODEL = AI_MODELS.GEMMA_4_26B;
 // thinking into the output and ignores JSON-schema constraints, so it is NOT
 // usable for structured extraction. Llama 3.3 70B (fp8-fast) follows the
 // JSON instruction reliably.
-// Set to GEMMA_4_26B to keep alignment with tailoring.
-export const RESUME_PARSING_MODEL = AI_MODELS.GEMMA_4_26B;
+// Reverted back to LLAMA_3_3_70B.
+export const RESUME_PARSING_MODEL = AI_MODELS.LLAMA_3_3_70B;
