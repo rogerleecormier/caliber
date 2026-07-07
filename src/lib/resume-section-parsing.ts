@@ -87,6 +87,22 @@ export function getDefaultSectionValue(sectionType: SectionType): any {
   return defaults[sectionType];
 }
 
+export function capitalizeSkillName(skill: string): string {
+  if (!skill) return "";
+  
+  return skill
+    .split(/([\s\-])/)
+    .map((word) => {
+      // Preserve acronyms/all-caps (AI, LLM, SOC, NLU, PM, API, ERP, AWS, SQL, ATS)
+      // or mixed-case brand names (OpenAI, GitHub, NetSuite, HubSpot, PowerBI)
+      if (/^[A-Z0-9]+$/.test(word) || /[A-Z]/.test(word.slice(1))) {
+        return word;
+      }
+      return word.charAt(0).toUpperCase() + word.slice(1);
+    })
+    .join("");
+}
+
 export function enforceGuardrails(sectionType: SectionType, content: any): any {
   switch (sectionType) {
     case "professional_summary": {
@@ -116,8 +132,9 @@ export function enforceGuardrails(sectionType: SectionType, content: any): any {
       return summary;
     }
     case "core_competencies": {
-      // Enforce exactly 8 items
-      const comps = (Array.isArray(content) ? content : []).filter((c: any) => typeof c === "string" && c.trim().length > 0);
+      // Enforce exactly 8 items and capitalize
+      const rawComps = (Array.isArray(content) ? content : []).filter((c: any) => typeof c === "string" && c.trim().length > 0);
+      const comps = rawComps.map((c: string) => capitalizeSkillName(c));
       if (comps.length === 8) return comps;
       console.warn(`[enforceGuardrails] core_competencies has ${comps.length} items, expected 8`);
       if (comps.length < 8) {
@@ -127,14 +144,25 @@ export function enforceGuardrails(sectionType: SectionType, content: any): any {
     }
     case "technical_skills": {
       // Enforce 5-6 categories
-      let skills = Array.isArray(content) ? content.filter((c: any) => c?.category && Array.isArray(c?.skills) && c.skills.length > 0) : [];
-      if (skills.length > 6) {
-        console.warn(`[enforceGuardrails] technical_skills has ${skills.length} categories, trimming to 6`);
-        skills = skills.slice(0, 6);
-      } else if (skills.length < 5 && skills.length > 0) {
-        console.warn(`[enforceGuardrails] technical_skills has ${skills.length} categories, expected 5-6`);
+      let categories = Array.isArray(content) ? content.filter((c: any) => c?.category && Array.isArray(c?.skills) && c.skills.length > 0) : [];
+      if (categories.length > 6) {
+        console.warn(`[enforceGuardrails] technical_skills has ${categories.length} categories, trimming to 6`);
+        categories = categories.slice(0, 6);
+      } else if (categories.length < 5 && categories.length > 0) {
+        console.warn(`[enforceGuardrails] technical_skills has ${categories.length} categories, expected 5-6`);
       }
-      return skills;
+      
+      // Capitalize both category and individual skill names
+      return categories.map((cat: any) => {
+        const categoryName = capitalizeSkillName(cat.category);
+        const skillList = Array.isArray(cat.skills)
+          ? cat.skills.map((skill: any) => typeof skill === "string" ? capitalizeSkillName(skill) : skill)
+          : [];
+        return {
+          category: categoryName,
+          skills: skillList,
+        };
+      });
     }
     case "professional_experience": {
       // Enforce 5 bullets per role, each ideally 15-20 words.
