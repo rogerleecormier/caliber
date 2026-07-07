@@ -44,6 +44,7 @@ async function tailorSection(
   company: string,
   jobDescription: string,
   rawResumeText?: string,
+  extraGuidance?: string,
 ): Promise<SectionContent[SectionType]> {
   const sectionPrompts: Record<SectionType, string> = {
     professional_summary: SECTION_PROMPT_PROFESSIONAL_SUMMARY,
@@ -70,6 +71,11 @@ async function tailorSection(
 
   if (sectionType === "professional_experience") {
     prompt = prompt.replace("{rawResumeText}", rawResumeText && rawResumeText.trim().length > 0 ? rawResumeText : "(not provided)");
+  }
+
+  if (extraGuidance && extraGuidance.trim().length > 0) {
+    prompt += `\n\nADDITIONAL TAILORING INSTRUCTIONS FROM USER (MUST prioritize following these instructions):
+${extraGuidance}`;
   }
 
   const messages: Array<{ role: "system" | "user"; content: string }> = [
@@ -197,7 +203,7 @@ export const generateResume = createServerFn({ method: "POST" })
         }
 
         try {
-          const tailored = await tailorSection(env, sectionType, original, jobTitle, company, jobDescription, rawResumeText);
+          const tailored = await tailorSection(env, sectionType, original, jobTitle, company, jobDescription, rawResumeText, data.extraGuidance);
           if (isEmptySection(tailored)) {
             console.warn(`[generateResume] Tailored ${sectionType} was empty, falling back to original`);
             tailoredSections.push(enforceGuardrails(sectionType, original));
