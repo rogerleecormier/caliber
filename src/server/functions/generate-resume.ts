@@ -69,13 +69,16 @@ async function tailorSection(
     .replace("{company}", company)
     .replace("{jobDescription}", jobDescription);
 
-  if (sectionType === "professional_experience") {
+  if (sectionType === "professional_summary" || sectionType === "professional_experience") {
     prompt = prompt.replace("{rawResumeText}", rawResumeText && rawResumeText.trim().length > 0 ? rawResumeText : "(not provided)");
   }
 
   if (extraGuidance && extraGuidance.trim().length > 0) {
-    prompt += `\n\nADDITIONAL TAILORING INSTRUCTIONS FROM USER (MUST prioritize following these instructions):
-${extraGuidance}`;
+    prompt += `\n\nADDITIONAL TAILORING INSTRUCTIONS FROM USER:
+${extraGuidance}
+
+CRITICAL ACCURACY & FACTUALITY CONSTRAINT:
+You must only follow the additional user instructions using true facts, skills, and experiences that are explicitly present in the candidate's profile (CURRENT SUMMARY or CANDIDATE RESUME EXPERIENCE). Do NOT invent or fabricate any skills, roles, tools, or frameworks (for example, do not invent new AI specialties or compliance methodologies) to satisfy these user instructions. Truthfulness and alignment with the candidate's actual background is your absolute highest priority constraint.`;
   }
 
   const messages: Array<{ role: "system" | "user"; content: string }> = [

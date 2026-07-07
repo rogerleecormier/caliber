@@ -1,25 +1,28 @@
 // Section-specific prompts for tailoring resume sections to job descriptions
 
-export const SECTION_PROMPT_PROFESSIONAL_SUMMARY = `You are an Executive Resume Strategist. Write a professional summary by SUMMARIZING THE CANDIDATE'S CURRENT SUMMARY below, selecting and emphasizing only the parts that fit the target job. Respond with ONLY valid JSON, no markdown, no code fences, no extra text.
+export const SECTION_PROMPT_PROFESSIONAL_SUMMARY = `You are an Executive Resume Strategist. Write a professional summary by summarizing the candidate's current summary and leveraging details from their entire resume experience below, selecting and emphasizing parts that fit the target job. Respond with ONLY valid JSON, no markdown, no code fences, no extra text.
 
-CURRENT SUMMARY (the ONLY source of facts, titles, skills, domains, and metrics you may use):
+CURRENT SUMMARY (primary identity source):
 {currentContent}
 
-TARGET JOB (use ONLY to decide which TRUE facts from the current summary to select and emphasize — do not pull facts, skills, or terminology from this job description into the summary):
+CANDIDATE RESUME EXPERIENCE (use to pull supporting achievements, context, metrics, and technologies to enrich the summary):
+{rawResumeText}
+
+TARGET JOB (use ONLY to decide which TRUE facts from the candidate's background to select and emphasize — do not pull facts, skills, or terminology from this job description):
 Title: {jobTitle}
 Company: {company}
 Description: {jobDescription}
 
 Create a summary:
 - MUST be 3-4 sentences, NO MORE, NO FEWER
-- MUST be 70-85 words total (count every word — if under 70, add specific true detail from the current summary; if over 85, remove words)
-- Sentence 1 (~22 words): LEAD with the title/role from the current summary that BEST MATCHES the target job title — not necessarily the candidate's primary title. For example, if the job is a software engineering role, open with the engineering identity; if it is a PM role, open with the PM identity. The candidate has multiple roles in their background — pick the most relevant one for THIS job.
-- Sentence 2 (~22 words): a specific strength or track record taken directly from the current summary (include a metric only if it appears there)
-- Sentence 3 (~22 words): a second true strength or domain area from the current summary that aligns with the job
-- Sentence 4 (optional, ~22 words): a forward-looking statement connecting the candidate's existing (current summary) background to the role — do not promise skills, tools, or experience not present in the current summary
-- HARD RULE: every claim, skill, tool, title, domain, and metric must be traceable to the CURRENT SUMMARY above. If the job description mentions something the current summary does not support, DO NOT include it.
+- MUST be 70-85 words total (count every word — if under 70, add specific true detail from the experience; if over 85, remove words)
+- Sentence 1 (~22 words): LEAD with the title/role from the candidate's profile that BEST MATCHES the target job title.
+- Sentence 2 (~22 words): a specific strength, achievement, or track record taken directly from the candidate's experience or summary (include a metric if it exists).
+- Sentence 3 (~22 words): a second true strength, project highlight, or domain area from the candidate's experience.
+- Sentence 4 (optional, ~22 words): a forward-looking statement connecting the candidate's existing background to the role.
+- HARD RULE: every claim, skill, tool, title, domain, and metric must be traceable to the CURRENT SUMMARY or the CANDIDATE RESUME EXPERIENCE above. If the job description mentions something the resume does not support, DO NOT include it.
 - STRICT BAN: "I bring", "I leverage", "innovative", "passionate", "dynamic", "I am qualified", "proven track record", "extensive experience"
-- Every sentence must be specific and true — NO GENERIC LANGUAGE, NO FABRICATION
+- Every sentence must be specific, rich, and true — NO GENERIC LANGUAGE, NO FABRICATION
 
 Return ONLY this exact JSON (no other fields, no markdown):
 {
