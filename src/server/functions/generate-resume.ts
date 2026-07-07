@@ -32,7 +32,7 @@ import {
   SECTION_PROMPT_EDUCATION,
   SECTION_PROMPT_CERTIFICATIONS,
   SECTION_PROMPT_AWARDS,
-} from "@/lib/resume-section-prompts";
+} from "@/lib/ai/prompts";
 import { RESUME_TAILORING_MODEL } from "@/lib/ai/types";
 
 
