@@ -32,9 +32,9 @@ export function AnalysisModal({
   const hasApplyUrl = !!jobUrl && jobUrl !== "manual" && /^https?:\/\//i.test(jobUrl);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="relative max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-2xl bg-white shadow-2xl">
-        <div className="sticky top-0 flex items-center justify-between border-b border-slate-200 bg-white px-6 py-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm animate-in fade-in duration-200">
+      <div className="relative flex flex-col max-h-[90vh] lg:h-[85vh] w-full max-w-6xl overflow-hidden rounded-2xl bg-white shadow-2xl animate-in slide-in-from-bottom-4 duration-300">
+        <div className="sticky top-0 flex items-center justify-between border-b border-slate-200 bg-white px-6 py-4 shrink-0">
           <div>
             <h2 className="font-semibold text-slate-900">{isViewingStored ? "View Analysis" : "Analyze Job"}</h2>
             {jobTitle && <p className="mt-0.5 text-sm text-slate-600 truncate">{jobTitle}</p>}
@@ -60,7 +60,7 @@ export function AnalysisModal({
             </button>
           </div>
         </div>
-        <div className="p-6">
+        <div className="flex-1 overflow-hidden bg-slate-50 p-6">
           {isViewingStored && storedAnalysis ? (
             <AnalysisResult analysis={storedAnalysis} showDocumentActions={true} onDocumentGenerated={onDocumentGenerated} />
           ) : (

@@ -48,10 +48,10 @@ export default function AIAnalysisModal({
       onClick={onClose}
     >
       <div
-        className="flex max-h-[92vh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl animate-in slide-in-from-bottom-4 duration-300"
+        className="flex max-h-[90vh] lg:h-[85vh] w-full max-w-6xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl animate-in slide-in-from-bottom-4 duration-300"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-start justify-between gap-4 border-b-2 border-slate-200 p-6">
+        <div className="flex items-start justify-between gap-4 border-b border-slate-200 p-6 shrink-0">
           <div className="flex min-w-0 flex-1 items-start gap-3">
             <div className="rounded-xl bg-amber-100 p-2.5">
               <Sparkles className="h-5 w-5 text-amber-600" />
@@ -73,13 +73,11 @@ export default function AIAnalysisModal({
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto bg-slate-50 p-6">
-          <div className="mx-auto max-w-4xl">
-            <AnalysisForm
-              initialUrl={initialJd ? undefined : job.sourceUrl}
-              initialJd={initialJd}
-            />
-          </div>
+        <div className="flex-1 overflow-hidden bg-slate-50 p-6">
+          <AnalysisForm
+            initialUrl={initialJd ? undefined : job.sourceUrl}
+            initialJd={initialJd}
+          />
         </div>
       </div>
     </div>
