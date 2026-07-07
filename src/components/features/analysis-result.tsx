@@ -103,7 +103,7 @@ function SectionCard({ icon, title, eyebrow, children }: {
 }) {
   return (
     <div className="rounded-2xl border border-slate-200 bg-white overflow-hidden">
-      <div className="flex items-center gap-2.5 px-5 py-3.5 border-b border-slate-100 bg-slate-50/60">
+      <div className="flex items-center gap-2.5 px-4 py-2.5 border-b border-slate-100 bg-slate-50/60">
         <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-white border border-slate-200 shadow-sm">
           {icon}
         </div>
@@ -112,7 +112,7 @@ function SectionCard({ icon, title, eyebrow, children }: {
           <p className="text-sm font-semibold text-slate-900 leading-tight">{title}</p>
         </div>
       </div>
-      <div className="px-5 py-4">{children}</div>
+      <div className="px-4 py-3">{children}</div>
     </div>
   );
 }
@@ -122,20 +122,20 @@ function AccordionSectionCard({
   title,
   eyebrow,
   children,
-  defaultOpen = false,
+  isOpen,
+  onToggle,
 }: {
   icon: React.ReactNode;
   title: string;
   eyebrow?: string;
   children: React.ReactNode;
-  defaultOpen?: boolean;
+  isOpen: boolean;
+  onToggle: () => void;
 }) {
-  const [isOpen, setIsOpen] = useState(defaultOpen);
-
   return (
     <div className="rounded-2xl border border-slate-200 bg-white overflow-hidden transition-all duration-200">
       <button
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={onToggle}
         className="w-full flex items-center justify-between px-5 py-3.5 border-b border-slate-100 bg-slate-50/60 hover:bg-slate-50 transition-colors text-left focus:outline-none"
       >
         <div className="flex items-center gap-2.5">
@@ -151,7 +151,7 @@ function AccordionSectionCard({
           {isOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
         </div>
       </button>
-      {isOpen && <div className="px-5 py-4">{children}</div>}
+      {isOpen && <div className="px-5 py-4 bg-white">{children}</div>}
     </div>
   );
 }
@@ -180,6 +180,7 @@ export function AnalysisResult({ analysis, showDocumentActions = true, onDocumen
   const partial  = gapArray.filter((g) => g.status === "partial").length;
   const missing  = gapArray.filter((g) => g.status === "missing").length;
   const total    = gapArray.length;
+  const [openSection, setOpenSection] = useState<string | null>("requirements");
 
   return (
     <div className="flex flex-col gap-6 h-full overflow-y-auto lg:overflow-hidden text-slate-900 scroll-smooth jobs-modal-scroll">
@@ -188,7 +189,7 @@ export function AnalysisResult({ analysis, showDocumentActions = true, onDocumen
         {/* Column 1: Fit & Insights */}
         <div className="flex flex-col gap-4 lg:h-full lg:overflow-y-auto lg:pr-2 lg:pb-6 scroll-smooth jobs-modal-scroll">
           {/* ── Hero card ── */}
-          <div className={`rounded-2xl border p-5 ${verdict.bg} shrink-0`}>
+          <div className={`rounded-2xl border p-4 ${verdict.bg} shrink-0`}>
             <div className="flex items-start justify-between gap-4">
               <div className="min-w-0 flex-1">
                 <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1">AI Analysis</p>
@@ -202,18 +203,18 @@ export function AnalysisResult({ analysis, showDocumentActions = true, onDocumen
               <ScoreBadge score={analysis.matchScore} size="lg" label="Match" />
             </div>
 
-            <div className={`flex items-center gap-2 mt-4 pt-3 border-t ${verdict.accent === "text-emerald-700" ? "border-emerald-200" : verdict.accent === "text-amber-700" ? "border-amber-200" : "border-red-200"}`}>
+            <div className={`flex items-center gap-2 mt-3 pt-2.5 border-t ${verdict.accent === "text-emerald-700" ? "border-emerald-200" : verdict.accent === "text-amber-700" ? "border-amber-200" : "border-red-200"}`}>
               <div className={`flex h-6 w-6 items-center justify-center rounded-full ${verdict.bar} bg-opacity-20`}>
                 <VerdictIcon className={`h-3.5 w-3.5 ${verdict.accent}`} />
               </div>
-              <span className={`text-sm font-bold uppercase tracking-wide ${verdict.accent}`}>{verdict.label}</span>
+              <span className="text-sm font-bold uppercase tracking-wide text-slate-800">{verdict.label}</span>
               <span className="text-sm text-slate-500 ml-1">· {analysis.pursueJustification}</span>
             </div>
           </div>
 
           {/* ── Career impact ── */}
           {analysis.careerAnalysis && (
-            <div className="rounded-2xl border border-violet-200 bg-violet-50 p-5 space-y-2 shrink-0">
+            <div className="rounded-2xl border border-violet-200 bg-violet-50 p-4 space-y-2 shrink-0">
               <div className="flex items-center gap-2">
                 <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-violet-100 border border-violet-200">
                   <TrendingUp className="h-3.5 w-3.5 text-violet-600" />
@@ -225,7 +226,7 @@ export function AnalysisResult({ analysis, showDocumentActions = true, onDocumen
                 <p className="text-xs text-violet-600">{analysis.careerAnalysis.reasoning}</p>
               )}
               {analysis.careerAnalysis.salaryAssessment && (
-                <div className="mt-2 pt-2 border-t border-violet-200 flex items-center gap-3">
+                <div className="mt-1.5 pt-1.5 border-t border-violet-200 flex items-center gap-3">
                   <DollarSign className="h-4 w-4 text-violet-500 shrink-0" />
                   <div>
                     <span className="text-sm font-bold text-violet-900">
@@ -243,7 +244,7 @@ export function AnalysisResult({ analysis, showDocumentActions = true, onDocumen
 
           {/* ── Why this role ── */}
           {analysis.personalInterest && (
-            <div className="rounded-2xl border border-amber-200 bg-amber-50 p-5 space-y-1.5 shrink-0">
+            <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 space-y-1.5 shrink-0">
               <div className="flex items-center gap-2">
                 <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-amber-100 border border-amber-200">
                   <Sparkles className="h-3.5 w-3.5 text-amber-600" />
@@ -261,37 +262,37 @@ export function AnalysisResult({ analysis, showDocumentActions = true, onDocumen
                 {/* Quick facts - detailed layout */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {analysis.insights.workLifeBalance && analysis.insights.workLifeBalance !== "unknown" && (
-                    <div className={`rounded-xl border p-4 ${
+                    <div className={`rounded-xl border p-3 ${
                       analysis.insights.workLifeBalance === "excellent" || analysis.insights.workLifeBalance === "good"
                         ? "bg-emerald-50 border-emerald-100" : analysis.insights.workLifeBalance === "demanding"
                         ? "bg-red-50 border-red-100" : "bg-amber-50 border-amber-100"
                     }`}>
-                      <p className="text-[9px] font-bold uppercase tracking-widest text-slate-400 mb-2">Work-Life Balance</p>
-                      <p className={`text-lg font-bold capitalize ${
+                      <p className="text-[9px] font-bold uppercase tracking-widest text-slate-400 mb-1">Work-Life Balance</p>
+                      <p className={`text-base font-bold capitalize ${
                         analysis.insights.workLifeBalance === "excellent" || analysis.insights.workLifeBalance === "good"
                           ? "text-emerald-800" : analysis.insights.workLifeBalance === "demanding" ? "text-red-800" : "text-amber-800"
                       }`}>{analysis.insights.workLifeBalance.replace(/_/g, " ")}</p>
                     </div>
                   )}
                   {analysis.insights.remoteFlexibility && analysis.insights.remoteFlexibility !== "unknown" && (
-                    <div className="rounded-xl border bg-sky-50 border-sky-100 p-4">
-                      <div className="flex items-center gap-2 mb-2">
+                    <div className="rounded-xl border bg-sky-50 border-sky-100 p-3">
+                      <div className="flex items-center gap-2 mb-1">
                         <MapPin className="h-4 w-4 text-sky-600" />
                         <p className="text-[9px] font-bold uppercase tracking-widest text-slate-400">Location / Remote</p>
                       </div>
-                      <p className="text-lg font-bold text-sky-800">
+                      <p className="text-base font-bold text-sky-800">
                         {analysis.insights.remoteFlexibility === "fully_remote" ? "Fully Remote"
                           : analysis.insights.remoteFlexibility === "hybrid" ? "Hybrid" : "On-site"}
                       </p>
                     </div>
                   )}
                   {analysis.insights.seniorityLevel && analysis.insights.seniorityLevel !== "unknown" && (
-                    <div className="rounded-xl border bg-violet-50 border-violet-100 p-4">
-                      <div className="flex items-center gap-2 mb-2">
+                    <div className="rounded-xl border bg-violet-50 border-violet-100 p-3">
+                      <div className="flex items-center gap-2 mb-1">
                         <TrendingUp className="h-4 w-4 text-violet-600" />
                         <p className="text-[9px] font-bold uppercase tracking-widest text-slate-400">Seniority Level</p>
                       </div>
-                      <p className="text-lg font-bold text-violet-800 capitalize">{analysis.insights.seniorityLevel.replace(/_/g, " ")}</p>
+                      <p className="text-base font-bold text-violet-800 capitalize">{analysis.insights.seniorityLevel.replace(/_/g, " ")}</p>
                     </div>
                   )}
                 </div>
@@ -301,7 +302,7 @@ export function AnalysisResult({ analysis, showDocumentActions = true, onDocumen
                   <div className="space-y-2">
                     <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Culture Signals</p>
                     {analysis.insights.cultureSignals.map((s, i) => (
-                      <div key={i} className={`flex items-start gap-2.5 rounded-xl border p-3 text-xs ${
+                      <div key={i} className={`flex items-start gap-2 rounded-xl border p-2.5 text-xs ${
                         s.sentiment === "positive" ? "bg-emerald-50 border-emerald-100"
                           : s.sentiment === "warning" ? "bg-amber-50 border-amber-100"
                           : "bg-slate-50 border-slate-100"
@@ -325,7 +326,7 @@ export function AnalysisResult({ analysis, showDocumentActions = true, onDocumen
                       <AlertTriangle className="h-3 w-3" /> Red Flags
                     </p>
                     {analysis.insights.redFlags.map((f, i) => (
-                      <div key={i} className="flex items-start gap-2.5 rounded-xl border border-red-100 bg-red-50 p-3 text-xs">
+                      <div key={i} className="flex items-start gap-2 rounded-xl border border-red-100 bg-red-50 p-2.5 text-xs">
                         <span className="shrink-0 mt-px text-sm">🚩</span>
                         <div>
                           <p className="font-semibold text-red-800">{f.flag}</p>
@@ -348,7 +349,8 @@ export function AnalysisResult({ analysis, showDocumentActions = true, onDocumen
               icon={<Target className="h-3.5 w-3.5 text-violet-600" />}
               title="Requirements Analysis"
               eyebrow="Gap Analysis"
-              defaultOpen={true}
+              isOpen={openSection === "requirements"}
+              onToggle={() => setOpenSection(openSection === "requirements" ? null : "requirements")}
             >
               <div>
                 {/* progress bar */}
@@ -409,7 +411,8 @@ export function AnalysisResult({ analysis, showDocumentActions = true, onDocumen
               icon={<Shield className="h-3.5 w-3.5 text-sky-600" />}
               title="Strategic Positioning"
               eyebrow="How to position yourself"
-              defaultOpen={true}
+              isOpen={openSection === "strategy"}
+              onToggle={() => setOpenSection(openSection === "strategy" ? null : "strategy")}
             >
               <p className="text-sm text-slate-700 leading-relaxed">{analysis.strategyNote}</p>
             </AccordionSectionCard>
@@ -421,7 +424,8 @@ export function AnalysisResult({ analysis, showDocumentActions = true, onDocumen
               icon={<Lightbulb className="h-3.5 w-3.5 text-amber-500" />}
               title="Recommendations"
               eyebrow="Action items"
-              defaultOpen={true}
+              isOpen={openSection === "recommendations"}
+              onToggle={() => setOpenSection(openSection === "recommendations" ? null : "recommendations")}
             >
               <ul className="space-y-2">
                 {analysis.recommendations.map((rec, i) => (
@@ -440,7 +444,8 @@ export function AnalysisResult({ analysis, showDocumentActions = true, onDocumen
               icon={<Tag className="h-3.5 w-3.5 text-primary-600" />}
               title="ATS Keywords"
               eyebrow="Integrate these in your resume"
-              defaultOpen={false}
+              isOpen={openSection === "keywords"}
+              onToggle={() => setOpenSection(openSection === "keywords" ? null : "keywords")}
             >
               <div className="flex flex-wrap gap-1.5">
                 {analysis.keywords.map((kw, i) => (
