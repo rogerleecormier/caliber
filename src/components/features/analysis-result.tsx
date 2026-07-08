@@ -133,10 +133,10 @@ function AccordionSectionCard({
   onToggle: () => void;
 }) {
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white overflow-hidden transition-all duration-200">
+    <div className={`rounded-2xl border border-slate-200 bg-white overflow-hidden transition-all duration-200 ${isOpen ? "lg:flex-1 lg:min-h-0 lg:flex lg:flex-col" : "shrink-0"}`}>
       <button
         onClick={onToggle}
-        className="w-full flex items-center justify-between px-5 py-3.5 border-b border-slate-100 bg-slate-50/60 hover:bg-slate-50 transition-colors text-left focus:outline-none"
+        className="w-full flex items-center justify-between px-5 py-3.5 border-b border-slate-100 bg-slate-50/60 hover:bg-slate-50 transition-colors text-left focus:outline-none shrink-0"
       >
         <div className="flex items-center gap-2.5">
           <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-white border border-slate-200 shadow-sm">
@@ -151,7 +151,11 @@ function AccordionSectionCard({
           {isOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
         </div>
       </button>
-      {isOpen && <div className="px-5 py-4 bg-white">{children}</div>}
+      {isOpen && (
+        <div className="px-5 py-4 bg-white lg:flex-1 lg:min-h-0 lg:overflow-y-auto scroll-smooth jobs-modal-scroll">
+          {children}
+        </div>
+      )}
     </div>
   );
 }
@@ -342,7 +346,7 @@ export function AnalysisResult({ analysis, showDocumentActions = true, onDocumen
         </div>
 
         {/* Column 2: Requirements & Strategy */}
-        <div className="flex flex-col gap-4 lg:h-full lg:overflow-y-auto lg:pr-2 lg:pb-6 scroll-smooth jobs-modal-scroll">
+        <div className="flex flex-col gap-4 lg:h-full lg:pr-2 lg:pb-6 scroll-smooth jobs-modal-scroll overflow-y-auto lg:overflow-y-hidden">
           {/* Requirements Analysis */}
           {gapArray.length > 0 ? (
             <AccordionSectionCard
@@ -369,7 +373,7 @@ export function AnalysisResult({ analysis, showDocumentActions = true, onDocumen
                   </div>
                 )}
                 {/* Scroll container for gap items */}
-                <div className="max-h-[300px] overflow-y-auto pr-2 space-y-2.5 scroll-smooth jobs-modal-scroll">
+                <div className="max-h-[300px] lg:max-h-none overflow-y-auto lg:overflow-visible pr-2 space-y-2.5 scroll-smooth jobs-modal-scroll">
                   {gapArray.map((gap, i) => {
                     const s = statusMap[gap.status as keyof typeof statusMap] ?? statusMap.partial;
                     const StatusIcon = s.Icon;
