@@ -134,6 +134,13 @@
       "when": 1782891159454,
       "tag": "0035_spicy_genesis",
       "breakpoints": true
+    },
+    {
+      "idx": 37,
+      "version": "6",
+      "when": 1784419106210,
+      "tag": "0037_add_admin_dashboard_indexes",
+      "breakpoints": true
     }
   ]
 }

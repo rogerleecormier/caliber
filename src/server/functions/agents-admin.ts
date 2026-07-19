@@ -75,7 +75,7 @@ export const getAgentsAdminOverview = createServerFn({ method: "GET" })
           SUM(CASE WHEN validation_error_count > 0 THEN 1 ELSE 0 END) as validation_failures,
           COUNT(id) as total_count
         FROM boards
-        WHERE datetime(discovered_at) > datetime('now', '-7 days')
+        WHERE discovered_at > datetime('now', '-7 days')
       `).first<any>(),
 
       db.prepare(`

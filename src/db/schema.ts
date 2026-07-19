@@ -460,6 +460,7 @@ export const canonicalJobs = sqliteTable('canonical_jobs', {
   idxCanonicalCompanyTitle: index('idx_canonical_company_title').on(table.companyNorm, table.titleNorm),
   idxCanonicalLocation: index('idx_canonical_location').on(table.locationNorm),
   idxCanonicalExpires: index('idx_canonical_expires').on(table.expiresAt),
+  idxCanonicalIsListed: index('idx_canonical_is_listed').on(table.isListed, table.expiresAt),
 }))
 
 export const jobSources = sqliteTable('job_sources', {
@@ -504,6 +505,8 @@ export const boards = sqliteTable('boards', {
   idxBoardsActive: index('idx_boards_active').on(table.isActive, table.crawlFrequencyTier),
   idxBoardsValidated: index('idx_boards_validated').on(table.validated, table.isActive),
   idxBoardsConfidence: index('idx_boards_confidence').on(table.discoveryConfidence),
+  idxBoardsDiscoveredAt: index('idx_boards_discovered_at').on(table.discoveredAt),
+  idxBoardsLastDiscoveredAt: index('idx_boards_last_discovered_at').on(table.lastDiscoveredAt),
 }))
 
 export const auditLog = sqliteTable('audit_log', {
@@ -518,6 +521,7 @@ export const auditLog = sqliteTable('audit_log', {
   createdAt: text('created_at').notNull(),
 }, (table) => ({
   idxAuditCreated: index('idx_audit_created').on(table.createdAt),
+  idxAuditEventTypeCreated: index('idx_audit_event_type_created').on(table.eventType, table.createdAt),
 }))
 
 export type CanonicalJob = typeof canonicalJobs.$inferSelect
