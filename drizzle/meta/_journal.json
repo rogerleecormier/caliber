@@ -141,6 +141,13 @@
       "when": 1784419106210,
       "tag": "0037_add_admin_dashboard_indexes",
       "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "6",
+      "when": 1784428198615,
+      "tag": "0038_left_mephistopheles",
+      "breakpoints": true
     }
   ]
 }

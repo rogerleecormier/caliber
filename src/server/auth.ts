@@ -30,6 +30,12 @@ export function getAuthInstance(env: Partial<CloudflareEnv> & Record<string, any
       },
     }),
     secret: env.BETTER_AUTH_SECRET,
+    session: {
+      cookieCache: {
+        enabled: true,
+        maxAge: 5 * 60,
+      },
+    },
     trustedOrigins: [
       "https://caliber.rcormier.dev",
       "https://caliber.rcormier.workers.dev",

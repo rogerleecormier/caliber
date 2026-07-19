@@ -43,6 +43,9 @@ const EMPTY_OVERVIEW: AgentsAdminOverview = {
   jobsByAts: {}, boardsByAts: {}, crawlsByAts: {}, errorsByAts: {},
 };
 
+const OVERVIEW_CACHE_KEY = "agents-admin:overview";
+const OVERVIEW_CACHE_TTL_SECONDS = 60;
+
 export const getAgentsAdminOverview = createServerFn({ method: "GET" })
   .inputValidator((d: Record<string, never> | undefined) => d || {})
   .handler(async (ctx: any) => {
@@ -51,6 +54,16 @@ export const getAgentsAdminOverview = createServerFn({ method: "GET" })
     const env = await getCloudflareEnvAsync();
     const db = env.DB;
     if (!db) return EMPTY_OVERVIEW;
+
+    const kv = env.KV;
+    if (kv) {
+      try {
+        const cached = await kv.get(OVERVIEW_CACHE_KEY, "json");
+        if (cached) return cached as AgentsAdminOverview;
+      } catch (err) {
+        console.error("[getAgentsAdminOverview] KV cache read failed:", err);
+      }
+    }
 
     const [
       discoveryStats,
@@ -61,14 +74,14 @@ export const getAgentsAdminOverview = createServerFn({ method: "GET" })
       boardsByAtsRows,
       crawlsByAtsRows,
       errorsByAtsRows,
-    ] = await Promise.all([
+    ] = await db.batch([
       db.prepare(`
         SELECT
           COUNT(id) as total_boards,
           SUM(CASE WHEN validated = 1 THEN 1 ELSE 0 END) as validated_boards,
-          SUM(CASE WHEN datetime(discovered_at) > datetime('now', '-7 days') THEN 1 ELSE 0 END) as discovered_last_week
+          SUM(CASE WHEN discovered_at > datetime('now', '-7 days') THEN 1 ELSE 0 END) as discovered_last_week
         FROM boards
-      `).first<any>(),
+      `),
 
       db.prepare(`
         SELECT
@@ -76,7 +89,7 @@ export const getAgentsAdminOverview = createServerFn({ method: "GET" })
           COUNT(id) as total_count
         FROM boards
         WHERE discovered_at > datetime('now', '-7 days')
-      `).first<any>(),
+      `),
 
       db.prepare(`
         SELECT
@@ -93,7 +106,7 @@ export const getAgentsAdminOverview = createServerFn({ method: "GET" })
           (SELECT COUNT(*) FROM audit_log WHERE event_type = 'error' AND created_at > datetime('now', '-24 hours')) as errors_24h,
           (SELECT COUNT(*) FROM audit_log WHERE event_type = 'llm_call' AND created_at > datetime('now', '-24 hours')) as llm_calls_24h,
           (SELECT COUNT(*) FROM audit_log WHERE event_type = 'crawl_complete' AND created_at > datetime('now', '-24 hours')) as crawls_24h
-      `).first<any>(),
+      `),
 
       db.prepare(`
         SELECT
@@ -102,7 +115,7 @@ export const getAgentsAdminOverview = createServerFn({ method: "GET" })
           (SELECT COUNT(*) FROM canonical_jobs WHERE is_listed = 1 AND expires_at IS NOT NULL AND expires_at <= datetime('now')) as expired_jobs,
           (SELECT COUNT(DISTINCT canonical_id) FROM job_sources) as crawler_jobs,
           (SELECT COUNT(*) FROM canonical_jobs WHERE is_listed = 1 AND id NOT IN (SELECT DISTINCT canonical_id FROM job_sources)) as manual_jobs
-      `).first<any>(),
+      `),
 
       db.prepare(`
         SELECT js.ats, COUNT(DISTINCT js.canonical_id) as cnt
@@ -110,59 +123,74 @@ export const getAgentsAdminOverview = createServerFn({ method: "GET" })
         JOIN canonical_jobs c ON c.id = js.canonical_id
         WHERE c.is_listed = 1
         GROUP BY js.ats ORDER BY cnt DESC
-      `).all<{ ats: string; cnt: number }>(),
+      `),
 
       db.prepare(`
         SELECT ats, COUNT(*) as cnt FROM boards WHERE is_active = 1 GROUP BY ats ORDER BY cnt DESC
-      `).all<{ ats: string; cnt: number }>(),
+      `),
 
       db.prepare(`
         SELECT ats, COUNT(*) as cnt FROM audit_log
         WHERE event_type = 'crawl_complete' AND created_at > datetime('now', '-24 hours')
         GROUP BY ats ORDER BY cnt DESC
-      `).all<{ ats: string; cnt: number }>(),
+      `),
 
       db.prepare(`
         SELECT ats, COUNT(*) as cnt FROM audit_log
         WHERE event_type = 'error' AND created_at > datetime('now', '-24 hours')
         GROUP BY ats ORDER BY cnt DESC
-      `).all<{ ats: string; cnt: number }>(),
+      `),
     ]);
 
-    const totalCount = failureStats?.total_count ?? 0;
-    const validationFailures = failureStats?.validation_failures ?? 0;
+    const discoveryStatsRow = discoveryStats.results[0] as any;
+    const failureStatsRow = failureStats.results[0] as any;
+    const crawlerStatsRow = crawlerStats.results[0] as any;
+    const lifecycleStatsRow = lifecycleStats.results[0] as any;
+
+    const totalCount = failureStatsRow?.total_count ?? 0;
+    const validationFailures = failureStatsRow?.validation_failures ?? 0;
     const falsePositiveRate = totalCount > 0 ? (validationFailures / totalCount) : 0;
 
     const jobsByAts: Record<string, number> = {};
-    for (const r of jobsByAtsRows.results || []) jobsByAts[r.ats] = r.cnt;
+    for (const r of (jobsByAtsRows.results || []) as { ats: string; cnt: number }[]) jobsByAts[r.ats] = r.cnt;
     const boardsByAts: Record<string, number> = {};
-    for (const r of boardsByAtsRows.results || []) boardsByAts[r.ats] = r.cnt;
+    for (const r of (boardsByAtsRows.results || []) as { ats: string; cnt: number }[]) boardsByAts[r.ats] = r.cnt;
     const crawlsByAts: Record<string, number> = {};
-    for (const r of crawlsByAtsRows.results || []) crawlsByAts[r.ats] = r.cnt;
+    for (const r of (crawlsByAtsRows.results || []) as { ats: string; cnt: number }[]) crawlsByAts[r.ats] = r.cnt;
     const errorsByAts: Record<string, number> = {};
-    for (const r of errorsByAtsRows.results || []) errorsByAts[r.ats] = r.cnt;
+    for (const r of (errorsByAtsRows.results || []) as { ats: string; cnt: number }[]) errorsByAts[r.ats] = r.cnt;
 
-    return {
-      totalBoards: discoveryStats?.total_boards ?? 0,
-      validatedBoards: discoveryStats?.validated_boards ?? 0,
-      discoveredLastWeek: discoveryStats?.discovered_last_week ?? 0,
+    const overview = {
+      totalBoards: discoveryStatsRow?.total_boards ?? 0,
+      validatedBoards: discoveryStatsRow?.validated_boards ?? 0,
+      discoveredLastWeek: discoveryStatsRow?.discovered_last_week ?? 0,
       falsePositiveRate: Number(falsePositiveRate.toFixed(4)),
-      canonicalJobs: crawlerStats?.canonical_count ?? 0,
-      sourceCount: crawlerStats?.source_count ?? 0,
-      activeBoards: crawlerStats?.active_boards ?? 0,
-      crawls24h: crawlerStats?.crawls_24h ?? 0,
-      llmCalls24h: crawlerStats?.llm_calls_24h ?? 0,
-      errors24h: crawlerStats?.errors_24h ?? 0,
-      totalJobs: lifecycleStats?.total_jobs ?? 0,
-      activeJobs: lifecycleStats?.active_jobs ?? 0,
-      expiredJobs: lifecycleStats?.expired_jobs ?? 0,
-      crawlerJobs: lifecycleStats?.crawler_jobs ?? 0,
-      manualJobs: lifecycleStats?.manual_jobs ?? 0,
+      canonicalJobs: crawlerStatsRow?.canonical_count ?? 0,
+      sourceCount: crawlerStatsRow?.source_count ?? 0,
+      activeBoards: crawlerStatsRow?.active_boards ?? 0,
+      crawls24h: crawlerStatsRow?.crawls_24h ?? 0,
+      llmCalls24h: crawlerStatsRow?.llm_calls_24h ?? 0,
+      errors24h: crawlerStatsRow?.errors_24h ?? 0,
+      totalJobs: lifecycleStatsRow?.total_jobs ?? 0,
+      activeJobs: lifecycleStatsRow?.active_jobs ?? 0,
+      expiredJobs: lifecycleStatsRow?.expired_jobs ?? 0,
+      crawlerJobs: lifecycleStatsRow?.crawler_jobs ?? 0,
+      manualJobs: lifecycleStatsRow?.manual_jobs ?? 0,
       jobsByAts,
       boardsByAts,
       crawlsByAts,
       errorsByAts,
     } satisfies AgentsAdminOverview;
+
+    if (kv) {
+      try {
+        await kv.put(OVERVIEW_CACHE_KEY, JSON.stringify(overview), { expirationTtl: OVERVIEW_CACHE_TTL_SECONDS });
+      } catch (err) {
+        console.error("[getAgentsAdminOverview] KV cache write failed:", err);
+      }
+    }
+
+    return overview;
   });
 
 export interface DiscoveryLogRow {

@@ -399,7 +399,10 @@ export const normalizedJobs = sqliteTable('normalized_jobs', {
   analyzedAt: text('analyzed_at'),
   createdAt: text('created_at').notNull(),
   updatedAt: text('updated_at').notNull(),
-})
+}, (table) => ({
+  idxNormalizedCanonicalStage: index('idx_normalized_canonical_stage').on(table.canonicalJobId, table.currentStage),
+  idxNormalizedUserId: index('idx_normalized_user_id').on(table.userId),
+}))
 
 // ─── Inferred Types (user-centric tables) ─────────────────────────────────────
 export type User = typeof user.$inferSelect

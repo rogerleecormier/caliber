@@ -15,7 +15,7 @@ import {
   RESUME_PARSE_EDUCATION_PROMPT,
   RESUME_PARSE_TECHNICAL_SKILLS_PROMPT,
 } from "@/lib/ai/prompts";
-import { type SectionType, serializeSectionContent, type TechnicalSkillCategory } from "@/lib/resume-sections";
+import { parseSectionContent, type SectionType, serializeSectionContent, type TechnicalSkillCategory } from "@/lib/resume-sections";
 import {
   splitExperienceIntoRoleChunks,
   splitProjectsIntoChunks,
@@ -80,6 +80,19 @@ export const getResume = createServerFn({ method: "GET" }).handler(
       const [row] = await db.select().from(masterResume).where(eq(masterResume.userId, user.id)).limit(1);
       if (!row) return null;
 
+      const sections = await db
+        .select()
+        .from(resumeSections)
+        .where(eq(resumeSections.userId, user.id));
+
+      const sectionData: Partial<Record<SectionType, any>> = {};
+      for (const section of sections) {
+        const type = section.sectionType as SectionType;
+        sectionData[type] = parseSectionContent(type, section.content);
+      }
+
+      const technicalSkills: TechnicalSkillCategory[] | undefined = sectionData.technical_skills;
+
       return {
         id: row.id,
         fullName: row.fullName,
@@ -87,13 +100,15 @@ export const getResume = createServerFn({ method: "GET" }).handler(
         phone: row.phone ?? undefined,
         linkedin: row.linkedin ?? undefined,
         website: row.website ?? undefined,
-        summary: row.summary ?? undefined,
-        competencies: row.competencies ? JSON.parse(row.competencies) : [],
-        tools: row.tools ? JSON.parse(row.tools) : [],
-        experience: row.experience ? JSON.parse(row.experience) : [],
-        education: row.education ? JSON.parse(row.education) : [],
-        certifications: row.certifications ? JSON.parse(row.certifications) : [],
-        personalProjects: row.personalProjects?.startsWith("[") ? JSON.parse(row.personalProjects) : [],
+        summary: sectionData.professional_summary ?? row.summary ?? undefined,
+        competencies: sectionData.core_competencies ?? (row.competencies ? JSON.parse(row.competencies) : []),
+        tools: technicalSkills ? technicalSkills.flatMap((c) => c.skills) : (row.tools ? JSON.parse(row.tools) : []),
+        technicalSkills,
+        experience: sectionData.professional_experience ?? (row.experience ? JSON.parse(row.experience) : []),
+        education: sectionData.education ?? (row.education ? JSON.parse(row.education) : []),
+        certifications: sectionData.certifications ?? (row.certifications ? JSON.parse(row.certifications) : []),
+        awards: sectionData.awards ?? [],
+        personalProjects: sectionData.personal_projects ?? (row.personalProjects?.startsWith("[") ? JSON.parse(row.personalProjects) : []),
         rawText: row.rawText ?? undefined,
         updatedAt: row.updatedAt ?? undefined,
       };
