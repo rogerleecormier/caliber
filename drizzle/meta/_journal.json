@@ -148,6 +148,13 @@
       "when": 1784428198615,
       "tag": "0038_left_mephistopheles",
       "breakpoints": true
+    },
+    {
+      "idx": 39,
+      "version": "6",
+      "when": 1784440000000,
+      "tag": "0039_fix_stale_users_fk",
+      "breakpoints": true
     }
   ]
 }
