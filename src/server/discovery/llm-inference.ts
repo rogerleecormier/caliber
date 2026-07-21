@@ -37,7 +37,7 @@ export async function inferTokensViaCloudflareAI(
   `;
 
   try {
-    const response = await env.AI.run('@cf/meta/llama-3.3-70b-instruct-fp8-fast', {
+    const response = await env.AI.run('@cf/meta/llama-3.1-8b-instruct-fp8', {
       prompt,
       max_tokens: 300,
     });

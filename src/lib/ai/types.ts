@@ -53,23 +53,11 @@ export const AI_MODELS = {
 // Default model for general job analysis tasks
 export const DEFAULT_MODEL = AI_MODELS.LLAMA_3_3_70B;
 
-// Faster MoE model for batch scoring (3.3B active params, native function calling)
-export const SCORING_MODEL = AI_MODELS.LLAMA_3_3_70B;
+// Fast, token-efficient 8B model for batch scoring and keyword matching
+export const SCORING_MODEL = AI_MODELS.LLAMA_3_1_8B;
 
-// Resume SECTION TAILORING model. Must reliably follow the instruction-heavy
-// section prompts and emit ONLY the requested JSON. Gemma 4 26B (-a4b) ignores
-// these constraints and echoes the prompt's own guideline text back as
-// "content" (e.g. a summary that reads "Summarize the CURRENT SUMMARY..."), so
-// it is NOT usable here — same reason it was dropped for parsing below. Llama
-// 3.3 70B (fp8-fast) follows the JSON instruction reliably.
-// Reverted back to LLAMA_3_3_70B because GEMMA_4_26B echoes prompt guidelines and fails JSON formatting.
+// Resume SECTION TAILORING model. High quality 70B model for user-facing resume generation.
 export const RESUME_TAILORING_MODEL = AI_MODELS.LLAMA_3_3_70B;
 
-// Resume SECTION PARSING (extraction) model. Must be a non-reasoning,
-// instruction-following model that honors response_format JSON mode and does
-// NOT emit chain-of-thought. Gemma 4 26B (-a4b reasoning variant) dumps its
-// thinking into the output and ignores JSON-schema constraints, so it is NOT
-// usable for structured extraction. Llama 3.3 70B (fp8-fast) follows the
-// JSON instruction reliably.
-// Reverted back to LLAMA_3_3_70B.
-export const RESUME_PARSING_MODEL = AI_MODELS.LLAMA_3_3_70B;
+// Resume SECTION PARSING (extraction) model using fast 8B model.
+export const RESUME_PARSING_MODEL = AI_MODELS.LLAMA_3_1_8B;

@@ -1,6 +1,7 @@
 import { SCORING_MODEL } from "./types";
 import { JOB_SCORE_ALL_PROMPT } from "./prompts";
 import { withRetry } from "../sync-queue";
+import { pruneJobDescription } from "../prune-job-description";
 
 export interface JobScoreResult {
   jobId: string;
@@ -47,6 +48,8 @@ export async function scoreJobAgainstProfile(
 ): Promise<JobScoreResult> {
   const allowUnicorn = options?.allowUnicorn ?? true;
   try {
+    const cleanedDescription = pruneJobDescription(job.description || "").substring(0, 3500);
+
     const userMessage = `
 Candidate Profile:
 ${profile}
@@ -54,7 +57,7 @@ ${profile}
 Job Title: ${job.title}
 
 Job Description:
-${(job.description || "").substring(0, 7000)}
+${cleanedDescription}
 `;
 
     const response = await withRetry(
@@ -64,7 +67,7 @@ ${(job.description || "").substring(0, 7000)}
             { role: "system", content: JOB_SCORE_ALL_PROMPT },
             { role: "user", content: userMessage },
           ],
-          max_tokens: 1500,
+          max_tokens: 600,
           temperature: 0.1,
           reasoning: { enabled: false }, // Disable slow chain-of-thought generation
         }),

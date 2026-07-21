@@ -1,7 +1,8 @@
-import { type AIEnv } from './types';
+import { type AIEnv, AI_MODELS } from './types';
 import { JOB_INSIGHTS_PROMPT, SEMANTIC_SEARCH_PROMPT } from './prompts';
 import { callWorkersAI } from '@/lib/ai-gateway';
 import type { CloudflareEnv } from '@/lib/cloudflare';
+import { pruneJobDescription } from '@/lib/prune-job-description';
 
 type AICapableEnv = Partial<CloudflareEnv> | AIEnv;
 
@@ -81,15 +82,16 @@ export async function analyzeJobInsights(
   jobDescription: string,
   jobTitle?: string,
 ): Promise<JobInsights> {
+  const cleanedDesc = pruneJobDescription(jobDescription || '').substring(0, 4000);
   const userContent = jobTitle
-    ? `Job Title: ${jobTitle}\n\nJob Description:\n${jobDescription}`
-    : jobDescription;
+    ? `Job Title: ${jobTitle}\n\nJob Description:\n${cleanedDesc}`
+    : cleanedDesc;
 
   try {
     const responseText = await callWorkersAI(env, [
       { role: 'system', content: JOB_INSIGHTS_PROMPT },
       { role: 'user', content: userContent },
-    ], { maxTokens: 1000 });
+    ], { maxTokens: 800 });
 
     let jsonStr = responseText.trim();
     const jsonMatch = jsonStr.match(/```(?:json)?\s*([\s\S]*?)```/);
@@ -125,7 +127,7 @@ export async function parseSearchQuery(
     const responseText = await callWorkersAI(env, [
       { role: 'system', content: SEMANTIC_SEARCH_PROMPT },
       { role: 'user', content: query },
-    ], { maxTokens: 500 });
+    ], { model: AI_MODELS.LLAMA_3_1_8B, maxTokens: 250 });
 
     let jsonStr = responseText.trim();
     const jsonMatch = jsonStr.match(/```(?:json)?\s*([\s\S]*?)```/);

@@ -1,4 +1,5 @@
 import { callWorkersAI } from '@/lib/ai-gateway';
+import { AI_MODELS } from '@/lib/ai/types';
 import type { NormalizedJob } from '@/types/crawler';
 import type { Env } from '../db/queries';
 
@@ -31,6 +32,7 @@ Respond ONLY with JSON: { "same_role": boolean, "confidence": 0.0-1.0 }`;
         { role: 'user', content: prompt }
       ],
       {
+        model: AI_MODELS.LLAMA_3_1_8B,
         temperature: 0.1, // low temperature for deterministic decisions
         maxTokens: 150,
         responseFormat: { type: "json_object" }

@@ -87,14 +87,11 @@ async function processJobScoreMessage(
 
   for (const { userId, rawText } of usersWithResume) {
     try {
-      const scores = await scoreJobAgainstProfile(ai, rawText, {
-        id: canonicalJobId,
-        title: job.titleDisplay,
-        description: job.descriptionPlain || '',
-      })
-
       const [existing] = await db
-        .select({ id: schema.normalizedJobs.id })
+        .select({
+          id: schema.normalizedJobs.id,
+          atsScore: schema.normalizedJobs.atsScore,
+        })
         .from(schema.normalizedJobs)
         .where(
           and(
@@ -106,6 +103,17 @@ async function processJobScoreMessage(
           ),
         )
         .limit(1)
+
+      // Skip LLM scoring if the job was already scored for this user
+      if (existing && existing.atsScore != null) {
+        continue
+      }
+
+      const scores = await scoreJobAgainstProfile(ai, rawText, {
+        id: canonicalJobId,
+        title: job.titleDisplay,
+        description: job.descriptionPlain || '',
+      })
 
       if (existing) {
         await db

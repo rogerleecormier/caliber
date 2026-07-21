@@ -3,6 +3,7 @@ import { json } from "@tanstack/react-start";
 import { getAIFromContext, type AIEnv } from "../../../lib/ai";
 import { SCORING_MODEL } from "../../../lib/ai/types";
 import { JOB_SCORE_ALL_PROMPT } from "../../../lib/ai/prompts";
+import { pruneJobDescription } from "../../../lib/prune-job-description";
 
 export interface JobScoreResult {
     jobId: number;
@@ -41,6 +42,8 @@ async function scoreJob(
     job: JobToScore
 ): Promise<JobScoreResult> {
     try {
+        const cleanedDesc = pruneJobDescription(job.description || '').substring(0, 3500);
+
         const userMessage = `
 Candidate Profile:
 ${profile}
@@ -48,7 +51,7 @@ ${profile}
 Job Title: ${job.title}
 
 Job Description:
-${(job.description || '').substring(0, 7000)}
+${cleanedDesc}
 `;
 
         const response = await ai.run(
@@ -58,7 +61,7 @@ ${(job.description || '').substring(0, 7000)}
                     { role: "system", content: JOB_SCORE_ALL_PROMPT },
                     { role: "user", content: userMessage },
                 ],
-                max_tokens: 1500, // Increased for reasoning models
+                max_tokens: 600,
                 temperature: 0.1,
             }
         );

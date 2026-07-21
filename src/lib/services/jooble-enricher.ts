@@ -1,6 +1,6 @@
 import { UnifiedJob } from './types';
 import { callWorkersAI } from '@/lib/ai-gateway';
-import { DEFAULT_MODEL } from '@/lib/ai/types';
+import { AI_MODELS, DEFAULT_MODEL } from '@/lib/ai/types';
 
 interface EnrichedJobDescription {
   summary: string;
@@ -22,7 +22,7 @@ export class JoobleEnricher {
   }
 
   /**
-   * Analyze a Jooble snippet using Workers AI (Gemma) to extract structured job information
+   * Analyze a Jooble snippet using Workers AI (Llama 3.1 8B) to extract structured job information
    * Useful for when full descriptions aren't available
    */
   async enrichJobFromSnippet(job: UnifiedJob): Promise<EnrichedJobDescription> {
@@ -49,7 +49,7 @@ Format your response as JSON with keys: summary, keyRequirements, keyResponsibil
 
     const responseText = await callWorkersAI(this.env, [
       { role: 'user', content: prompt },
-    ], { maxTokens: 1024 });
+    ], { model: AI_MODELS.LLAMA_3_1_8B, maxTokens: 500 });
 
     // Parse JSON from response
     const jsonMatch = responseText.match(/\{[\s\S]*\}/);
@@ -61,7 +61,7 @@ Format your response as JSON with keys: summary, keyRequirements, keyResponsibil
 
     return {
       ...parsed,
-      analysisModel: DEFAULT_MODEL,
+      analysisModel: AI_MODELS.LLAMA_3_1_8B,
     };
   }
 

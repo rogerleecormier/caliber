@@ -161,24 +161,6 @@ export async function runAgentPoller(env: CloudflareEnv): Promise<void> {
           });
         }
 
-        // 2. Perform AI scoring — left null until a resume exists to score against
-        let scores: Partial<JobScoreResult> & { isUnicorn: boolean; unicornReason: string | null } = {
-          isUnicorn: false,
-          unicornReason: null,
-        };
-        if (resumeText) {
-          try {
-            scores = await scoreJobAgainstProfile(env.AI, resumeText, {
-              id: canonicalId,
-              title: job.title,
-              description: job.description || job.snippet || '',
-            }, undefined, { allowUnicorn: false });
-          } catch (scoreErr) {
-            console.error(`[agent-poller] Scoring failed for job ${canonicalId}:`, scoreErr);
-          }
-        }
-
-        // 3. Upsert normalized_jobs with favorited flag and canonical ID reference
         const rawSourceUrl = job.sourceUrl || `https://caliber.internal/jobs/canonical/${canonicalId}`;
         const canonicalUrl = canonicalizeJobUrl(rawSourceUrl);
         const [existing] = await db
@@ -192,6 +174,38 @@ export async function runAgentPoller(env: CloudflareEnv): Promise<void> {
           )
           .limit(1);
 
+        // 2. Perform AI scoring ONLY if job hasn't been scored yet
+        let scores: Partial<JobScoreResult> & { isUnicorn: boolean; unicornReason: string | null } = {
+          isUnicorn: false,
+          unicornReason: null,
+        };
+
+        if (existing && existing.atsScore != null) {
+          // Reuse existing scores — 0 token AI cost
+          scores = {
+            atsScore: existing.atsScore ?? undefined,
+            careerScore: existing.careerScore ?? undefined,
+            outlookScore: existing.outlookScore ?? undefined,
+            masterScore: existing.masterScore ?? undefined,
+            atsReason: existing.atsReason ?? undefined,
+            careerReason: existing.careerReason ?? undefined,
+            outlookReason: existing.outlookReason ?? undefined,
+            isUnicorn: false,
+            unicornReason: null,
+          };
+        } else if (resumeText) {
+          try {
+            scores = await scoreJobAgainstProfile(env.AI, resumeText, {
+              id: canonicalId,
+              title: job.title,
+              description: job.description || job.snippet || '',
+            }, undefined, { allowUnicorn: false });
+          } catch (scoreErr) {
+            console.error(`[agent-poller] Scoring failed for job ${canonicalId}:`, scoreErr);
+          }
+        }
+
+        // 3. Upsert normalized_jobs with favorited flag and canonical ID reference
         if (existing) {
           await db
             .update(normalizedJobs)
