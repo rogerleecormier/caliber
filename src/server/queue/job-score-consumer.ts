@@ -17,9 +17,17 @@ import type { JobScoreMessage } from '@/lib/job-score-queue'
 
 export async function processJobScoreBatch(
   db: DrizzleD1Database,
-  ai: any,
+  env: any,
   batch: MessageBatch<JobScoreMessage>,
 ): Promise<void> {
+  const isScoringEnabled = env?.ENABLE_BACKGROUND_AI_SCORING === "true" || env?.ENABLE_BACKGROUND_AI_SCORING === true;
+  if (!isScoringEnabled) {
+    console.log('[job-score-consumer] Background AI scoring disabled (ENABLE_BACKGROUND_AI_SCORING=false). Acking batch without LLM calls.');
+    batch.ackAll();
+    return;
+  }
+
+  const ai = env?.AI || env;
   let successCount = 0
   let failureCount = 0
 
@@ -28,6 +36,7 @@ export async function processJobScoreBatch(
       await processJobScoreMessage(db, ai, message.body)
       message.ack()
       successCount++
+
     } catch (error) {
       failureCount++
       const errorMsg = error instanceof Error ? error.message : String(error)

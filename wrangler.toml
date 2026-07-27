@@ -12,6 +12,8 @@ command = "npm run build"
 
 [vars]
 BETTER_AUTH_URL = "https://caliber.rcormier.dev"
+ENABLE_BACKGROUND_AI_SCORING = "false"
+
 
 [observability]
 enabled = true

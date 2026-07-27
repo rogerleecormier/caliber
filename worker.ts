@@ -100,7 +100,7 @@ export default {
       
       if (queueName === 'job-score-queue') {
         const { processJobScoreBatch } = await import('./src/server/queue/job-score-consumer')
-        await processJobScoreBatch(getDb(env.DB), env.AI, batch as any)
+        await processJobScoreBatch(getDb(env.DB), env, batch as any)
         return
       }
 

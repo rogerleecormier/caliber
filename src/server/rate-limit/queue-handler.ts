@@ -203,9 +203,9 @@ export async function processCrawlJobsQueue(
         }
       }
 
-      // Enqueue scoring for newly-inserted jobs — decoupled from the crawl so a
-      // slow/failed AI call never blocks or retries the crawl itself.
-      if (env.JOB_SCORE_QUEUE && newJobsForEmbedding.length > 0) {
+      // Enqueue scoring for newly-inserted jobs — only if background AI scoring is explicitly enabled.
+      const isScoringEnabled = env.ENABLE_BACKGROUND_AI_SCORING === "true" || env.ENABLE_BACKGROUND_AI_SCORING === true;
+      if (isScoringEnabled && env.JOB_SCORE_QUEUE && newJobsForEmbedding.length > 0) {
         for (const { canonicalId } of newJobsForEmbedding) {
           await enqueueJobScore(env.JOB_SCORE_QUEUE, { canonicalJobId: canonicalId });
         }

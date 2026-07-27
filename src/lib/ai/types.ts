@@ -44,6 +44,7 @@ export type StructuredGapAnalysis = z.infer<typeof StructuredGapAnalysisSchema>;
 export const AI_MODELS = {
   LLAMA_3_3_70B: '@cf/meta/llama-3.3-70b-instruct-fp8-fast',
   LLAMA_3_1_8B: '@cf/meta/llama-3.1-8b-instruct-fp8',
+  LLAMA_3_2_3B: '@cf/meta/llama-3.2-3b-instruct',
   LLAMA_4_SCOUT: '@cf/meta/llama-4-scout-17b-16e-instruct',
   QWEN3_30B_A3B: '@cf/qwen/qwen3-30b-a3b-fp8',
   GEMMA_4_12B: '@cf/google/gemma-4-12b-it',
@@ -53,11 +54,12 @@ export const AI_MODELS = {
 // Default model for general job analysis tasks
 export const DEFAULT_MODEL = AI_MODELS.LLAMA_3_3_70B;
 
-// Fast, token-efficient 8B model for batch scoring and keyword matching
-export const SCORING_MODEL = AI_MODELS.LLAMA_3_1_8B;
+// Fast, token-efficient lightweight 3B model for batch scoring and keyword matching
+export const SCORING_MODEL = AI_MODELS.LLAMA_3_2_3B;
 
 // Resume SECTION TAILORING model. High quality 70B model for user-facing resume generation.
 export const RESUME_TAILORING_MODEL = AI_MODELS.LLAMA_3_3_70B;
 
 // Resume SECTION PARSING (extraction) model using fast 8B model.
 export const RESUME_PARSING_MODEL = AI_MODELS.LLAMA_3_1_8B;
+

@@ -180,6 +180,7 @@ export async function runAgentPoller(env: CloudflareEnv): Promise<void> {
           unicornReason: null,
         };
 
+        const isScoringEnabled = (env as any)?.ENABLE_BACKGROUND_AI_SCORING === "true" || (env as any)?.ENABLE_BACKGROUND_AI_SCORING === true;
         if (existing && existing.atsScore != null) {
           // Reuse existing scores — 0 token AI cost
           scores = {
@@ -193,7 +194,7 @@ export async function runAgentPoller(env: CloudflareEnv): Promise<void> {
             isUnicorn: false,
             unicornReason: null,
           };
-        } else if (resumeText) {
+        } else if (resumeText && isScoringEnabled) {
           try {
             scores = await scoreJobAgainstProfile(env.AI, resumeText, {
               id: canonicalId,
@@ -204,6 +205,7 @@ export async function runAgentPoller(env: CloudflareEnv): Promise<void> {
             console.error(`[agent-poller] Scoring failed for job ${canonicalId}:`, scoreErr);
           }
         }
+
 
         // 3. Upsert normalized_jobs with favorited flag and canonical ID reference
         if (existing) {

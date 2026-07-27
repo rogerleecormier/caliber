@@ -26,6 +26,7 @@ export interface CloudflareEnv {
   SERP_API_KEY?: string;
   THEIRSTACK_API_KEY?: string;
   VECTORIZE?: VectorizeIndex;
+  ENABLE_BACKGROUND_AI_SCORING?: string | boolean;
 }
 
 let cfEnv: any = {};
