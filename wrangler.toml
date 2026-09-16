@@ -68,10 +68,10 @@ custom_domain = true
 binding = "AI"
 remote = true
 
-# Scheduled run every 30 minutes. App settings decide whether LinkedIn saved searches run hourly,
-# every 6 hours, or daily, and analytics remains throttled inside the worker.
+# Job crawler retired (Cloudflare cost reduction). Was: crons = ["0,30 * * * *"]
+# Re-add the line above and redeploy to resume background crawling/scoring.
 [triggers]
-crons = ["0,30 * * * *"]
+crons = []
 
 # Job Ingestion Queue — buffers scraped jobs to avoid D1 write lock contention
 [[queues.producers]]
