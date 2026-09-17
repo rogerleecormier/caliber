@@ -1,9 +1,13 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { json } from "@tanstack/react-start";
 import { getAIFromContext } from "../../../lib/ai";
-import { RESUME_TAILOR_PROMPT } from "../../../lib/ai/prompts";
+import {
+  RESUME_PROMPT,
+  COVER_LETTER_PROMPT,
+  GAP_ANALYSIS_PROMPT,
+  CAREER_ANALYSIS_PROMPT,
+} from "../../../lib/ai/prompts";
 import { callWorkersAI } from "../../../lib/ai-gateway";
-import { jsonrepair } from "jsonrepair";
 
 interface GenerateResumeRequest {
   jobTitle: string;
@@ -30,46 +34,64 @@ export const Route = createFileRoute("/api/ai/generate-resume")({
             return json({ success: false, error: "Job description is required" }, { status: 400 });
           }
 
-          const userContent = `Job Title: ${jobTitle}
+          const jobContext = `Job Title: ${jobTitle}
 Company: ${jobCompany}
 
 Job Description:
-${jobDescription}
+${jobDescription}`;
 
-User Resume:
-${userResume || "No specific resume provided. Create a generic placeholder resume based on the job description."}
+          const sourceResume =
+            userResume || "No specific resume provided. Create a generic placeholder resume based on the job description.";
+          const candidateName = userName || "[Candidate Name]";
+          const aiEnv = { AI: ai };
 
-User Name: ${userName || "[Candidate Name]"}`;
-
-          const rawResponse = await callWorkersAI(
-            { AI: ai },
+          // Tailor the resume first — the cover letter reasons about the TAILORED
+          // resume (not the raw master resume) so it references what actually made the cut.
+          const resume = await callWorkersAI(
+            aiEnv,
             [
-              { role: "system", content: RESUME_TAILOR_PROMPT },
-              { role: "user", content: userContent },
+              { role: "system", content: RESUME_PROMPT },
+              {
+                role: "user",
+                content: `${jobContext}\n\nSource Resume:\n${sourceResume}\n\nCandidate Name: ${candidateName}`,
+              },
             ],
             { maxTokens: 4000 },
           );
 
-          const jsonMatch = rawResponse.match(/\{[\s\S]*\}/);
-          if (!jsonMatch) {
-            return json({ success: true, data: { resume: rawResponse, coverLetter: "", gapAnalysis: "", careerAnalysis: "" } });
-          }
-
-          let parsed: { resume?: string; coverLetter?: string; gapAnalysis?: string; careerAnalysis?: string };
-          try {
-            parsed = JSON.parse(jsonMatch[0]);
-          } catch {
-            parsed = JSON.parse(jsonrepair(jsonMatch[0]));
-          }
+          const [coverLetter, gapAnalysis, careerAnalysis] = await Promise.all([
+            callWorkersAI(
+              aiEnv,
+              [
+                { role: "system", content: COVER_LETTER_PROMPT },
+                {
+                  role: "user",
+                  content: `${jobContext}\n\nResume:\n${resume}\n\nSign off as: ${candidateName}`,
+                },
+              ],
+              { maxTokens: 1200 },
+            ),
+            callWorkersAI(
+              aiEnv,
+              [
+                { role: "system", content: GAP_ANALYSIS_PROMPT },
+                { role: "user", content: `${jobContext}\n\nCandidate Resume:\n${sourceResume}` },
+              ],
+              { maxTokens: 800 },
+            ),
+            callWorkersAI(
+              aiEnv,
+              [
+                { role: "system", content: CAREER_ANALYSIS_PROMPT },
+                { role: "user", content: `${jobContext}\n\nCandidate Resume:\n${sourceResume}` },
+              ],
+              { maxTokens: 800 },
+            ),
+          ]);
 
           return json({
             success: true,
-            data: {
-              resume: String(parsed.resume ?? ""),
-              coverLetter: String(parsed.coverLetter ?? ""),
-              gapAnalysis: String(parsed.gapAnalysis ?? ""),
-              careerAnalysis: String(parsed.careerAnalysis ?? ""),
-            },
+            data: { resume, coverLetter, gapAnalysis, careerAnalysis },
           });
         } catch (error) {
           console.error("Error generating resume:", error);

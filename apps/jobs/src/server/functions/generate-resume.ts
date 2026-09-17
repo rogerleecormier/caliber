@@ -11,7 +11,7 @@ import {
   truncateToTokenBudget,
   WORKERS_AI_CONTEXT_WINDOW_TOKENS,
 } from "@/lib/ai-gateway";
-import { RESUME_GENERATION_PROMPT, type AtsResumeContent } from "@/lib/ats-format";
+import { RESUME_GENERATION_PROMPT, ADDITIONAL_SECTIONS_PROMPT, type AtsResumeContent } from "@/lib/ats-format";
 import { generateResumePdf } from "@/lib/pdf";
 import { jsonrepair } from "jsonrepair";
 
@@ -154,10 +154,34 @@ export const generateResume = createServerFn({ method: "POST" })
         { role: "user", content: prompt },
       ];
 
+      // Projects and Awards are optional trailing sections in the main resume JSON,
+      // and easily get dropped by the model once it's spent most of its attention/output
+      // budget on Professional Experience. Extract them with a small, dedicated call so
+      // they don't depend on the main generation remembering to include them.
+      const additionalSectionsPrompt = ADDITIONAL_SECTIONS_PROMPT
+        .replace("{rawResumeText}", rawResumeSource)
+        .replace("{jobTitle}", analysis.jobTitle ?? "")
+        .replace("{company}", analysis.company ?? "");
+
+      const additionalSectionsMessages: Array<{ role: "system" | "user"; content: string }> = [
+        { role: "system", content: "You are a JSON-only API. Output valid JSON and nothing else. No markdown, no prose, no code fences." },
+        { role: "user", content: additionalSectionsPrompt },
+      ];
+
       const parseResume = (raw: string): AtsResumeContent => {
         const jsonMatch = raw.match(/\{[\s\S]*\}/);
         if (!jsonMatch) throw new Error("Failed to extract JSON from resume generation response");
         return JSON.parse(jsonrepair(jsonMatch[0])) as AtsResumeContent;
+      };
+
+      const parseAdditionalSections = (raw: string): { projects?: AtsResumeContent["projects"]; awards?: string[] } => {
+        const jsonMatch = raw.match(/\{[\s\S]*\}/);
+        if (!jsonMatch) return {};
+        try {
+          return JSON.parse(jsonrepair(jsonMatch[0]));
+        } catch {
+          return {};
+        }
       };
 
       const isResumeContentSparse = (content: AtsResumeContent): boolean => {
@@ -167,16 +191,31 @@ export const generateResume = createServerFn({ method: "POST" })
         return tooFewCompetencies || tooFewSkillCategories || missingExperience;
       };
 
-      let rawResponse = await callClaude(env, messages, { maxTokens: RESUME_OUTPUT_TOKEN_BUDGET });
+      const [rawResponse, additionalSectionsResponse] = await Promise.all([
+        callClaude(env, messages, { maxTokens: RESUME_OUTPUT_TOKEN_BUDGET }),
+        callClaude(env, additionalSectionsMessages, { maxTokens: 2000 }).catch((err) => {
+          console.error("[generateResume] Additional sections extraction failed:", err);
+          return "";
+        }),
+      ]);
+
       let resumeContent = parseResume(rawResponse);
 
       if (isResumeContentSparse(resumeContent)) {
         console.warn(`[generateResume] Sparse result detected. Retrying…`);
-        rawResponse = await callClaude(env, messages, { maxTokens: RESUME_OUTPUT_TOKEN_BUDGET });
-        resumeContent = parseResume(rawResponse);
+        const retryResponse = await callClaude(env, messages, { maxTokens: RESUME_OUTPUT_TOKEN_BUDGET });
+        resumeContent = parseResume(retryResponse);
         if (isResumeContentSparse(resumeContent)) {
           console.error("[generateResume] Sparse result persisted after retry.");
         }
+      }
+
+      const additionalSections = additionalSectionsResponse ? parseAdditionalSections(additionalSectionsResponse) : {};
+      if (!resumeContent.projects?.length && additionalSections.projects?.length) {
+        resumeContent.projects = additionalSections.projects;
+      }
+      if (!resumeContent.awards?.length && additionalSections.awards?.length) {
+        resumeContent.awards = additionalSections.awards;
       }
 
       const pdfBytes = await generateResumePdf(resumeContent);

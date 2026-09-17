@@ -5,8 +5,10 @@ export const ATS_SECTION_ORDER = [
   "Core Competencies",
   "Technical Skills",
   "Professional Experience",
+  "Selected Projects",
   "Education",
   "Certifications",
+  "Awards",
 ] as const;
 
 export type AtsSection = (typeof ATS_SECTION_ORDER)[number];
@@ -26,6 +28,10 @@ export interface AtsResumeContent {
     dates: string;
     bullets: string[];
   }>;
+  projects?: Array<{
+    name: string;
+    description: string;
+  }>;
   education: Array<{
     degree: string;
     fieldOfStudy?: string;
@@ -33,6 +39,7 @@ export interface AtsResumeContent {
     year: string;
   }>;
   certifications: string[];
+  awards?: string[];
 }
 
 export interface StrategicAssessment {
@@ -84,30 +91,37 @@ Notes: Mark adjacent degrees/experience as "partial" not "missing". Do not inven
 
 export const RESUME_GENERATION_PROMPT = `You are an Executive Resume Strategist and ATS Optimizer. Generate a targeted resume as valid JSON only.
 
-NO FABRICATION: Every word must come from the candidate's actual resume data. Never infer adjacent skills, embellish achievements, or invent metrics. Use only what is explicitly in the structured data or raw resume text.
+NO FABRICATION — READ CAREFULLY, THIS IS THE MOST IMPORTANT RULE:
+- Every responsibility, duty, tool, scope detail, and metric in every bullet MUST be traceable to a specific sentence in the candidate's structured data or raw resume text below. If you cannot point to where it comes from, do not write it.
+- Do NOT add a responsibility just because the job description mentions it or because it's typical for the job title (e.g., do not add "budget management," "procurement," "staff supervision," "P&L ownership," or any other duty unless the candidate's resume text explicitly says they did it).
+- Do NOT infer adjacent skills, embellish scope (team size, budget size, number of stakeholders), or invent metrics that aren't in the source text.
+- It is CORRECT and EXPECTED for some bullets to not perfectly match the JD — do not manufacture alignment that isn't real. A slightly-less-tailored-but-true bullet is always better than a fabricated one.
 
 EXPERIENCE COUNT: The candidate has exactly {experienceCount} job(s). Output MUST contain exactly {experienceCount} experience entries — no omissions, no merges.
 
 TAILORING PROCESS (in order):
 1. Extract from the JD: required skills/tools, methodologies, business outcomes, seniority scope.
-2. For each candidate role, identify 10+ distinct achievements in the raw resume text.
-3. SELECT the 6 achievements per role that best match THIS JD — JD fit is the primary criterion; metric availability is secondary. Different JDs must produce different bullet selections.
-4. Reword bullets using the JD's own language patterns.
+2. For each candidate role, identify 10+ distinct achievements ACTUALLY DESCRIBED in the raw resume text — do not generate achievements the JD implies should exist.
+3. SELECT the 6 achievements per role that best match THIS JD from what is actually in the source — JD fit is the primary criterion among real achievements; metric availability is secondary. Different JDs must produce different bullet selections, but only from real material.
+4. Reword bullets using the JD's own vocabulary/phrasing ONLY where the underlying duty, tool, or outcome already exists in the source text. Rewording changes word choice, not substance — never use this step to introduce a responsibility that wasn't there.
 5. Preserve exactly: company names, titles, dates, certifications, education.
 
-ADDITIONAL TAILORING GUIDANCE is mandatory — reflect it in bullets and competencies wherever the candidate's data supports it.
+ADDITIONAL TAILORING GUIDANCE is mandatory where the candidate's actual data supports it — it never authorizes adding unsupported content.
 
 SECTIONS:
 - Professional Summary: exactly 3 sentences, ≤100 words, grounded only in the resume. Sentence 1: title, years of experience, core domains. Sentence 2: the candidate's most relevant strength or track record for this role — a real capability or pattern of success; include a metric only if one fits naturally, not as a requirement. Sentence 3: a forward-looking value statement — connect the candidate's specific background to what they will deliver or contribute at this company and in this role. No filler — ban "I bring", "I leverage", "innovative solutions", "passionate about", "dynamic environment", "I am confident", "I am qualified", "qualified because", "my qualifications". Every sentence must state something specific and true about this candidate.
 - Core Competencies: exactly 8, from skills explicitly in the resume. Prioritize JD keyword alignment and tailoring guidance.
 - Technical Skills: 5–6 categories, only tools/methodologies in the candidate's data. Match categories to the JD (PM tools for PM roles, infra tools for architecture roles, etc.).
 - Professional Experience: exactly 6 bullets per role.
-  BULLET FORMAT — [Action Verb] + [What I Did] + [Result] + [Metric if available in resume text].
-  JD fit picks the bullet. Surface real metrics (%, $, time, team size) when they exist in the resume text — never fabricate. If no metric exists, state the strongest factual result.
-  Example with metric: "Spearheaded AP automation using Ramp and NetSuite, reducing month-end close time by 35% and cutting manual effort by 70%."
-  Example without metric: "Led cross-functional stakeholder alignment across engineering, finance, and operations to deliver ERP cutover on schedule."
+  BULLET FORMAT — [Action Verb] + [What I Did, with specific context/scope/tools] + [Result] + [Metric if available in resume text]. Aim for a full, substantive sentence of roughly 25-35 words that includes real context (which tools, which stakeholders, what scale) alongside the result — but the length must come from real specifics already in the source text. NEVER pad a bullet with an invented tool, stakeholder group, scope detail, or duty just to hit the target length; a shorter, fully accurate bullet is always correct over a longer one with any unsupported detail.
+  JD fit picks the bullet. Surface real metrics (%, $, time, team size) when they exist in the resume text — never fabricate. If no metric exists, state the strongest factual result with full context.
+  Example with metric: "Spearheaded AP automation across Ramp and NetSuite for 150+ client schools, redesigning approval workflows and reconciliation controls to reduce month-end close time by 35% and cut manual effort by 70%."
+  Example without metric: "Led cross-functional stakeholder alignment across engineering, finance, and operations teams spanning three time zones to define governance requirements and deliver the ERP cutover on schedule."
+  Before finalizing each bullet, verify: every noun and claim in it (tools, teams, scope, outcome) appears somewhere in the candidate's structured data or raw resume text. If any part doesn't, remove or rewrite that part using only supported content.
+- Selected Projects: If the candidate resume text contains a personal-projects, side-project, or product/engineering portfolio section (independently built applications, open-source work, hackathon entries, etc.), include EVERY project listed there. For each, write a fuller 2-3 sentence description (not a single condensed clause) covering what the project is, the key technologies/architecture used, and its most relevant technical or business impact. Do NOT omit this section or drop any project if the source resume text contains one; only omit the "projects" field entirely if no such section exists in the resume text.
 - Education: degree type, field of study, institution, year — copied exactly.
 - Certifications: copy every certification — omit none (PMP, CompTIA A+/Network+/Security+, CCNA, AWS, etc.).
+- Awards: If the candidate resume text contains an awards, honors, or recognitions section, copy EVERY award/honor listed there verbatim — omit none. Only omit the "awards" field entirely if no such section exists in the resume text.
 
 CANDIDATE STRUCTURED DATA:
 {candidateData}
@@ -128,8 +142,29 @@ Respond with valid JSON only:
   "coreCompetencies": ["string x8"],
   "technicalSkills": [{"category": "string", "skills": ["string"]}],
   "experience": [{"title":"string","company":"string","dates":"string","bullets":["string x6"]}],
+  "projects": [{"name":"string","description":"string"}],
   "education": [{"degree":"string","fieldOfStudy":"string","institution":"string","year":"string"}],
-  "certifications": ["string"]
+  "certifications": ["string"],
+  "awards": ["string"]
+}`;
+
+export const ADDITIONAL_SECTIONS_PROMPT = `You are a precise resume data extractor. Your ONLY job is to find and copy two optional sections from the candidate's resume text — do not summarize, tailor, or rewrite anything else.
+
+NO FABRICATION: Copy only what is explicitly present in the resume text below. If a section does not exist in the text, return an empty array for it — do not invent one.
+
+1. SELECTED PROJECTS: Look for a personal-projects, side-project, or product/engineering portfolio section (independently built applications, open-source work, hackathon entries, etc. — often titled something like "Projects," "Portfolio," "Selected Product & Engineering Portfolio," or similar). If found, list EVERY project mentioned there. For each, give its name and a fuller 2-3 sentence description — what the project is, the key technologies/architecture used, and its most relevant technical or business impact — prioritizing relevance to the target job below when choosing which details to keep. Do not compress this down to a single short clause, and do not drop any project that appears in the source section.
+
+2. AWARDS: Look for an awards, honors, or recognitions section (often titled "Awards," "Honors," "Awards & Honors," or similar). If found, copy EVERY award/honor listed there VERBATIM, word for word — omit none.
+
+CANDIDATE RESUME TEXT:
+{rawResumeText}
+
+TARGET JOB — Title: {jobTitle} | Company: {company}
+
+Respond with valid JSON only, no text before or after:
+{
+  "projects": [{"name": "string", "description": "string"}],
+  "awards": ["string"]
 }`;
 
 export const COVER_LETTER_PROMPT = `You are an Executive Resume Strategist. Write a cover letter as valid JSON only. No fabrication — use only real achievements and metrics from the candidate's resume.

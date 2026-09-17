@@ -17,7 +17,7 @@
   "devDependencies": {
     "pnpm": "latest",
     "turbo": "latest",
-    "wrangler": "^4.87.0"
+    "wrangler": "^4.132.0"
   },
   "workspaces": [
     "apps/*",

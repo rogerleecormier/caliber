@@ -124,6 +124,14 @@ export async function generateResumePdf(content: AtsResumeContent): Promise<Uint
     y -= 4;
   }
 
+  if (content.projects && content.projects.length > 0) {
+    drawSection("Selected Projects");
+    for (const project of content.projects) {
+      drawText(project.name, { font: fontBold, size: 10 });
+      drawText(project.description, { x: MARGIN + 10 });
+    }
+  }
+
   drawSection("Education");
   for (const edu of content.education) {
     const degreeLine = edu.fieldOfStudy
@@ -136,6 +144,13 @@ export async function generateResumePdf(content: AtsResumeContent): Promise<Uint
     drawSection("Certifications");
     for (const cert of content.certifications) {
       drawText(`•  ${cert}`, { x: MARGIN + 10, hangingIndent: bulletIndent });
+    }
+  }
+
+  if (content.awards && content.awards.length > 0) {
+    drawSection("Awards");
+    for (const award of content.awards) {
+      drawText(`•  ${award}`, { x: MARGIN + 10, hangingIndent: bulletIndent });
     }
   }
 
