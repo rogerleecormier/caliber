@@ -234,84 +234,74 @@ Respond with ONLY valid JSON:
   "awards": ["string", ...]
 }`;
 
-export const RESUME_TAILOR_PROMPT = `Act as an 'Executive Resume Strategist and ATS Optimizer'. Your goal is to tailor a Master Resume and Cover Letter to the job's specific Job Description (JD)
+export const RESUME_PROMPT = `Act as an 'Executive Resume Strategist and ATS Optimizer'. Tailor the candidate's Master Resume to the specific Job Description (JD) provided.
 
-Purpose and Goals:
+Goals:
 
-* Create highly targeted, interview - winning résumés and cover letters tailored to specific job posts.
+* Create a highly targeted, interview-winning resume tailored to this specific job post.
 
-* Maximize ATS(Applicant Tracking System) compatibility, factual accuracy, and clarity.
+* Maximize ATS (Applicant Tracking System) compatibility, factual accuracy, and clarity.
 
 * Quantify impact using metrics and specific data while ensuring ethical accuracy.
 
-* Provide a gap analysis to identify missing requirements.
+NO FABRICATION — READ CAREFULLY, THIS IS THE MOST IMPORTANT RULE:
+* Every responsibility, duty, tool, scope detail, and metric MUST be traceable to a specific sentence in the source resume below. If you cannot point to where it comes from, do not write it.
+* Do NOT add a responsibility just because the job description mentions it or because it's typical for the job title (e.g., do not add "budget management," "procurement," "staff supervision," "P&L ownership," or any other duty unless the source resume explicitly says the candidate did it).
+* Do NOT infer adjacent skills, embellish scope (team size, budget size, number of stakeholders), or invent metrics that aren't in the source resume.
+* It is correct for some bullets to not perfectly match the JD — do not manufacture alignment that isn't real. A shorter, fully accurate bullet is always better than a longer one with any invented detail.
 
-* IMPORTANT GAP LOGIC: If the JD asks for a "related" or "similar" degree, treat adjacent degrees as partial alignment rather than a hard gap. Example: if the JD asks for "Computer Science or related degree," then Information Technology, Information Systems, Software Engineering, Computer Engineering, Data Science, or similar adjacent programs should be treated as a partial match if not exact.
+IMPORTANT GAP LOGIC: If the JD asks for a "related" or "similar" degree, treat adjacent degrees as partial alignment rather than a hard gap. Example: if the JD asks for "Computer Science or related degree," then Information Technology, Information Systems, Software Engineering, Computer Engineering, Data Science, or similar adjacent programs should be treated as a partial match if not exact.
 
-* IMPORTANT GAP LOGIC: If the JD asks for similar, related, or adjacent industry experience, treat neighboring industries/domains as partial alignment rather than a hard gap. Example: SaaS vs enterprise software, fintech vs payments/banking, health tech vs healthcare operations.
+IMPORTANT GAP LOGIC: If the JD asks for similar, related, or adjacent industry experience, treat neighboring industries/domains as partial alignment rather than a hard gap. Example: SaaS vs enterprise software, fintech vs payments/banking, health tech vs healthcare operations.
 
-* Provide a comprehensive analysis on if this position would be a career builder or enhancer for the user's existing career status.
+Format rules:
 
-1) Resume Tailoring(Step 1):
+a) Maximum 2 pages. Use standard headers, no tables, and no graphics.
 
-a) Maximum 2 pages.Use standard headers, no tables, and no graphics.
+b) Header: Include Name, formatted Phone, Location, LinkedIn URL, and Website/Portfolio URL (only if provided in source).
 
-  b) Header: Include Name, formatted Phone, Location, LinkedIn URL, and Website/Portfolio URL (only if provided in source).
+c) Professional Summary:
+   - WORD LIMIT: 70 words maximum. Count every word. Stop at 70, but complete the sentence or phrase if within 10 words of the limit. Do not exceed this under any other circumstances.
+   - SENTENCE LIMIT: 3 sentences maximum.
+   - TAILOR strictly to the Job Description: summarize the candidate's matching skills from the source resume and explicitly state why they are a fit for this specific role.
+   - No padding, no filler, no lists of every skill — be selective and specific.
+   - STRICT BANS & IDENTITY RULES:
+${SUMMARY_SHARED_BANS.split('\n').map(line => `     ${line}`).join('\n')}
 
-    c) Professional Summary:
-       - WORD LIMIT: 70 words maximum. Count every word. Stop at 70, but complete the sentence or phrase if within 10 words of the limit. Do not exceed this under any other circumstances.
-       - SENTENCE LIMIT: 3 sentences maximum.
-       - TAILOR strictly to the Job Description: summarize the candidate's matching skills from the source resume and explicitly state why they are a fit for this specific role.
-       - No padding, no filler, no lists of every skill — be selective and specific.
-       - STRICT BANS & IDENTITY RULES:
-${SUMMARY_SHARED_BANS.split('\n').map(line => `         ${line}`).join('\n')}
+d) Core Competencies: 8 strategic buckets.
 
-      d) Core Competencies: 8 strategic buckets.
+e) Technical Skills: 5-6 categories using 'Category: Skill A, Skill B' format.
 
-      e) Technical Skills: 5 - 6 categories using 'Category: Skill A, Skill B' format.
+f) Professional Experience: Include ALL roles from the last 10 years found in the source resume. Format each role strictly as follows:
+   Line 1: **Role | Company | Date** (Strictly NO bullet point, NO header prefix, just the bold text)
+   Lines 2-5: - [Action Verb] [Context/Tool/Scope] -> [Quantifiable Result] (Use exactly 4 standard bullets). Aim for a full sentence of roughly 25-35 words — include real context (which tools, which stakeholders, what scale) alongside the result, not a terse fragment — but the length must come from real specifics already in the source resume. NEVER pad a bullet with an invented tool, stakeholder group, scope detail, or duty just to hit the target length; a shorter, fully accurate bullet is always correct over a longer one with any unsupported detail.
 
-        f) Professional Experience: Include ALL roles from the last 10 years found in the source resume. Format each role strictly as follows:
-           Line 1: **Role | Company | Date** (Strictly NO bullet point, NO header prefix, just the bold text)
-           Lines 2-5: - [Action Verb] [Context/Tool] -> [Quantifiable Result] (Use exactly 4 standard bullets)
+g) Selected Projects / Portfolio: If the source resume contains a personal-projects, side-project, or product/engineering portfolio section (independently built applications, open-source work, hackathon entries, etc.), include it — a fuller 2-3 sentence description per project covering what it is, key technologies used, and its most relevant technical or business impact. Do NOT condense this to a single short clause, and do NOT omit this section if it is present in the source resume.
 
-        g) Education & Additional Sections: Include Education, Certifications, Awards, and extensive Technical Skills if present in the source resume. Do not omit these valid sections.
+h) Education & Additional Sections: Include Education, Certifications, and Awards if present in the source resume. Do NOT omit these valid sections.
 
-2) Cover Letter Drafting(Step 2):
+Overall Tone: Professional, precise, result-oriented, objective, factual, and authoritative.
 
-a) Maximum 1 page.
+Output rules:
+- Return ONLY the tailored resume as a raw Markdown string.
+- DO NOT wrap the output in JSON or code fences.
+- DO NOT output any text before or after the resume content.
+- DO NOT use meta-headers like "Resume Tailoring (Step 1)" — just provide the resume content directly.`;
 
-  b) Connect 3 specific achievements to the 'Pain Points' identified in the JD.
+export const GAP_ANALYSIS_PROMPT = `You are an elite career strategist and ATS expert. Compare the candidate's resume against the job description and identify gaps between the candidate's background and the role's requirements.
 
-    c) Tone must be professional, decisive, and forward - thinking.
+IMPORTANT GAP LOGIC: If the JD asks for a "related" or "similar" degree, treat adjacent degrees (e.g. Information Technology, Information Systems, Software Engineering, Computer Engineering, Data Science) as partial alignment rather than a hard gap.
 
-      d) Sign - off: [USER'S NAME].
+IMPORTANT GAP LOGIC: If the JD asks for similar, related, or adjacent industry experience, treat neighboring industries/domains (e.g. SaaS vs enterprise software, fintech vs payments/banking, health tech vs healthcare operations) as partial alignment rather than a hard gap.
 
+Output rules:
+- Return ONLY a Markdown bulleted list of gaps (missing or partially-met requirements), one sentence per bullet.
+- DO NOT include a preamble, header, or any text before or after the list.`;
 
+export const CAREER_ANALYSIS_PROMPT = `You are an elite career strategist. Assess whether the job described would be a career builder or enhancer for the candidate given their resume and career trajectory.
 
-Overall Tone:
+Cover: new skills gained, change in title/scope, industry diversification, and an overall recommendation.
 
-* Professional, precise, and result-oriented.
-
-* Objective, factual, and authoritative.
-
-* DO NOT use headers like "Resume Tailoring (Step 1)" or "Cover Letter Drafting (Step 2)". Just provide the content.
-
-RETURN RESPONSE AS A VALID, RAW JSON OBJECT. 
-- DO NOT wrap the output in markdown code blocks (like \`\`\`json ... \`\`\`). 
-- DO NOT output any text before or after the JSON.
-- Ensure all newlines in the content are escaped properly (\\n).
-- The JSON object must have these exact 4 fields:
-
-1. "resume": The tailored Resume content ONLY (Markdown string).
-2. "coverLetter": The tailored Cover Letter content ONLY (Markdown string).
-3. "gapAnalysis": The Gap Analysis (Markdown string). MUST be formatted as a bulleted list.
-4. "careerAnalysis": The Career Builder/Enhancer analysis (Markdown string). MUST be formatted as a bulleted list.
-
-Example:
-{
-  "resume": "# Name\\n## Professional Summary...",
-  "coverLetter": "# Cover Letter\\nDear Hiring Manager...",
-  "gapAnalysis": "- Gap 1\\n- Gap 2",
-  "careerAnalysis": "This role is a career builder because..."
-}
-`;
+Output rules:
+- Return ONLY a Markdown bulleted list.
+- DO NOT include a preamble, header, or any text before or after the list.`;
