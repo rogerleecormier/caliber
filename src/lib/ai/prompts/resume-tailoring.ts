@@ -110,14 +110,16 @@ Guidelines:
 - For dates: combine startDate and endDate (or use startDate only if endDate is missing)
   Example: "Jan 2020 - Dec 2021" or "Jan 2020 - Present"
 - Rewrite exactly 5 bullets per role using JD language and patterns (if the role has fewer than 5 source bullets, expand by splitting compound bullets into distinct, specific bullets — do not fabricate)
-- Each bullet MUST be 18-24 words — include the action, the specific tool/context, the scope, and the outcome
-- Bullet format: [Action Verb] + [Context/Tool] + [Scope/Impact] + [Outcome]
+- Each bullet MUST be 18-24 words. Count the words before finalizing each bullet — if it lands under 18, it is INCOMPLETE, not concise. Go back to the source text and add the missing piece (which stakeholders, what scale, what tool version/context, what it enabled or improved) rather than submitting a short bullet.
+- Bullet format: [Action Verb] + [Context/Tool] + [Scope/Impact] + [Outcome]. The Outcome is MANDATORY on every bullet — it does not have to be a number, but it must state what the action achieved, improved, or enabled (e.g., "to keep 40+ school sites audit-ready," "eliminating manual reconciliation for the finance team," "cutting rollout time across all locations"). A bullet that only names an action and a tool with no stated result is INCOMPLETE.
+  GOOD: "Delivered enterprise technology roadmaps for K-12 education networks by integrating Cloudflare and Azure infrastructure, giving district IT teams a unified, auditable platform for compliance reporting."
+  BAD (too short, no outcome): "Delivered enterprise technology roadmaps for K-12 education networks using Cloudflare and Azure."
 - VERB TENSE: match the tense already used for that role in CANDIDATE BACKGROUND / CANDIDATE RESUME TEXT — do not normalize everything to present tense. A past role (with an end date) should use past-tense action verbs ("Led", "Delivered", "Reduced"); the current role (dates ending "Present") should keep whatever tense the source bullets for that role actually use.
 - PRIORITIZE bullets that are directly applicable to the target role, whether or not they have a metric
 - Include a metric (%, $, time, team size) when one exists in the resume text — never fabricate one
-- A strong qualitative bullet that is highly relevant to the role is BETTER than a weak quantified bullet that is tangential
+- A strong qualitative bullet that is highly relevant to the role is BETTER than a weak quantified bullet that is tangential — but "qualitative" means the outcome is described in words, not that the outcome is omitted
 - Different JDs should produce different bullet selections from the same resume
-- NO FABRICATION: every achievement must be grounded in the resume text
+- NO FABRICATION: every achievement must be grounded in the resume text. Grounded elaboration (spelling out a real outcome, scale, or beneficiary that the resume text implies but states tersely) is required and is NOT fabrication — inventing a detail the source never implies is what's banned.
 
 Respond with ONLY valid JSON:
 {
@@ -275,7 +277,7 @@ e) Technical Skills: 5-6 categories using 'Category: Skill A, Skill B' format.
 
 f) Professional Experience: Include ALL roles from the last 10 years found in the source resume. Format each role strictly as follows:
    Line 1: **Role | Company | Date** (Strictly NO bullet point, NO header prefix, just the bold text)
-   Lines 2-5: - [Action Verb] [Context/Tool/Scope] -> [Quantifiable Result] (Use exactly 4 standard bullets). Aim for a full sentence of roughly 25-35 words — include real context (which tools, which stakeholders, what scale) alongside the result, not a terse fragment — but the length must come from real specifics already in the source resume. NEVER pad a bullet with an invented tool, stakeholder group, scope detail, or duty just to hit the target length; a shorter, fully accurate bullet is always correct over a longer one with any unsupported detail.
+   Lines 2-5: - [Action Verb] [Context/Tool/Scope] -> [Quantifiable Result] (Use exactly 4 standard bullets). Aim for a full sentence of roughly 25-35 words — include real context (which tools, which stakeholders, what scale) alongside the result, not a terse fragment — but the length must come from real specifics already in the source resume. NEVER pad a bullet with an invented tool, stakeholder group, scope detail, or duty just to hit the target length; a shorter, fully accurate bullet is always correct over a longer one with any unsupported detail. Count the words before finalizing — a bullet that only names an action and a tool with no stated result (e.g., "Delivered technology roadmaps using Cloudflare and Azure.") is INCOMPLETE, not concise; the result can be qualitative (what it enabled, who benefited, what improved) as long as it's grounded in the source resume.
    VERB TENSE: match the tense already used for that role in the source resume — do not normalize everything to present tense. A past role (with an end date) should use past-tense action verbs ("Led", "Delivered", "Reduced"); the current role (dates ending "Present") should keep whatever tense the source bullets for that role actually use.
 
 g) Selected Projects / Portfolio: If the source resume contains a personal-projects, side-project, or product/engineering portfolio section (independently built applications, open-source work, hackathon entries, etc.), include it — a fuller 2-3 sentence description per project covering what it is, key technologies used, and its most relevant technical or business impact. Do NOT condense this to a single short clause, and do NOT omit this section if it is present in the source resume.
