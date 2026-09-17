@@ -112,6 +112,7 @@ Guidelines:
 - Rewrite exactly 5 bullets per role using JD language and patterns (if the role has fewer than 5 source bullets, expand by splitting compound bullets into distinct, specific bullets — do not fabricate)
 - Each bullet MUST be 18-24 words — include the action, the specific tool/context, the scope, and the outcome
 - Bullet format: [Action Verb] + [Context/Tool] + [Scope/Impact] + [Outcome]
+- VERB TENSE: match the tense already used for that role in CANDIDATE BACKGROUND / CANDIDATE RESUME TEXT — do not normalize everything to present tense. A past role (with an end date) should use past-tense action verbs ("Led", "Delivered", "Reduced"); the current role (dates ending "Present") should keep whatever tense the source bullets for that role actually use.
 - PRIORITIZE bullets that are directly applicable to the target role, whether or not they have a metric
 - Include a metric (%, $, time, team size) when one exists in the resume text — never fabricate one
 - A strong qualitative bullet that is highly relevant to the role is BETTER than a weak quantified bullet that is tangential
@@ -275,6 +276,7 @@ e) Technical Skills: 5-6 categories using 'Category: Skill A, Skill B' format.
 f) Professional Experience: Include ALL roles from the last 10 years found in the source resume. Format each role strictly as follows:
    Line 1: **Role | Company | Date** (Strictly NO bullet point, NO header prefix, just the bold text)
    Lines 2-5: - [Action Verb] [Context/Tool/Scope] -> [Quantifiable Result] (Use exactly 4 standard bullets). Aim for a full sentence of roughly 25-35 words — include real context (which tools, which stakeholders, what scale) alongside the result, not a terse fragment — but the length must come from real specifics already in the source resume. NEVER pad a bullet with an invented tool, stakeholder group, scope detail, or duty just to hit the target length; a shorter, fully accurate bullet is always correct over a longer one with any unsupported detail.
+   VERB TENSE: match the tense already used for that role in the source resume — do not normalize everything to present tense. A past role (with an end date) should use past-tense action verbs ("Led", "Delivered", "Reduced"); the current role (dates ending "Present") should keep whatever tense the source bullets for that role actually use.
 
 g) Selected Projects / Portfolio: If the source resume contains a personal-projects, side-project, or product/engineering portfolio section (independently built applications, open-source work, hackathon entries, etc.), include it — a fuller 2-3 sentence description per project covering what it is, key technologies used, and its most relevant technical or business impact. Do NOT condense this to a single short clause, and do NOT omit this section if it is present in the source resume.
 
